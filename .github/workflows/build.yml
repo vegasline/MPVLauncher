@@ -27,13 +27,15 @@ jobs:
 
     # Bağımlılıkları Yükle
     - name: Restore Dependencies
-      run: dotnet restore MpvLauncher.Gui.csproj
+      working-directory: ./MpvLauncher.Gui
+      run: dotnet restore
 
     # Projeyi Tek Parça (.exe) Olarak Derle
     - name: Publish Application
+      working-directory: ./MpvLauncher.Gui
       run: |
-        dotnet publish MpvLauncher.Gui.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -o ./publish
-
+        dotnet publish -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -o ../publish
+        
     # Çıktıları Zip Formatına Getir
     - name: Compress Build Artifacts
       run: |
