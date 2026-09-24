@@ -3,7 +3,8 @@ name: Build and Release MPVLauncher
 on:
   push:
     tags:
-      - 'v*' # Örn: v1.0.0 etiketi push edildiğinde otomatik çalışır
+      - 'v*'       # Örn: v1.0.0
+      - 'beta-*'   # Örn: beta-v2, beta-v1.1 vb.
 
 jobs:
   build:
@@ -16,7 +17,7 @@ jobs:
     - name: Setup .NET
       uses: actions/setup-dotnet@v4
       with:
-        dotnet-version: '10.0.x' # .NET 10 SDK'yı hazırlar
+        dotnet-version: '10.0.x'
 
     - name: Restore Dependencies
       run: dotnet restore
