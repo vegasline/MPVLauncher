@@ -1,0 +1,37 @@
+name: Build and Release MPVLauncher
+
+on:
+  push:
+    tags:
+      - 'v*' # Örn: v1.0.0 etiketi push edildiğinde otomatik çalışır
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v4
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '10.0.x' # .NET 10 SDK'yı hazırlar
+
+    - name: Restore Dependencies
+      run: dotnet restore
+
+    - name: Publish Application
+      run: |
+        dotnet publish MpvLauncher.Gui.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -o ./publish
+
+    - name: Compress Release Output
+      run: |
+        Compress-Archive -Path ./publish/* -DestinationPath MPVLauncher-win-x64.zip
+
+    - name: Create GitHub Release
+      uses: softprops/action-gh-release@v2
+      with:
+        files: MPVLauncher-win-x64.zip
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
