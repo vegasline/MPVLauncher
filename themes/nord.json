@@ -1,0 +1,31 @@
+{
+  "id": "nord",
+  "name": "Nordic Frost",
+  "author": "Nord Community",
+  "version": "1.0",
+  "background": {
+    "type": "image",
+    "color": "#2e3440",
+    "image": "https://images.unsplash.com/photo-1517411032315-54ef2cb783bb?q=80&w=1920",
+    "blur_radius": 8,
+    "overlay_color": "rgba(46, 52, 64, 0.75)"
+  },
+  "colors": {
+    "card_bg": "rgba(59, 66, 82, 0.70)",
+    "card_border": "rgba(136, 192, 208, 0.3)",
+    "accent": "#88c0d0",
+    "accent_hover": "#81a1c1",
+    "accent_gradient": "linear-gradient(135deg, #88c0d0 0%, #5e81ac 100%)",
+    "text_primary": "#eceff4",
+    "text_secondary": "#d8dee9",
+    "text_muted": "#4c566a",
+    "success": "#a3be8c",
+    "warning": "#ebcb8b",
+    "danger": "#bf616a"
+  },
+  "opacity": {
+    "cards": 0.70,
+    "inputs": 0.60,
+    "buttons": 0.90
+  }
+}

@@ -1,0 +1,31 @@
+{
+  "id": "dark",
+  "name": "Modern Dark (Default)",
+  "author": "MPV Launcher",
+  "version": "1.0",
+  "background": {
+    "type": "solid",
+    "color": "#12141a",
+    "image": "",
+    "blur_radius": 0,
+    "overlay_color": "rgba(0, 0, 0, 0)"
+  },
+  "colors": {
+    "card_bg": "rgba(26, 30, 39, 0.95)",
+    "card_border": "rgba(46, 54, 72, 0.8)",
+    "accent": "#6366f1",
+    "accent_hover": "#4f46e5",
+    "accent_gradient": "linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)",
+    "text_primary": "#f0f2f5",
+    "text_secondary": "#9aa3b2",
+    "text_muted": "#64748b",
+    "success": "#10b981",
+    "warning": "#f59e0b",
+    "danger": "#ef4444"
+  },
+  "opacity": {
+    "cards": 0.95,
+    "inputs": 0.90,
+    "buttons": 1.0
+  }
+}

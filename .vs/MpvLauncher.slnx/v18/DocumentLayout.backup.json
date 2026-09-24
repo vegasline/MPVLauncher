@@ -1,0 +1,84 @@
+{
+  "Version": 1,
+  "WorkspaceRootPath": "C:\\Users\\Administrator\\source\\repos\\mpv-opn\\",
+  "Documents": [
+    {
+      "AbsoluteMoniker": "D:0:0:{254CEA5C-86B8-869E-9E7F-C0F53AA7CA0D}|MpvLauncher.Gui\\MpvLauncher.Gui.csproj|c:\\users\\administrator\\source\\repos\\mpv-opn\\mpvlauncher.gui\\mainwindow.xaml||{F11ACC28-31D1-4C80-A34B-F4E09D3D753C}",
+      "RelativeMoniker": "D:0:0:{254CEA5C-86B8-869E-9E7F-C0F53AA7CA0D}|MpvLauncher.Gui\\MpvLauncher.Gui.csproj|solutionrelative:mpvlauncher.gui\\mainwindow.xaml||{F11ACC28-31D1-4C80-A34B-F4E09D3D753C}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{254CEA5C-86B8-869E-9E7F-C0F53AA7CA0D}|MpvLauncher.Gui\\MpvLauncher.Gui.csproj|c:\\users\\administrator\\source\\repos\\mpv-opn\\mpvlauncher.gui\\app.xaml||{F11ACC28-31D1-4C80-A34B-F4E09D3D753C}",
+      "RelativeMoniker": "D:0:0:{254CEA5C-86B8-869E-9E7F-C0F53AA7CA0D}|MpvLauncher.Gui\\MpvLauncher.Gui.csproj|solutionrelative:mpvlauncher.gui\\app.xaml||{F11ACC28-31D1-4C80-A34B-F4E09D3D753C}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{254CEA5C-86B8-869E-9E7F-C0F53AA7CA0D}|MpvLauncher.Gui\\MpvLauncher.Gui.csproj|c:\\users\\administrator\\source\\repos\\mpv-opn\\mpvlauncher.gui\\program.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{254CEA5C-86B8-869E-9E7F-C0F53AA7CA0D}|MpvLauncher.Gui\\MpvLauncher.Gui.csproj|solutionrelative:mpvlauncher.gui\\program.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{254CEA5C-86B8-869E-9E7F-C0F53AA7CA0D}|MpvLauncher.Gui\\MpvLauncher.Gui.csproj|c:\\users\\administrator\\source\\repos\\mpv-opn\\extension\\popup.css||{A5401142-F49D-43DB-90B1-F57BA349E55C}",
+      "RelativeMoniker": "D:0:0:{254CEA5C-86B8-869E-9E7F-C0F53AA7CA0D}|MpvLauncher.Gui\\MpvLauncher.Gui.csproj|solutionrelative:extension\\popup.css||{A5401142-F49D-43DB-90B1-F57BA349E55C}"
+    }
+  ],
+  "DocumentGroupContainers": [
+    {
+      "Orientation": 1,
+      "VerticalTabListWidth": 256,
+      "DocumentGroups": [
+        {
+          "DockedHeight": 322,
+          "SelectedChildIndex": 1,
+          "Children": [
+            {
+              "$type": "Document",
+              "DocumentIndex": 3,
+              "Title": "popup.css",
+              "DocumentMoniker": "C:\\Users\\Administrator\\source\\repos\\mpv-opn\\extension\\popup.css",
+              "RelativeDocumentMoniker": "extension\\popup.css",
+              "ToolTip": "C:\\Users\\Administrator\\source\\repos\\mpv-opn\\extension\\popup.css",
+              "RelativeToolTip": "extension\\popup.css",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003000|",
+              "WhenOpened": "2026-09-24T03:57:09.755Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 0,
+              "Title": "MainWindow.xaml",
+              "DocumentMoniker": "C:\\Users\\Administrator\\source\\repos\\mpv-opn\\MpvLauncher.Gui\\MainWindow.xaml",
+              "RelativeDocumentMoniker": "MpvLauncher.Gui\\MainWindow.xaml",
+              "ToolTip": "C:\\Users\\Administrator\\source\\repos\\mpv-opn\\MpvLauncher.Gui\\MainWindow.xaml",
+              "RelativeToolTip": "MpvLauncher.Gui\\MainWindow.xaml",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003549|",
+              "WhenOpened": "2026-09-23T09:26:10.163Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 1,
+              "Title": "App.xaml",
+              "DocumentMoniker": "C:\\Users\\Administrator\\source\\repos\\mpv-opn\\MpvLauncher.Gui\\App.xaml",
+              "RelativeDocumentMoniker": "MpvLauncher.Gui\\App.xaml",
+              "ToolTip": "C:\\Users\\Administrator\\source\\repos\\mpv-opn\\MpvLauncher.Gui\\App.xaml",
+              "RelativeToolTip": "MpvLauncher.Gui\\App.xaml",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003549|",
+              "WhenOpened": "2026-09-23T09:33:05.236Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 2,
+              "Title": "Program.cs",
+              "DocumentMoniker": "C:\\Users\\Administrator\\source\\repos\\mpv-opn\\MpvLauncher.Gui\\Program.cs",
+              "RelativeDocumentMoniker": "MpvLauncher.Gui\\Program.cs",
+              "ToolTip": "C:\\Users\\Administrator\\source\\repos\\mpv-opn\\MpvLauncher.Gui\\Program.cs",
+              "RelativeToolTip": "MpvLauncher.Gui\\Program.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-09-23T06:02:55.1Z"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

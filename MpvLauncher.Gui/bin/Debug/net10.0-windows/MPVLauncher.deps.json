@@ -1,0 +1,41 @@
+{
+  "runtimeTarget": {
+    "name": ".NETCoreApp,Version=v10.0",
+    "signature": ""
+  },
+  "compilationOptions": {},
+  "targets": {
+    ".NETCoreApp,Version=v10.0": {
+      "MPVLauncher/1.0.0": {
+        "dependencies": {
+          "SharpCompress": "0.50.4"
+        },
+        "runtime": {
+          "MPVLauncher.dll": {}
+        }
+      },
+      "SharpCompress/0.50.4": {
+        "runtime": {
+          "lib/net10.0/SharpCompress.dll": {
+            "assemblyVersion": "0.50.4.0",
+            "fileVersion": "0.50.4.0"
+          }
+        }
+      }
+    }
+  },
+  "libraries": {
+    "MPVLauncher/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "SharpCompress/0.50.4": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-/hxjUR7DEX6mky8/LQXyrnrKioOL6D6veAID1EZpro+q4s02x5dHEYBV3qjEN6lDYYilDoQQ76BcmQj+lRx51w==",
+      "path": "sharpcompress/0.50.4",
+      "hashPath": "sharpcompress.0.50.4.nupkg.sha512"
+    }
+  }
+}
