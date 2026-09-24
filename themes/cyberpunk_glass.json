@@ -2,29 +2,26 @@
   "id": "cyberpunk_glass",
   "name": "Cyberpunk Glass",
   "author": "Community",
-  "version": "1.0",
   "background": {
     "type": "image",
     "color": "#0d0f18",
-    "image": "https://images.unsplash.com/photo-1518709268805-4e9042af9f23?q=80&w=1920",
-    "blur_radius": 6,
+    "image": "https://w.wallhaven.cc/full/6d/wallhaven-6djxy7.png",
+    "blur_radius": 30,
     "overlay_color": "rgba(10, 12, 22, 0.65)"
   },
   "colors": {
-    "card_bg": "rgba(22, 24, 38, 0.65)",
+    "card_bg": "#1A1E27",
     "card_border": "rgba(255, 0, 128, 0.35)",
     "accent": "#ff007f",
     "accent_hover": "#e60073",
-    "accent_gradient": "linear-gradient(135deg, #ff007f 0%, #7928ca 100%)",
     "text_primary": "#ffffff",
     "text_secondary": "#cbd5e1",
     "text_muted": "#94a3b8",
     "success": "#00f5d4",
-    "warning": "#fee440",
     "danger": "#ff0054"
   },
   "opacity": {
-    "cards": 0.65,
+    "cards": 0.54,
     "inputs": 0.55,
     "buttons": 0.85
   }
