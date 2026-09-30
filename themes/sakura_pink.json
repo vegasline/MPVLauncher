@@ -1,0 +1,29 @@
+{
+  "id": "sakura_pink",
+  "name": "Sakura Pink",
+  "author": "MPV Launcher",
+  "background": {
+    "type": "image",
+    "color": "#181016",
+    "image": "https://w.wallhaven.cc/full/5w/wallhaven-5we787.jpg",
+    "blur_radius": 24,
+    "overlay_color": "rgba(22, 12, 20, 0.65)"
+  },
+  "colors": {
+    "card_bg": "#2A1824",
+    "card_border": "rgba(244, 114, 182, 0.28)",
+    "accent": "#F472B6",
+    "accent_hover": "#EC4899",
+    "logo": "#F472B6",
+    "text_primary": "#FFF1F5",
+    "text_secondary": "#E2B8CA",
+    "text_muted": "#A87C92",
+    "success": "#34D399",
+    "danger": "#FB7185"
+  },
+  "opacity": {
+    "cards": 0.60,
+    "inputs": 0.35,
+    "buttons": 0.90
+  }
+}

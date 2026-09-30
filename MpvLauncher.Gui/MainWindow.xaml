@@ -90,6 +90,11 @@
             <Setter Property="Foreground" Value="#F0F2F5"/>
         </Style>
 
+        <Style x:Key="DangerButton" TargetType="Button" BasedOn="{StaticResource ModernButton}">
+            <Setter Property="Background" Value="#3A1D22"/>
+            <Setter Property="Foreground" Value="#F87171"/>
+        </Style>
+
         <Style x:Key="NavButton" TargetType="Button">
             <Setter Property="Background" Value="Transparent"/>
             <Setter Property="Foreground" Value="#9AA3B2"/>
@@ -139,45 +144,66 @@
             </Setter>
         </Style>
 
+        <ControlTemplate x:Key="ComboBoxToggleButtonTemplate" TargetType="ToggleButton">
+            <Border x:Name="ToggleBorder" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="8" Padding="{TemplateBinding Padding}">
+                <ContentPresenter/>
+            </Border>
+            <ControlTemplate.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter TargetName="ToggleBorder" Property="Background" Value="#15FFFFFF"/>
+                </Trigger>
+                <Trigger Property="IsChecked" Value="True">
+                    <Setter TargetName="ToggleBorder" Property="Background" Value="#206366F1"/>
+                </Trigger>
+            </ControlTemplate.Triggers>
+        </ControlTemplate>
+
         <Style TargetType="ComboBox">
             <Setter Property="Foreground" Value="#F0F2F5"/>
             <Setter Property="Background" Value="#33000000"/>
             <Setter Property="BorderBrush" Value="#33FFFFFF"/>
             <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="Padding" Value="10,6"/>
-            <Setter Property="MinHeight" Value="36"/>
+            <Setter Property="Padding" Value="14,8,12,8"/>
+            <Setter Property="MinHeight" Value="38"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="ComboBox">
                         <Grid>
-                            <ToggleButton x:Name="ToggleButton"
-                                          IsChecked="{Binding IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}"
-                                          Background="Transparent"
-                                          BorderThickness="0"
-                                          Focusable="False"
-                                          ClickMode="Press">
-                                <Border x:Name="ComboBorder"
-                                        Background="{TemplateBinding Background}"
-                                        BorderBrush="{TemplateBinding BorderBrush}"
-                                        BorderThickness="{TemplateBinding BorderThickness}"
-                                        CornerRadius="8"
-                                        Padding="{TemplateBinding Padding}">
+                            <Border x:Name="ComboBorder"
+                                    Background="{TemplateBinding Background}"
+                                    BorderBrush="{TemplateBinding BorderBrush}"
+                                    BorderThickness="{TemplateBinding BorderThickness}"
+                                    CornerRadius="8">
+                                <ToggleButton x:Name="ToggleButton"
+                                              Template="{StaticResource ComboBoxToggleButtonTemplate}"
+                                              IsChecked="{Binding IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}"
+                                              Background="Transparent"
+                                              BorderThickness="0"
+                                              Focusable="False"
+                                              ClickMode="Press"
+                                              Padding="{TemplateBinding Padding}">
                                     <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="20"/>
+                                        </Grid.ColumnDefinitions>
                                         <ContentPresenter x:Name="ContentSite"
+                                                          Grid.Column="0"
                                                           Content="{TemplateBinding SelectionBoxItem}"
                                                           ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}"
                                                           ContentStringFormat="{TemplateBinding SelectionBoxItemStringFormat}"
                                                           HorizontalAlignment="Left"
                                                           VerticalAlignment="Center"
-                                                          TextElement.Foreground="{TemplateBinding Foreground}"/>
-                                        <Path Data="M 0 0 L 4 4 L 8 0 Z"
+                                                          Margin="0,0,6,0"
+                                                          TextElement.Foreground="#F0F2F5"/>
+                                        <Path Grid.Column="1"
+                                              Data="M 0 0 L 4 4 L 8 0 Z"
                                               Fill="#9AA3B2"
-                                              HorizontalAlignment="Right"
-                                              VerticalAlignment="Center"
-                                              Margin="0,0,2,0"/>
+                                              HorizontalAlignment="Center"
+                                              VerticalAlignment="Center"/>
                                     </Grid>
-                                </Border>
-                            </ToggleButton>
+                                </ToggleButton>
+                            </Border>
                             <Popup x:Name="PART_Popup"
                                    IsOpen="{TemplateBinding IsDropDownOpen}"
                                    Placement="Bottom"
@@ -190,7 +216,7 @@
                                         CornerRadius="8"
                                         Margin="0,4,0,0"
                                         MinWidth="{Binding ActualWidth, RelativeSource={RelativeSource TemplatedParent}}">
-                                    <ScrollViewer MaxHeight="220">
+                                    <ScrollViewer MaxHeight="240">
                                         <ItemsPresenter/>
                                     </ScrollViewer>
                                 </Border>
@@ -198,10 +224,12 @@
                         </Grid>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="ComboBorder" Property="BorderBrush" Value="#66FFFFFF"/>
+                                <Setter TargetName="ComboBorder" Property="BorderBrush" Value="#806366F1"/>
+                                <Setter TargetName="ComboBorder" Property="Background" Value="#44000000"/>
                             </Trigger>
                             <Trigger Property="IsDropDownOpen" Value="True">
                                 <Setter TargetName="ComboBorder" Property="BorderBrush" Value="#6366F1"/>
+                                <Setter TargetName="ComboBorder" Property="Background" Value="#55000000"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -345,7 +373,9 @@
                     <StackPanel Grid.Row="1">
                         <Button x:Name="BtnNavPlayer" Style="{StaticResource NavButton}" Content="Player" Click="BtnNavPlayer_Click" Background="#6366F1" Foreground="White" Margin="0,0,0,4"/>
                         <Button x:Name="BtnNavTools" Style="{StaticResource NavButton}" Content="Dependencies" Click="BtnNavTools_Click" Margin="0,0,0,4"/>
-                        <Button x:Name="BtnNavSettings" Style="{StaticResource NavButton}" Content="Themes &amp; Settings" Click="BtnNavSettings_Click" Margin="0,0,0,4"/>
+                        <Button x:Name="BtnNavSettings" Style="{StaticResource NavButton}" Content="Settings" Click="BtnNavSettings_Click" Margin="0,0,0,4"/>
+                        <Button x:Name="BtnNavThemes" Style="{StaticResource NavButton}" Content="Themes" Click="BtnNavThemes_Click" Margin="0,0,0,4"/>
+                        <Button x:Name="BtnNavGuide" Style="{StaticResource NavButton}" Content="Guide" Click="BtnNavGuide_Click" Margin="0,0,0,4"/>
                     </StackPanel>
 
                     <Border x:Name="StatusLogBorder" Grid.Row="2" Background="#22000000" CornerRadius="8" BorderBrush="#1FFFFFFF" BorderThickness="1" Padding="10,8" Margin="0,10,0,0" MinHeight="64" MaxHeight="100">
@@ -503,6 +533,7 @@
                             </StackPanel>
                         </Border>
 
+
                         <Border x:Name="CardThemeAnime4k" Background="#CC1E222D" CornerRadius="12" BorderBrush="#1FFFFFFF" BorderThickness="1" Padding="20" Margin="0,0,0,16">
                             <StackPanel>
                                 <TextBlock x:Name="TxtThemeAnime4kTitle" Text="ModernZ Tema + Anime4K" FontSize="15" FontWeight="SemiBold" Margin="0,0,0,6"/>
@@ -520,6 +551,7 @@
                                 <TextBlock x:Name="TxtBrowserDesc" Text="Eklenti native messaging altyapısını kurar. Firefox için resmi mağazadan yükleyebilirsiniz. Chromium tarayıcılarda 'Geliştirici Modu'nu açıp paketlenmemiş klasörü yükleyin." FontSize="13" Foreground="#9AA3B2" Margin="0,0,0,16" TextWrapping="Wrap"/>
                                 <WrapPanel Margin="0,0,0,10">
                                     <Button x:Name="BtnInstallExtensions" Style="{StaticResource ModernButton}" Content="Install / repair" Click="BtnInstallExtensions_Click" Margin="0,0,10,10"/>
+                                    <Button x:Name="BtnUninstallExtensions" Style="{StaticResource DangerButton}" Content="Uninstall extension" Click="BtnUninstallExtensions_Click" Margin="0,0,10,10"/>
                                     <Button x:Name="BtnFirefoxAddon" Style="{StaticResource ModernButton}" Content="🦊 Firefox Eklentisi" Click="BtnFirefoxAddon_Click" Margin="0,0,10,10" Background="#E55B00" BorderBrush="#FF6A00"/>
                                     <Button x:Name="BtnOpenExtensionFolder" Style="{StaticResource SecondaryButton}" Content="Extension Folder" Click="BtnOpenExtensionFolder_Click" Margin="0,0,10,10"/>
                                     <Button x:Name="BtnOpenChromeExtensions" Style="{StaticResource SecondaryButton}" Content="chrome://extensions" Click="BtnOpenChromeExtensions_Click" Margin="0,0,10,10"/>
@@ -530,94 +562,90 @@
                     </StackPanel>
 
                     <StackPanel x:Name="PanelSettings" Visibility="Collapsed">
-                        <TextBlock x:Name="TxtSettingsTitle" Text="Appearance &amp; Settings" FontSize="22" FontWeight="Bold" Margin="0,0,0,20"/>
+                        <TextBlock x:Name="TxtSettingsTitle" Text="Settings" FontSize="22" FontWeight="Bold" Margin="0,0,0,20"/>
 
-                        <Border x:Name="CardDataFolder" Background="#CC1E222D" CornerRadius="12" BorderBrush="#1FFFFFFF" BorderThickness="1" Padding="20" Margin="0,0,0,16">
+                        <Border x:Name="CardMpvConfig" Background="#CC1E222D" CornerRadius="12" BorderBrush="#1FFFFFFF" BorderThickness="1" Padding="20" Margin="0,0,0,16">
+                            <StackPanel>
+                                <TextBlock x:Name="TxtMpvConfigTitle" Text="MPV Player Configuration" FontSize="15" FontWeight="SemiBold" Margin="0,0,0,14"/>
+
+                                <TextBlock x:Name="TxtMpvPathLabel" Text="MPV Executable Path:" FontSize="12" Foreground="#9AA3B2" Margin="0,0,0,4"/>
+                                <Grid Margin="0,0,0,12">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBox x:Name="TxtMpvPath" Background="#33000000" Foreground="White" FontSize="12" Padding="10,8" BorderBrush="#33FFFFFF" BorderThickness="1" VerticalContentAlignment="Center" Margin="0,0,10,0"/>
+                                    <Button x:Name="BtnBrowseMpv" Grid.Column="1" Style="{StaticResource SecondaryButton}" Content="Browse" Click="BtnBrowseMpv_Click"/>
+                                </Grid>
+
+                                <Grid Margin="0,0,0,12">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <CheckBox x:Name="ChkAlwaysOnTop" Grid.Column="0" Content="Always on top (--ontop)" Foreground="#F0F2F5" FontSize="12" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                    <StackPanel Grid.Column="1" Margin="8,0,0,0">
+                                        <TextBlock x:Name="TxtForceWindowLabel" Text="Force Window (--force-window):" FontSize="12" Foreground="#9AA3B2" Margin="0,0,0,4"/>
+                                        <ComboBox x:Name="CmbForceWindow" VerticalAlignment="Center">
+                                            <ComboBoxItem Content="immediate (Fastest / Hemen Aç)" Tag="immediate" IsSelected="True"/>
+                                            <ComboBoxItem Content="yes (On Media Loaded)" Tag="yes"/>
+                                            <ComboBoxItem Content="no (Disabled)" Tag="no"/>
+                                        </ComboBox>
+                                    </StackPanel>
+                                </Grid>
+
+                                <Grid Margin="0,0,0,12">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Grid.Column="0" Margin="0,0,8,0">
+                                        <TextBlock x:Name="TxtMpvGeometryLabel" Text="Window Geometry (--geometry):" FontSize="12" Foreground="#9AA3B2" Margin="0,0,0,4"/>
+                                        <TextBox x:Name="TxtMpvGeometry" Background="#33000000" Foreground="White" FontSize="12" Padding="10,8" BorderBrush="#33FFFFFF" BorderThickness="1" Text="960x540"/>
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="1" Margin="8,0,0,0">
+                                        <TextBlock x:Name="TxtMpvProfileLabel" Text="MPV Profile (--profile):" FontSize="12" Foreground="#9AA3B2" Margin="0,0,0,4"/>
+                                        <TextBox x:Name="TxtMpvProfile" Background="#33000000" Foreground="White" FontSize="12" Padding="10,8" BorderBrush="#33FFFFFF" BorderThickness="1"/>
+                                    </StackPanel>
+                                </Grid>
+
+                                <TextBlock x:Name="TxtMpvExtraArgsLabel" Text="Extra MPV Parameters (e.g. --hwdec=auto):" FontSize="12" Foreground="#9AA3B2" Margin="0,0,0,4"/>
+                                <TextBox x:Name="TxtMpvExtraArgs" Background="#33000000" Foreground="White" FontSize="12" Padding="10,8" BorderBrush="#33FFFFFF" BorderThickness="1" Margin="0,0,0,16"/>
+
+                                <Button x:Name="BtnSaveMpvSettings" Style="{StaticResource ModernButton}" Content="Save Settings" Click="BtnSaveMpvSettings_Click" HorizontalAlignment="Left"/>
+                            </StackPanel>
+                        </Border>
+
+                        <Border x:Name="CardLang" Background="#CC1E222D" CornerRadius="12" BorderBrush="#1FFFFFFF" BorderThickness="1" Padding="20" Margin="0,0,0,16">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="300"/>
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0" VerticalAlignment="Center" Margin="0,0,18,0">
+                                    <TextBlock x:Name="TxtLangTitle" Text="Language" FontSize="15" FontWeight="SemiBold"/>
+                                    <TextBlock x:Name="TxtLangDesc" Text="Application display language" FontSize="12" Foreground="#9AA3B2" Margin="0,4,0,0"/>
+                                </StackPanel>
+                                <ComboBox x:Name="CmbLanguage" Grid.Column="1" VerticalAlignment="Center" SelectionChanged="CmbLanguage_SelectionChanged"/>
+                            </Grid>
+                        </Border>
+
+                        <Border x:Name="CardDataFolder" Background="#CC1E222D" CornerRadius="12" BorderBrush="#1FFFFFFF" BorderThickness="1" Padding="20">
                             <StackPanel>
                                 <TextBlock x:Name="TxtDataFolderTitle" Text="Application data folder" FontSize="15" FontWeight="SemiBold" Margin="0,0,0,8"/>
                                 <TextBlock x:Name="TxtDataFolderPath" Text="" FontSize="12" Foreground="#9AA3B2" Margin="0,0,0,12" TextWrapping="Wrap"/>
                                 <Button x:Name="BtnShowDataFolder" Style="{StaticResource SecondaryButton}" Content="Show folder" Click="BtnShowDataFolder_Click" HorizontalAlignment="Left"/>
                             </StackPanel>
                         </Border>
+                    </StackPanel>
+
+                    <StackPanel x:Name="PanelThemes" Visibility="Collapsed">
+                        <TextBlock x:Name="TxtThemeTitle" Text="Themes &amp; UI Customization" FontSize="22" FontWeight="Bold" Margin="0,0,0,20"/>
 
                         <Border x:Name="CardThemes" Background="#CC1E222D" CornerRadius="12" BorderBrush="#1FFFFFFF" BorderThickness="1" Padding="20" Margin="0,0,0,16">
                             <StackPanel>
                                 <TextBlock x:Name="TxtThemesTitle" Text="Available themes" FontSize="15" FontWeight="SemiBold" Margin="0,0,0,12"/>
                                 <WrapPanel x:Name="PanelThemesWrap" Margin="0,0,0,16"/>
-                                <Button x:Name="BtnThemeEditor" Style="{StaticResource ModernButton}" Content="Tema Edit UI" Click="BtnThemeEditor_Click" HorizontalAlignment="Left" Margin="0,0,0,16"/>
-
-                                <Border x:Name="PanelThemeEditor" Visibility="Collapsed" Background="#22000000" CornerRadius="8" BorderBrush="#1FFFFFFF" BorderThickness="1" Padding="16" Margin="0,0,0,16">
-                                    <StackPanel>
-                                        <TextBlock Text="Tema düzenle" FontSize="14" FontWeight="SemiBold" Margin="0,0,0,12"/>
-                                        <Grid Margin="0,0,0,10">
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="*"/>
-                                                <ColumnDefinition Width="*"/>
-                                            </Grid.ColumnDefinitions>
-                                            <StackPanel Grid.Column="0" Margin="0,0,8,0">
-                                                <TextBlock Text="Tema adı" FontSize="11" Foreground="#9AA3B2" Margin="0,0,0,4"/>
-                                                <TextBox x:Name="TxtThemeEditName" Background="#33000000" Foreground="White" FontSize="12" Padding="10,8" BorderBrush="#33FFFFFF" BorderThickness="1"/>
-                                            </StackPanel>
-                                            <StackPanel Grid.Column="1" Margin="8,0,0,0">
-                                                <TextBlock Text="Yazar" FontSize="11" Foreground="#9AA3B2" Margin="0,0,0,4"/>
-                                                <TextBox x:Name="TxtThemeEditAuthor" Background="#33000000" Foreground="White" FontSize="12" Padding="10,8" BorderBrush="#33FFFFFF" BorderThickness="1"/>
-                                            </StackPanel>
-                                        </Grid>
-
-                                        <TextBlock Text="Arka plan resmi URL veya dosya yolu" FontSize="11" Foreground="#9AA3B2" Margin="0,0,0,4"/>
-                                        <TextBox x:Name="TxtThemeEditBgImage" Background="#33000000" Foreground="White" FontSize="12" Padding="10,8" BorderBrush="#33FFFFFF" BorderThickness="1" Margin="0,0,0,10"/>
-
-                                        <Grid Margin="0,0,0,10">
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="*"/>
-                                                <ColumnDefinition Width="*"/>
-                                                <ColumnDefinition Width="*"/>
-                                            </Grid.ColumnDefinitions>
-                                            <StackPanel Grid.Column="0" Margin="0,0,8,0">
-                                                <TextBlock Text="Arka plan rengi" FontSize="11" Foreground="#9AA3B2" Margin="0,0,0,4"/>
-                                                <TextBox x:Name="TxtThemeEditBgColor" Background="#33000000" Foreground="White" FontSize="12" Padding="10,8" BorderBrush="#33FFFFFF" BorderThickness="1"/>
-                                            </StackPanel>
-                                            <StackPanel Grid.Column="1" Margin="8,0,8,0">
-                                                <TextBlock Text="Kart rengi" FontSize="11" Foreground="#9AA3B2" Margin="0,0,0,4"/>
-                                                <TextBox x:Name="TxtThemeEditCardColor" Background="#33000000" Foreground="White" FontSize="12" Padding="10,8" BorderBrush="#33FFFFFF" BorderThickness="1"/>
-                                            </StackPanel>
-                                            <StackPanel Grid.Column="2" Margin="8,0,0,0">
-                                                <TextBlock Text="Accent" FontSize="11" Foreground="#9AA3B2" Margin="0,0,0,4"/>
-                                                <TextBox x:Name="TxtThemeEditAccent" Background="#33000000" Foreground="White" FontSize="12" Padding="10,8" BorderBrush="#33FFFFFF" BorderThickness="1"/>
-                                            </StackPanel>
-                                        </Grid>
-
-                                        <Grid Margin="0,0,0,12">
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="*"/>
-                                                <ColumnDefinition Width="*"/>
-                                                <ColumnDefinition Width="*"/>
-                                                <ColumnDefinition Width="*"/>
-                                            </Grid.ColumnDefinitions>
-                                            <StackPanel Grid.Column="0" Margin="0,0,8,0">
-                                                <TextBlock Text="Ana metin" FontSize="11" Foreground="#9AA3B2" Margin="0,0,0,4"/>
-                                                <TextBox x:Name="TxtThemeEditTextPrimary" Background="#33000000" Foreground="White" FontSize="12" Padding="10,8" BorderBrush="#33FFFFFF" BorderThickness="1"/>
-                                            </StackPanel>
-                                            <StackPanel Grid.Column="1" Margin="8,0,8,0">
-                                                <TextBlock Text="İkincil metin" FontSize="11" Foreground="#9AA3B2" Margin="0,0,0,4"/>
-                                                <TextBox x:Name="TxtThemeEditTextSecondary" Background="#33000000" Foreground="White" FontSize="12" Padding="10,8" BorderBrush="#33FFFFFF" BorderThickness="1"/>
-                                            </StackPanel>
-                                            <StackPanel Grid.Column="2" Margin="8,0,8,0">
-                                                <TextBlock Text="Blur" FontSize="11" Foreground="#9AA3B2" Margin="0,0,0,4"/>
-                                                <TextBox x:Name="TxtThemeEditBlur" Background="#33000000" Foreground="White" FontSize="12" Padding="10,8" BorderBrush="#33FFFFFF" BorderThickness="1"/>
-                                            </StackPanel>
-                                            <StackPanel Grid.Column="3" Margin="8,0,0,0">
-                                                <TextBlock Text="Kart opacity" FontSize="11" Foreground="#9AA3B2" Margin="0,0,0,4"/>
-                                                <TextBox x:Name="TxtThemeEditOpacity" Background="#33000000" Foreground="White" FontSize="12" Padding="10,8" BorderBrush="#33FFFFFF" BorderThickness="1"/>
-                                            </StackPanel>
-                                        </Grid>
-
-                                        <WrapPanel>
-                                            <Button x:Name="BtnApplyThemeEdit" Style="{StaticResource ModernButton}" Content="Uygula" Click="BtnApplyThemeEdit_Click" Margin="0,0,10,0"/>
-                                            <Button x:Name="BtnSaveThemeEdit" Style="{StaticResource SecondaryButton}" Content="Kaydet" Click="BtnSaveThemeEdit_Click"/>
-                                        </WrapPanel>
-                                    </StackPanel>
-                                </Border>
 
                                 <Border BorderBrush="#1FFFFFFF" BorderThickness="0,1,0,0" Padding="0,14,0,0">
                                     <StackPanel>
@@ -635,53 +663,234 @@
                             </StackPanel>
                         </Border>
 
-                        <Border x:Name="CardCustomBg" Background="#CC1E222D" CornerRadius="12" BorderBrush="#1FFFFFFF" BorderThickness="1" Padding="20" Margin="0,0,0,16">
+                        <Border x:Name="CardThemeCustomizer" Background="#CC1E222D" CornerRadius="12" BorderBrush="#1FFFFFFF" BorderThickness="1" Padding="20" Margin="0,0,0,16">
                             <StackPanel>
-                                <TextBlock x:Name="TxtCustomBgTitle" Text="Custom background &amp; glass effect" FontSize="15" FontWeight="SemiBold" Margin="0,0,0,12"/>
+                                <TextBlock x:Name="TxtThemeCustomTitle" Text="Advanced UI Appearance Customization" FontSize="15" FontWeight="SemiBold" Margin="0,0,0,16"/>
+
+                                <!-- Frosted Glass (Blur) -->
+                                <TextBlock x:Name="TxtGlassShadowSection" Text="Frosted Glass (Blur) / Buzlu Cam" FontSize="13" FontWeight="SemiBold" Foreground="#6366F1" Margin="0,0,0,10"/>
                                 <Grid Margin="0,0,0,16">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="*"/>
-                                        <ColumnDefinition Width="Auto"/>
                                     </Grid.ColumnDefinitions>
-                                    <TextBox x:Name="TxtCustomBgUrl" Background="#33000000" Foreground="White" FontSize="12" Padding="10,8" BorderBrush="#33FFFFFF" BorderThickness="1" VerticalContentAlignment="Center" Margin="0,0,10,0"/>
-                                    <Button x:Name="BtnApplyCustomBg" Grid.Column="1" Style="{StaticResource SecondaryButton}" Content="Apply" Click="BtnApplyCustomBg_Click"/>
+                                    <StackPanel Grid.Column="0" Margin="0,0,6,0">
+                                        <DockPanel Margin="0,0,0,6">
+                                            <TextBlock x:Name="TxtBlurLabel" Text="Frosted Glass (Blur):" FontSize="12" Foreground="#9AA3B2"/>
+                                            <TextBlock x:Name="TxtBlurVal" Text="8px" FontSize="12" HorizontalAlignment="Right"/>
+                                        </DockPanel>
+                                        <Slider x:Name="SliderBlur" Minimum="0" Maximum="40" Value="8" ValueChanged="SliderBlur_ValueChanged"/>
+                                    </StackPanel>
                                 </Grid>
 
+                                <!-- Section Opacities -->
+                                <TextBlock x:Name="TxtOpacitySection" Text="Section Opacities / Bölüm Şeffaflıkları" FontSize="13" FontWeight="SemiBold" Foreground="#6366F1" Margin="0,0,0,10"/>
+                                <Grid Margin="0,0,0,16">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Grid.Column="0" Margin="0,0,6,0">
+                                        <DockPanel Margin="0,0,0,6">
+                                            <TextBlock x:Name="TxtOpacityLabel" Text="Card:" FontSize="12" Foreground="#9AA3B2"/>
+                                            <TextBlock x:Name="TxtOpacityVal" Text="85%" FontSize="12" HorizontalAlignment="Right"/>
+                                        </DockPanel>
+                                        <Slider x:Name="SliderOpacity" Minimum="10" Maximum="100" Value="85" ValueChanged="SliderOpacity_ValueChanged"/>
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="1" Margin="6,0,6,0">
+                                        <DockPanel Margin="0,0,0,6">
+                                            <TextBlock x:Name="TxtSidebarOpacityLabel" Text="Sidebar:" FontSize="12" Foreground="#9AA3B2"/>
+                                            <TextBlock x:Name="TxtSidebarOpacityVal" Text="65%" FontSize="12" HorizontalAlignment="Right"/>
+                                        </DockPanel>
+                                        <Slider x:Name="SliderSidebarOpacity" Minimum="10" Maximum="100" Value="65" ValueChanged="SliderSidebarOpacity_ValueChanged"/>
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="2" Margin="6,0,6,0">
+                                        <DockPanel Margin="0,0,0,6">
+                                            <TextBlock x:Name="TxtInputOpacityLabel" Text="Inputs:" FontSize="12" Foreground="#9AA3B2"/>
+                                            <TextBlock x:Name="TxtInputOpacityVal" Text="20%" FontSize="12" HorizontalAlignment="Right"/>
+                                        </DockPanel>
+                                        <Slider x:Name="SliderInputOpacity" Minimum="5" Maximum="100" Value="20" ValueChanged="SliderInputOpacity_ValueChanged"/>
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="3" Margin="6,0,0,0">
+                                        <DockPanel Margin="0,0,0,6">
+                                            <TextBlock x:Name="TxtButtonOpacityLabel" Text="Buttons:" FontSize="12" Foreground="#9AA3B2"/>
+                                            <TextBlock x:Name="TxtButtonOpacityVal" Text="100%" FontSize="12" HorizontalAlignment="Right"/>
+                                        </DockPanel>
+                                        <Slider x:Name="SliderButtonOpacity" Minimum="20" Maximum="100" Value="100" ValueChanged="SliderButtonOpacity_ValueChanged"/>
+                                    </StackPanel>
+                                </Grid>
+
+                                <TextBlock x:Name="TxtColorPaletteSection" Text="Colors &amp; Accents / Renk Paleti" FontSize="13" FontWeight="SemiBold" Foreground="#6366F1" Margin="0,0,0,10"/>
                                 <Grid Margin="0,0,0,10">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="*"/>
                                         <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="*"/>
                                     </Grid.ColumnDefinitions>
-                                    <StackPanel Grid.Column="0" Margin="0,0,12,0">
-                                        <DockPanel Margin="0,0,0,6">
-                                            <TextBlock x:Name="TxtOpacityLabel" Text="Card opacity:" FontSize="12" Foreground="#9AA3B2"/>
-                                            <TextBlock x:Name="TxtOpacityVal" Text="85%" FontSize="12" HorizontalAlignment="Right"/>
-                                        </DockPanel>
-                                        <Slider x:Name="SliderOpacity" Minimum="20" Maximum="100" Value="85" ValueChanged="SliderOpacity_ValueChanged"/>
+                                    <StackPanel Grid.Column="0" Margin="0,0,6,0">
+                                        <TextBlock x:Name="TxtColorBgLabel" Text="Background:" FontSize="11" Foreground="#9AA3B2" Margin="0,0,0,4"/>
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="34"/>
+                                            </Grid.ColumnDefinitions>
+                                            <TextBox x:Name="TxtColorBg" Background="#33000000" Foreground="White" FontSize="12" Padding="8,6" BorderBrush="#33FFFFFF" BorderThickness="1"/>
+                                            <Button Grid.Column="1" Content="🎨" Click="BtnPickColor_Click" Tag="TxtColorBg" Style="{StaticResource SecondaryButton}" Padding="0" Margin="4,0,0,0" ToolTip="Renk ve Saydamlık Paletini Aç"/>
+                                        </Grid>
                                     </StackPanel>
-                                    <StackPanel Grid.Column="1" Margin="12,0,0,0">
-                                        <DockPanel Margin="0,0,0,6">
-                                            <TextBlock x:Name="TxtBlurLabel" Text="Frosted glass (blur):" FontSize="12" Foreground="#9AA3B2"/>
-                                            <TextBlock x:Name="TxtBlurVal" Text="8px" FontSize="12" HorizontalAlignment="Right"/>
-                                        </DockPanel>
-                                        <Slider x:Name="SliderBlur" Minimum="0" Maximum="30" Value="8" ValueChanged="SliderBlur_ValueChanged"/>
+                                    <StackPanel Grid.Column="1" Margin="6,0,6,0">
+                                        <TextBlock x:Name="TxtColorSidebarLabel" Text="Sidebar:" FontSize="11" Foreground="#9AA3B2" Margin="0,0,0,4"/>
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="34"/>
+                                            </Grid.ColumnDefinitions>
+                                            <TextBox x:Name="TxtColorSidebar" Background="#33000000" Foreground="White" FontSize="12" Padding="8,6" BorderBrush="#33FFFFFF" BorderThickness="1"/>
+                                            <Button Grid.Column="1" Content="🎨" Click="BtnPickColor_Click" Tag="TxtColorSidebar" Style="{StaticResource SecondaryButton}" Padding="0" Margin="4,0,0,0" ToolTip="Renk ve Saydamlık Paletini Aç"/>
+                                        </Grid>
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="2" Margin="6,0,6,0">
+                                        <TextBlock x:Name="TxtColorCardLabel" Text="Cards:" FontSize="11" Foreground="#9AA3B2" Margin="0,0,0,4"/>
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="34"/>
+                                            </Grid.ColumnDefinitions>
+                                            <TextBox x:Name="TxtColorCard" Background="#33000000" Foreground="White" FontSize="12" Padding="8,6" BorderBrush="#33FFFFFF" BorderThickness="1"/>
+                                            <Button Grid.Column="1" Content="🎨" Click="BtnPickColor_Click" Tag="TxtColorCard" Style="{StaticResource SecondaryButton}" Padding="0" Margin="4,0,0,0" ToolTip="Renk ve Saydamlık Paletini Aç"/>
+                                        </Grid>
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="3" Margin="6,0,0,0">
+                                        <TextBlock x:Name="TxtColorAccentLabel" Text="Accent:" FontSize="11" Foreground="#9AA3B2" Margin="0,0,0,4"/>
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="34"/>
+                                            </Grid.ColumnDefinitions>
+                                            <TextBox x:Name="TxtColorAccent" Background="#33000000" Foreground="White" FontSize="12" Padding="8,6" BorderBrush="#33FFFFFF" BorderThickness="1"/>
+                                            <Button Grid.Column="1" Content="🎨" Click="BtnPickColor_Click" Tag="TxtColorAccent" Style="{StaticResource SecondaryButton}" Padding="0" Margin="4,0,0,0" ToolTip="Renk ve Saydamlık Paletini Aç"/>
+                                        </Grid>
                                     </StackPanel>
                                 </Grid>
+
+                                <Grid Margin="0,0,0,14">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Grid.Column="0" Margin="0,0,6,0">
+                                        <TextBlock x:Name="TxtColorBorderLabel" Text="Border:" FontSize="11" Foreground="#9AA3B2" Margin="0,0,0,4"/>
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="34"/>
+                                            </Grid.ColumnDefinitions>
+                                            <TextBox x:Name="TxtColorBorder" Background="#33000000" Foreground="White" FontSize="12" Padding="8,6" BorderBrush="#33FFFFFF" BorderThickness="1"/>
+                                            <Button Grid.Column="1" Content="🎨" Click="BtnPickColor_Click" Tag="TxtColorBorder" Style="{StaticResource SecondaryButton}" Padding="0" Margin="4,0,0,0" ToolTip="Renk ve Saydamlık Paletini Aç"/>
+                                        </Grid>
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="1" Margin="6,0,6,0">
+                                        <TextBlock x:Name="TxtColorTextPrimaryLabel" Text="Primary Text:" FontSize="11" Foreground="#9AA3B2" Margin="0,0,0,4"/>
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="34"/>
+                                            </Grid.ColumnDefinitions>
+                                            <TextBox x:Name="TxtColorTextPrimary" Background="#33000000" Foreground="White" FontSize="12" Padding="8,6" BorderBrush="#33FFFFFF" BorderThickness="1"/>
+                                            <Button Grid.Column="1" Content="🎨" Click="BtnPickColor_Click" Tag="TxtColorTextPrimary" Style="{StaticResource SecondaryButton}" Padding="0" Margin="4,0,0,0" ToolTip="Renk ve Saydamlık Paletini Aç"/>
+                                        </Grid>
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="2" Margin="6,0,6,0">
+                                        <TextBlock x:Name="TxtColorTextSecondaryLabel" Text="Secondary Text:" FontSize="11" Foreground="#9AA3B2" Margin="0,0,0,4"/>
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="34"/>
+                                            </Grid.ColumnDefinitions>
+                                            <TextBox x:Name="TxtColorTextSecondary" Background="#33000000" Foreground="White" FontSize="12" Padding="8,6" BorderBrush="#33FFFFFF" BorderThickness="1"/>
+                                            <Button Grid.Column="1" Content="🎨" Click="BtnPickColor_Click" Tag="TxtColorTextSecondary" Style="{StaticResource SecondaryButton}" Padding="0" Margin="4,0,0,0" ToolTip="Renk ve Saydamlık Paletini Aç"/>
+                                        </Grid>
+                                    </StackPanel>
+                                    <!-- Logo Color -->
+                                    <StackPanel Grid.Column="3" Margin="6,0,0,0">
+                                        <TextBlock x:Name="TxtColorLogoLabel" Text="Logo Color:" FontSize="11" Foreground="#9AA3B2" Margin="0,0,0,4"/>
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="34"/>
+                                            </Grid.ColumnDefinitions>
+                                            <TextBox x:Name="TxtColorLogo" Background="#33000000" Foreground="White" FontSize="12" Padding="8,6" BorderBrush="#33FFFFFF" BorderThickness="1"/>
+                                            <Button Grid.Column="1" Content="🎨" Click="BtnPickColor_Click" Tag="TxtColorLogo" Style="{StaticResource SecondaryButton}" Padding="0" Margin="4,0,0,0" ToolTip="Logo rengini seç"/>
+                                        </Grid>
+                                    </StackPanel>
+                                </Grid>
+
+                                <Button x:Name="BtnApplyColors" Style="{StaticResource ModernButton}" Content="Apply Colors" Click="BtnApplyColors_Click" HorizontalAlignment="Left" Margin="0,0,0,16"/>
+
+                                <TextBlock x:Name="TxtCustomBgTitle" Text="Custom Background Image" FontSize="13" FontWeight="SemiBold" Foreground="#6366F1" Margin="0,0,0,6"/>
+                                <Grid Margin="0,0,0,20">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBox x:Name="TxtCustomBgUrl" Background="#33000000" Foreground="White" FontSize="12" Padding="10,8" BorderBrush="#33FFFFFF" BorderThickness="1" VerticalContentAlignment="Center" Margin="0,0,10,0"/>
+                                    <Button x:Name="BtnBrowseBgImage" Grid.Column="1" Style="{StaticResource SecondaryButton}" Content="Browse" Click="BtnBrowseBgImage_Click" Margin="0,0,10,0"/>
+                                    <Button x:Name="BtnApplyCustomBg" Grid.Column="2" Style="{StaticResource SecondaryButton}" Content="Apply" Click="BtnApplyCustomBg_Click"/>
+                                </Grid>
+
+                                <Border BorderBrush="#33FFFFFF" BorderThickness="0,1,0,0" Padding="0,16,0,0">
+                                    <Button x:Name="BtnResetThemeDefaults" Style="{StaticResource ModernButton}" Background="#DC2626" Content="Varsayılana Döndür" Click="BtnResetThemeDefaults_Click" HorizontalAlignment="Left" Padding="18,10"/>
+                                </Border>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+
+                    <StackPanel x:Name="PanelGuide" Visibility="Collapsed">
+                        <TextBlock x:Name="TxtGuideTitle" Text="User Guide &amp; Information" FontSize="22" FontWeight="Bold" Margin="0,0,0,20"/>
+
+                        <Border Background="#CC1E222D" CornerRadius="12" BorderBrush="#1FFFFFFF" BorderThickness="1" Padding="20" Margin="0,0,0,16">
+                            <StackPanel>
+                                <TextBlock x:Name="TxtGuideQuickStartTitle" Text="🎬 Hızlı Başlangıç &amp; Video Oynatma" FontSize="16" FontWeight="SemiBold" Foreground="#6366F1" Margin="0,0,0,8"/>
+                                <TextBlock x:Name="TxtGuideQuickStartSub" Text="MPV Launcher, internet akışlarını ve yerel medya dosyalarını yüksek performanslı MPV oynatıcı ile sorunsuz izlemenizi sağlar." FontSize="13" Foreground="#F0F2F5" Margin="0,0,0,8" TextWrapping="Wrap"/>
+                                <TextBlock x:Name="TxtGuideQuickStartBody" Text="• URL Oynatma: YouTube, Twitch, Vimeo, Twitter/X ve yüzlerce desteklenen siteden video bağlantısını 'Player' sekmesindeki kutuya yapıştırıp 'MPV ile Oynat' butonuna basın veya Enter'a tıklayın.&#x0a;• Sürükle &amp; Bırak: Bilgisayarınızdaki video dosyalarını (.mp4, .mkv, .webm vb.) doğrudan pencerenin içerisine sürükleyip bırakabilirsiniz.&#x0a;• Oynatma Geçmişi: Daha önce oynattığınız son 50 medya kaydı geçmiş listesinde saklanır; listedeki bir öğeye çift tıklayarak tekrar izleyebilirsiniz." FontSize="12" Foreground="#9AA3B2" LineHeight="20" TextWrapping="Wrap"/>
                             </StackPanel>
                         </Border>
 
-                        <Border x:Name="CardLang" Background="#CC1E222D" CornerRadius="12" BorderBrush="#1FFFFFFF" BorderThickness="1" Padding="20">
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="260"/>
-                                </Grid.ColumnDefinitions>
-                                <StackPanel Grid.Column="0" VerticalAlignment="Center" Margin="0,0,18,0">
-                                    <TextBlock x:Name="TxtLangTitle" Text="Language" FontSize="15" FontWeight="SemiBold"/>
-                                    <TextBlock Text="Application display language" FontSize="12" Foreground="#9AA3B2" Margin="0,4,0,0"/>
-                                </StackPanel>
-                                <ComboBox x:Name="CmbLanguage" Grid.Column="1" VerticalAlignment="Center" SelectionChanged="CmbLanguage_SelectionChanged"/>
-                            </Grid>
+                        <Border Background="#CC1E222D" CornerRadius="12" BorderBrush="#1FFFFFFF" BorderThickness="1" Padding="20" Margin="0,0,0,16">
+                            <StackPanel>
+                                <TextBlock x:Name="TxtGuideDepsTitle" Text="📦 Bağımlılıklar (MPV, yt-dlp, FFmpeg)" FontSize="16" FontWeight="SemiBold" Foreground="#6366F1" Margin="0,0,0,8"/>
+                                <TextBlock x:Name="TxtGuideDepsSub" Text="Programın tam performansla çalışması için üç temel araç gereklidir:" FontSize="13" Foreground="#F0F2F5" Margin="0,0,0,8" TextWrapping="Wrap"/>
+                                <TextBlock x:Name="TxtGuideDepsBody" Text="1. MPV: Modern ve donanım hızlandırmalı video oynatıcı motorudur.&#x0a;2. yt-dlp: YouTube ve diğer sitelerden canlı akış ve video verilerini çeken yardımcı programdır. Sitelerin güncellemeleri nedeniyle yt-dlp sık sık güncellenir; akış açılmadığında 'yt-dlp Güncelle (-U)' butonuna tıklayabilirsiniz.&#x0a;3. FFmpeg: Medya akışlarını ayrıştırma ve birleştirme motorudur.&#x0a;&#x0a;Tüm bu araçları 'Bağımlılıklar' sekmesinden tek tıkla otomatik indirebilir ve kurabilirsiniz." FontSize="12" Foreground="#9AA3B2" LineHeight="20" TextWrapping="Wrap"/>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Background="#CC1E222D" CornerRadius="12" BorderBrush="#1FFFFFFF" BorderThickness="1" Padding="20" Margin="0,0,0,16">
+                            <StackPanel>
+                                <TextBlock x:Name="TxtGuideBrowserTitle" Text="🌐 Tarayıcı Entegrasyonu (Browser Extensions)" FontSize="16" FontWeight="SemiBold" Foreground="#6366F1" Margin="0,0,0,8"/>
+                                <TextBlock x:Name="TxtGuideBrowserSub" Text="Tarayıcınızda gezinirken videoları tek tıkla doğrudan MPV'de açabilirsiniz:" FontSize="13" Foreground="#F0F2F5" Margin="0,0,0,8" TextWrapping="Wrap"/>
+                                <TextBlock x:Name="TxtGuideBrowserBody" Text="• Chrome / Edge / Brave / Opera: 'chrome://extensions' sayfasında sağ üstteki 'Geliştirici Modu'nu açın. 'Paketlenmemiş öge yükle' butonuna basarak 'Eklenti Klasörünü Aç' ile açılan klasörü seçin.&#x0a;• Firefox: 'Firefox Eklentisi' butonuna tıklayarak Mozilla resmi eklenti mağazasından tek tıkla kurabilirsiniz.&#x0a;• Native Messaging Host: Uygulama ilk çalıştığında kayıt defteri ve protokol bağlantılarını otomatik olarak hazırlar." FontSize="12" Foreground="#9AA3B2" LineHeight="20" TextWrapping="Wrap"/>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Background="#CC1E222D" CornerRadius="12" BorderBrush="#1FFFFFFF" BorderThickness="1" Padding="20" Margin="0,0,0,16">
+                            <StackPanel>
+                                <TextBlock x:Name="TxtGuideAnime4kTitle" Text="✨ Anime4K &amp; ModernZ Teması" FontSize="16" FontWeight="SemiBold" Foreground="#6366F1" Margin="0,0,0,8"/>
+                                <TextBlock x:Name="TxtGuideAnime4kSub" Text="Anime4K, anime ve çizim içeriklerini gerçek zamanlı olarak 1080p / 4K çözünürlüğe yükselten ve kenarları netleştiren yapay zeka algoritmasıdır." FontSize="13" Foreground="#F0F2F5" Margin="0,0,0,8" TextWrapping="Wrap"/>
+                                <TextBlock x:Name="TxtGuideAnime4kBody" Text="• 'Tema' sekmesindeki 'Tema+Anime4K Kur' butonu ile ModernZ arayüzünü ve Anime4K GLSL shader dosyalarını %APPDATA%\mpv dizinine yükleyebilirsiniz.&#x0a;• MPV Klavye Kısayolları:&#x0a;   - CTRL+0: Anime4K'yı Devre Dışı Bırak&#x0a;   - CTRL+1: Anime4K Mode A (Hızlı / Fast)&#x0a;   - CTRL+2: Anime4K Mode B (Yüksek Kalite / HQ)&#x0a;   - CTRL+3: Anime4K Mode C (Çok Hızlı / Very Fast)&#x0a;   - CTRL+4: Anime4K Mode A+A (Gelişmiş)&#x0a;   - CTRL+5: Anime4K Mode B+B (Maksimum Keskinlik)&#x0a;   - CTRL+6: Anime4K Mode C+A" FontSize="12" Foreground="#9AA3B2" LineHeight="20" TextWrapping="Wrap"/>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Background="#CC1E222D" CornerRadius="12" BorderBrush="#1FFFFFFF" BorderThickness="1" Padding="20">
+                            <StackPanel>
+                                <TextBlock x:Name="TxtGuideCustomTitle" Text="🎨 Arayüz &amp; Tema Kişiselleştirme İpuçları" FontSize="16" FontWeight="SemiBold" Foreground="#6366F1" Margin="0,0,0,8"/>
+                                <TextBlock x:Name="TxtGuideCustomSub" Text="Uygulamanın tüm görsel detaylarını 'Tema' sekmesinden dilediğiniz gibi özelleştirebilirsiniz:" FontSize="13" Foreground="#F0F2F5" Margin="0,0,0,8" TextWrapping="Wrap"/>
+                                <TextBlock x:Name="TxtGuideCustomBody" Text="• Pencere ve Kart Köşeleri: Köşe yuvarlaklıklarını 0px (keskin köşeler) ile 24px (tam yuvarlak) arasında ayarlayın.&#x0a;• Bağımsız Şeffaflık: Kartlar, sol sidebar, yazı kutuları ve butonlar için ayrı ayrı şeffaflık seviyesi belirleyin.&#x0a;• Buzlu Cam &amp; Gölge: Arka plan bulanıklığını ve pencere gölgesinin belirginliğini kaydırıcılarla anlık olarak önizleyin.&#x0a;• Varsayılana Dönüş: Yaptığınız değişiklikleri istediğiniz an sayfa altındaki kırmızı 'Varsayılana Döndür' butonuna basarak orijinal ayarlara döndürebilirsiniz." FontSize="12" Foreground="#9AA3B2" LineHeight="20" TextWrapping="Wrap"/>
+                            </StackPanel>
                         </Border>
                     </StackPanel>
                 </Grid>
