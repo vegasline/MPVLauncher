@@ -1,7 +1,7 @@
 ﻿{
   "manifest_version": 3,
   "name": "MPV Launcher",
-  "version": "1.9.4",
+  "version": "1.9.3",
   "description": "Open page videos, iframes and streams directly in MPV.",
   "permissions": [
     "nativeMessaging",

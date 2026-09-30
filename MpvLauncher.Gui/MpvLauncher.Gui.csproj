@@ -13,6 +13,10 @@
     <StartupObject>MpvLauncher.Gui.Program</StartupObject>
     <DefineConstants>$(DefineConstants);DISABLE_XAML_GENERATED_MAIN</DefineConstants>
     <ApplicationIcon>app.ico</ApplicationIcon>
+    <!-- App version. Deliberately separate from extension/manifest.json: the
+         extension ships through addons.mozilla.org on its own schedule, and
+         the two must not be bumped together. Keep this in step with the git tag. -->
+    <Version>1.9.4</Version>
   </PropertyGroup>
 
   <ItemGroup>

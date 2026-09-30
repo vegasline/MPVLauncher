@@ -872,7 +872,11 @@ namespace MpvLauncher.Gui.Services
             {
                 ["manifest_version"] = 3,
                 ["name"] = "MPV Launcher",
-                ["version"] = "1.9.4",
+                // Kept in step with extension/manifest.json. The extension is
+                // distributed separately (addons.mozilla.org), so bumping this
+                // for an app-only change would make the app install a version
+                // the store does not have, and the two copies would collide.
+                ["version"] = "1.9.3",
                 ["description"] = "Open page videos, iframes and streams directly in MPV.",
                 ["key"] = publicKey,
                 ["icons"] = icons,
@@ -916,7 +920,11 @@ namespace MpvLauncher.Gui.Services
             {
                 ["manifest_version"] = 3,
                 ["name"] = "MPV Launcher",
-                ["version"] = "1.9.4",
+                // Kept in step with extension/manifest.json. The extension is
+                // distributed separately (addons.mozilla.org), so bumping this
+                // for an app-only change would make the app install a version
+                // the store does not have, and the two copies would collide.
+                ["version"] = "1.9.3",
                 ["description"] = "Network stream detector (HLS, DASH, MP4, iframes) and one-click media player for MPV.",
                 ["icons"] = icons,
                 ["permissions"] = new[] { "nativeMessaging", "activeTab", "scripting", "webRequest", "tabs", "webNavigation", "storage" },
