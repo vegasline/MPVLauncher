@@ -4,7 +4,7 @@
 
 <p align="center">
 <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="MIT Lisansı"></a>
-<a href="extension/manifest.json"><img src="https://img.shields.io/badge/version-1.9.3-blue.svg" alt="Sürüm 1.9.3"></a>
+<a href="extension/manifest.json"><img src="https://img.shields.io/badge/version-1.9.4-blue.svg" alt="Sürüm 1.9.4"></a>
 <a href="https://addons.mozilla.org/firefox/addon/mpv-launcher/"><img src="https://img.shields.io/badge/Firefox_Eklentisi-FF7139FF?logo=firefox-browser&logoColor=white" alt="Firefox eklentisi"></a>
 </p>
 
