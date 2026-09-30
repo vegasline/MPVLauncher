@@ -62,13 +62,41 @@ bir yöntem gerekir. Bu proje bunu tek tıkla hâle getirir.
 ## 🚀 Hızlı başlangıç
 
 1. [Son sürümden](https://github.com/vegasline/MPVLauncher/releases/latest)
-   **MPVLauncher.exe** dosyasını indirin.
-2. **Bağımlılıklar** → mpv için **İndir ve Kur**'a tıklayın. (yt-dlp ve FFmpeg
-   isteğe bağlı ama önerilir.)
-3. **Ayarlar → Tarayıcı eklentisi** → **Eklentileri kur / onar**.
+   **MPVLauncher.exe** dosyasını indirin ve açın.
+2. **Bağımlılıklar** sekmesine geçin ve **mpv**, **yt-dlp** ile **FFmpeg** için
+   **İndir & Kur**'a tıklayın — üç ayrı düğme, üçünü de kurun. mpv oynatıcının
+   kendisidir; diğer ikisi bir akış adresini açabilmesi için gereklidir. Aynı
+   sekmede **Tema+anime4k Kur** düğmesi ModernZ arayüzünü ve Anime4K shader
+   setini `%APPDATA%\mpv` içine kurar.
+3. Yine **Bağımlılıklar** sekmesinde **Eklentileri hazırla / onar**'a tıklayarak
+   tarayıcı eklentisini kurun. Aynı sekmede eklenti sayfasını açan
+   **🦊 Firefox Eklentisi** ve Chromium'un ihtiyaç duyduğu klasörü açan
+   **Eklenti Klasörünü Aç** düğmeleri de var.
 
 **Yönetici hakkı gerekmez.** Her şey `%APPDATA%\MPVLauncher\` ve
 `HKEY_CURRENT_USER` altına yazılır.
+
+> 💡 Düğme adları arayüz diline göre değişir; arayüzü Türkçe dışında bir dile
+> alırsanız İngilizce görünürler.
+
+---
+
+## 🎮 Nasıl kullanılır
+
+İki yol var ve ikisi de aynı mpv'de sonlanır.
+
+**🧩 Tarayıcıdan** — herhangi bir sayfada eklenti simgesine tıklayın. Bulduğu
+her şey **Open in MPV** düğmesiyle listelenir: gerçek akış, doğrudan medya
+dosyaları ve gömülü oynatıcılar. Birini seçin, açılsın.
+
+**🖥️ Programdan** — **Oynatıcı** sekmesini açın, video adresini yapıştırın ve
+**MPV ile Oynat**'a basın. Dosyeyi pencereye sürükleyip bırakabilir veya
+**Dosya Seç**'i kullanabilirsiniz.
+
+Hangisini kullanırsanız kullanın, son 50 oynatma **Oynatıcı** sekmesindeki
+geçmişte kalır ve iki yol arasında ortaktır.
+
+---
 
 ### 🦊 Firefox
 
@@ -79,15 +107,15 @@ Firefox 128+ gerekir.
 
 ### 🌐 Chrome, Edge, Brave, Opera, Vivaldi, Yandex
 
-Kurulumu yaptıktan sonra `chrome://extensions` adresini açın, **Geliştirici
-modu**'nu etkinleştirin, **Paketlenmemiş öğe yükle**'yi seçin ve şu klasörü
-gösterin:
+Kurulumu yaptıktan sonra `chrome://extensions` adresini açın,
+**Geliştirici modu**'nu etkinleştirin, **Paketlenmemiş öğe yükle**'yi seçin ve şu
+klasörü gösterin:
 
 ```
 %APPDATA%\MPVLauncher\extensions\chromium
 ```
 
-Uygulamadaki **Eklenti klasörü** düğmesi bu klasörü sizin için açar.
+Uygulamadaki **Eklenti Klasörünü Aç** düğmesi bu klasörü sizin için açar.
 
 > 💡 Chromium paketlenmemiş eklenti istediği için eklentinin her açılışta
 > yüklenmesi gerekir. Kurulum, bunu tarayıcının başlatma komutuna kullanıcı
@@ -141,7 +169,7 @@ dotnet build MpvLauncher.Gui\MpvLauncher.Gui.csproj -c Debug
 
 Eklenti çalıştırılabilir dosyanın içine gömülüdür; bu yüzden bir değişikliğin
 `%APPDATA%` klasörüne ulaşması için C# projesinin yeniden derlenmesi gerekir.
-Ardından uygulamada **Eklentileri kur / onar**'ı yeniden çalıştırın.
+Ardından uygulamada **Eklentileri hazırla / onar**'ı yeniden çalıştırın.
 
 ```powershell
 node tools\extension-tests.js   # 147 kontrol - eklenti mantığı ve güvenlik

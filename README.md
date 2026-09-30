@@ -62,13 +62,42 @@ site-specific workaround. This makes it one click.
 ## 🚀 Quick start
 
 1. Download **MPVLauncher.exe** from the
-   [latest release](https://github.com/vegasline/MPVLauncher/releases/latest).
-2. Open **Dependencies** → **Download & Install** for mpv. (yt-dlp and FFmpeg
-   are optional but recommended.)
-3. Open **Settings → Browser extension** → **Install / repair extensions**.
+   [latest release](https://github.com/vegasline/MPVLauncher/releases/latest)
+   and open it.
+2. Go to the **Dependencies** tab and press **Download & Install** for **mpv**,
+   **yt-dlp** and **FFmpeg** — three separate buttons, install all three. mpv is
+   the player; the other two are what let it open a stream URL. On the same tab,
+   **Install Theme+Anime4K** adds the ModernZ interface and the Anime4K shader
+   set into `%APPDATA%\mpv`.
+3. Still on **Dependencies**, press **Install / repair extensions** to set up the
+   browser extension. The same tab has a **🦊 Firefox Add-on** button that opens
+   the add-on page, and an **Extension Folder** button that opens the folder
+   Chromium needs.
 
 **No administrator rights needed.** Everything is written under
 `%APPDATA%\MPVLauncher\` and `HKEY_CURRENT_USER`.
+
+> 💡 Button names follow the app's language setting, so they appear translated
+> if you switch the interface to Turkish or one of the other 11 languages.
+
+---
+
+## 🎮 Using it
+
+Two ways in, and both end up in the same mpv.
+
+**🧩 From the browser** — click the extension icon on any page. Everything it
+found is listed with an **Open in MPV** button: the real stream, direct media
+files, and embedded players. Pick one and it opens.
+
+**🖥️ From the app** — open the **Player** tab, paste a video URL and press
+**Play with MPV**. You can also drop a file onto the window, or use
+**Select File**.
+
+Either way, the last 50 plays stay in the **Player** tab's history, shared
+between both routes.
+
+---
 
 ### 🦊 Firefox
 
@@ -137,7 +166,8 @@ dotnet build MpvLauncher.Gui\MpvLauncher.Gui.csproj -c Debug
 ```
 
 The extension is embedded in the executable, so the C# project must be rebuilt
-before a change reaches `%APPDATA%`. Then re-run **Install / repair** in the app.
+before a change reaches `%APPDATA%`. Then re-run
+**Install / repair extensions** in the app.
 
 ```powershell
 node tools\extension-tests.js   # 147 checks - extension logic and security
