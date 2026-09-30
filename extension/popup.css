@@ -109,6 +109,59 @@ body {
   opacity: 0.8;
 }
 
+.settings-panel {
+  background-color: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-color);
+  padding: 10px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  animation: slideDown 0.2s ease-out;
+}
+
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.setting-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 12px;
+}
+
+.setting-row label {
+  color: var(--text-primary);
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.select-dropdown {
+  background-color: var(--bg-card);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  padding: 4px 8px;
+  font-family: inherit;
+  font-size: 12px;
+  outline: none;
+  cursor: pointer;
+  max-width: 150px;
+}
+
+.select-dropdown:focus {
+  border-color: var(--accent-color);
+}
+
+.setting-row input[type="checkbox"] {
+  cursor: pointer;
+  width: 16px;
+  height: 16px;
+  accent-color: var(--accent-color);
+}
+
 .container {
   padding: 14px 16px;
   display: flex;
@@ -274,6 +327,105 @@ body {
 .tag-hls { background-color: rgba(245, 158, 11, 0.2); color: #fbbf24; }
 .tag-iframe { background-color: rgba(16, 185, 129, 0.2); color: #34d399; }
 .tag-youtube { background-color: rgba(239, 68, 68, 0.2); color: #f87171; }
+.tag-dash { background-color: rgba(168, 85, 247, 0.2); color: #c084fc; }
+.tag-audio { background-color: rgba(14, 165, 233, 0.2); color: #38bdf8; }
+
+/* detected by the network listener rather than the DOM */
+.media-item.from-network {
+  border-left: 2px solid rgba(245, 158, 11, 0.5);
+}
+
+.media-meta {
+  font-size: 10px;
+  color: var(--text-secondary);
+  opacity: 0.85;
+  margin-top: 3px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.media-meta .size { font-variant-numeric: tabular-nums; }
+
+/* --------------------------------------------------------- filter panel */
+
+.filter-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border-color);
+}
+
+.filter-section-title {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.filter-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.filter-chip {
+  background-color: var(--bg-card);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 999px;
+  padding: 3px 10px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background-color 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.filter-chip:hover { border-color: var(--accent-color); }
+
+.filter-chip.active {
+  background-color: rgba(99, 102, 241, 0.2);
+  color: #a5b4fc;
+  border-color: var(--accent-color);
+}
+
+.text-input-small {
+  background-color: var(--bg-card);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  padding: 3px 8px;
+  font-family: inherit;
+  font-size: 12px;
+  outline: none;
+  width: 74px;
+}
+
+.text-input-small:focus { border-color: var(--accent-color); }
+
+.text-input-wide {
+  background-color: var(--bg-card);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  padding: 4px 8px;
+  font-family: inherit;
+  font-size: 12px;
+  outline: none;
+  width: 100%;
+}
+
+.text-input-wide:focus { border-color: var(--accent-color); }
+
+.filter-note {
+  font-size: 10px;
+  color: var(--text-secondary);
+  opacity: 0.8;
+  line-height: 1.4;
+}
 
 .media-url {
   font-size: 11px;
@@ -323,6 +475,30 @@ body {
 
 @keyframes spin {
   to { transform: rotate(360deg); }
+}
+
+.hidden {
+  display: none !important;
+}
+
+.app-footer {
+  padding: 8px 16px;
+  background-color: var(--bg-secondary);
+  border-top: 1px solid var(--border-color);
+  font-size: 11px;
+}
+
+.status-message {
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.status-success { color: var(--success); }
+.status-error { color: var(--danger); }
+.status-warning { color: var(--warning); }
+ransform: rotate(360deg); }
 }
 
 .hidden {
