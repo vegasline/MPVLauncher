@@ -1,0 +1,16 @@
+# Build output
+bin/
+obj/
+publish/
+
+# IDE caches
+.vs/
+.idea/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Tooling
+node_modules/
+*.log
