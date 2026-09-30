@@ -2,6 +2,7 @@ using System;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
@@ -13,8 +14,22 @@ using MpvLauncher.Gui.Services;
 
 namespace MpvLauncher.Gui
 {
+    /// <summary>
+    /// The application window: one place that owns every service instance and
+    /// wires the UI to it.
+    ///
+    /// Services are constructed here rather than in App so their creation order
+    /// is visible: config first, because the theme and language that follow are
+    /// chosen by it, and the browser integration last, because it needs the
+    /// extension files to already exist.
+    ///
+    /// The window also acts as the single-instance gate. A second launch is
+    /// detected and forwarded here instead of opening a rival window.
+    /// </summary>
     public partial class MainWindow : Window
     {
+        // One instance of each service for the lifetime of the window. They are
+        // stateless apart from ConfigService, which caches the live AppConfig.
         private readonly ConfigService _configService;
         private readonly LocalizationService _locService;
         private readonly ThemeService _themeService;
@@ -24,7 +39,13 @@ namespace MpvLauncher.Gui
         private readonly DownloadInstallService _downloadService;
         private readonly ModernZAnime4kService _modernZService;
 
+        /// <summary>Corner radius used by the borderless window chrome.</summary>
         private const double WindowCornerRadius = 8;
+
+        /// <summary>
+        /// Guards the install/uninstall buttons. A second click while a download
+        /// or registry write is running would interleave two installs.
+        /// </summary>
         private bool _isInstalling;
 
         public MainWindow()
@@ -33,7 +54,12 @@ namespace MpvLauncher.Gui
 
             AppPaths.EnsureLayout();
             _configService = new ConfigService();
+
+            // On a first run the embedded templates are authoritative and are
+            // written even if a file already exists; afterwards the user's copies
+            // win so their edits survive.
             AppPaths.SeedTemplates(overwriteEmbedded: _configService.Config.FirstRun);
+
             _locService = new LocalizationService(AppPaths.LanguagesDir, _configService.Config.Language);
             _themeService = new ThemeService(AppPaths.ThemesDir, _configService.Config.Theme);
             _procService = new ProcessService(_configService);
@@ -42,6 +68,8 @@ namespace MpvLauncher.Gui
             _downloadService = new DownloadInstallService(_configService);
             _modernZService = new ModernZAnime4kService();
 
+            // Theme and language changes come from the settings pages, so the
+            // window subscribes rather than being told.
             _locService.LanguageChanged += UpdateLocalization;
             _themeService.ThemeChanged += UpdateTheme;
 
@@ -55,6 +83,12 @@ namespace MpvLauncher.Gui
             Loaded += MainWindow_Loaded;
         }
 
+        /// <summary>
+        /// Fills every control from the saved config, then shows what was found
+        /// on disk. Runs on Loaded rather than in the constructor because the
+        /// named controls do not exist until InitializeComponent has run and the
+        /// window has a visual tree.
+        /// </summary>
         private void MainWindow_Loaded(object sender, RoutedEventArgs e)
         {
             UpdateLocalization();
@@ -63,9 +97,43 @@ namespace MpvLauncher.Gui
             PopulateLanguages();
             PopulateThemes();
 
-            SliderOpacity.Value = _configService.Config.CustomOpacity * 100;
+            // ---- Playback settings ----
+            TxtMpvPath.Text = _configService.Config.MpvPath;
+            ChkAlwaysOnTop.IsChecked = _configService.Config.AlwaysOnTop;
+
+            // The combo stores its mode in Tag, so the saved string is matched
+            // back to an item rather than assigned directly.
+            string fw = _configService.Config.ForceWindow ?? "immediate";
+            foreach (ComboBoxItem item in CmbForceWindow.Items)
+            {
+                if (string.Equals(item.Tag?.ToString(), fw, StringComparison.OrdinalIgnoreCase))
+                {
+                    CmbForceWindow.SelectedItem = item;
+                    break;
+                }
+            }
+
+            TxtMpvGeometry.Text = _configService.Config.Geometry;
+            TxtMpvProfile.Text = _configService.Config.MpvProfile;
+            TxtMpvExtraArgs.Text = _configService.Config.ExtraArgs;
+
+            // ---- Appearance overrides ----
+            // The opacity sliders show percentages while the config stores 0..1.
             SliderBlur.Value = _configService.Config.CustomBlur;
+            SliderOpacity.Value = _configService.Config.CustomCardOpacity * 100;
+            SliderSidebarOpacity.Value = _configService.Config.CustomSidebarOpacity * 100;
+            SliderInputOpacity.Value = _configService.Config.CustomInputOpacity * 100;
+            SliderButtonOpacity.Value = _configService.Config.CustomButtonOpacity * 100;
+            TxtColorBg.Text = _configService.Config.CustomBgColor;
+            TxtColorSidebar.Text = _configService.Config.CustomSidebarColor;
+            TxtColorCard.Text = _configService.Config.CustomCardColor;
+            TxtColorAccent.Text = _configService.Config.CustomAccentColor;
+            TxtColorBorder.Text = _configService.Config.CustomBorderColor;
+            TxtColorTextPrimary.Text = _configService.Config.CustomTextPrimary;
+            TxtColorTextSecondary.Text = _configService.Config.CustomTextSecondary;
+            TxtColorLogo.Text = _configService.Config.CustomLogoColor;
             TxtCustomBgUrl.Text = _configService.Config.CustomBackground;
+
             TxtInstallDir.Text = $"Tools folder: {AppPaths.BinDir}";
             TxtDataFolderPath.Text = AppPaths.Root;
             TxtStatus.Text = _locService.Get("status_ready", "Ready");
@@ -84,39 +152,71 @@ namespace MpvLauncher.Gui
         private void BtnMinimize_Click(object sender, RoutedEventArgs e) => WindowState = WindowState.Minimized;
         private void BtnClose_Click(object sender, RoutedEventArgs e) => Close();
 
+        /**
+         * Keeps the rounded corners in step with the window size.
+         *
+         * The window has no OS frame (WindowStyle=None), so the rounding is a
+         * geometry clip applied to the content element. Re-clipping on resize is
+         * what keeps the corners from becoming square as the window grows.
+         */
         private void WindowContentClip_SizeChanged(object sender, SizeChangedEventArgs e)
         {
+            double r = _configService != null ? _configService.Config.WindowCornerRadius : WindowCornerRadius;
             WindowContentClip.Clip = new RectangleGeometry(
                 new Rect(0, 0, e.NewSize.Width, e.NewSize.Height),
-                WindowCornerRadius,
-                WindowCornerRadius);
+                r,
+                r);
         }
         #endregion
 
         #region Navigation
+        private Button? _activeNavButton;
+
+        /**
+         * Shows one panel and highlights its nav button.
+         *
+         * All five panels are declared in XAML and collapsed rather than created
+         * on demand, so switching pages is a visibility toggle with no layout
+         * cost. Every button is reset first because there is no "previous" state
+         * to diff against - with only five entries the exhaustive reset is
+         * clearer than tracking one.
+         */
         private void SetActiveTab(StackPanel activePanel, Button activeButton)
         {
+            _activeNavButton = activeButton;
+
             PanelPlayer.Visibility = Visibility.Collapsed;
             PanelTools.Visibility = Visibility.Collapsed;
             PanelSettings.Visibility = Visibility.Collapsed;
+            PanelThemes.Visibility = Visibility.Collapsed;
+            PanelGuide.Visibility = Visibility.Collapsed;
 
             BtnNavPlayer.Background = Brushes.Transparent;
             BtnNavTools.Background = Brushes.Transparent;
             BtnNavSettings.Background = Brushes.Transparent;
+            BtnNavThemes.Background = Brushes.Transparent;
+            BtnNavGuide.Background = Brushes.Transparent;
 
             var muted = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#9AA3B2"));
             BtnNavPlayer.Foreground = muted;
             BtnNavTools.Foreground = muted;
             BtnNavSettings.Foreground = muted;
+            BtnNavThemes.Foreground = muted;
+            BtnNavGuide.Foreground = muted;
 
             activePanel.Visibility = Visibility.Visible;
-            activeButton.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#6366F1"));
+            string accent = !string.IsNullOrWhiteSpace(_configService?.Config.CustomAccentColor)
+                ? _configService.Config.CustomAccentColor
+                : (_themeService?.CurrentTheme?.Colors?.Accent ?? "#6366F1");
+            activeButton.Background = ToBrush(accent, "#6366F1");
             activeButton.Foreground = Brushes.White;
         }
 
         private void BtnNavPlayer_Click(object sender, RoutedEventArgs e) => SetActiveTab(PanelPlayer, BtnNavPlayer);
         private void BtnNavTools_Click(object sender, RoutedEventArgs e) => SetActiveTab(PanelTools, BtnNavTools);
         private void BtnNavSettings_Click(object sender, RoutedEventArgs e) => SetActiveTab(PanelSettings, BtnNavSettings);
+        private void BtnNavThemes_Click(object sender, RoutedEventArgs e) => SetActiveTab(PanelThemes, BtnNavThemes);
+        private void BtnNavGuide_Click(object sender, RoutedEventArgs e) => SetActiveTab(PanelGuide, BtnNavGuide);
         #endregion
 
         #region Player & history
@@ -159,6 +259,11 @@ namespace MpvLauncher.Gui
             }
         }
 
+        /// <summary>
+        /// The single place playback is started from, whatever the source: the
+        /// URL box, a dropped file, a history row or a pasted path. Centralising
+        /// it means the status line and the history refresh happen once.
+        /// </summary>
         private void Play(string target)
         {
             TxtStatus.Text = _locService.Get("status_playing", "Launching MPV...");
@@ -167,6 +272,13 @@ namespace MpvLauncher.Gui
             LoadHistory();
         }
 
+        /**
+         * Rebinds the history list.
+         *
+         * ItemsSource is cleared first because assigning the same list instance
+         * again would not raise a change notification and the list would look
+         * unchanged after a reload.
+         */
         private void LoadHistory()
         {
             LstHistory.ItemsSource = null;
@@ -188,6 +300,13 @@ namespace MpvLauncher.Gui
         #endregion
 
         #region Dependencies & browser
+        /// <summary>
+        /// Probes mpv, yt-dlp and ffmpeg for their versions.
+        ///
+        /// Each check starts a process, so all three run together on a worker
+        /// thread; doing them one at a time on the UI thread would freeze the
+        /// window for as long as the slowest tool takes to answer.
+        /// </summary>
         private async Task RefreshDependenciesAsync()
         {
             TxtMpvStatus.Text = "Checking MPV...";
@@ -216,24 +335,51 @@ namespace MpvLauncher.Gui
 
         private async void BtnRefreshTools_Click(object sender, RoutedEventArgs e) => await RefreshDependenciesAsync();
 
+        /// <summary>
+        /// Brings browser integration up to date at startup.
+        ///
+        /// On a first run the full install runs. Afterwards only the recorded
+        /// host path is repaired, because a full install writes registry values
+        /// and rewrites shortcuts and there is no reason to redo that on every
+        /// launch - the user has explicit buttons for it.
+        ///
+        /// Runs on a worker thread: it writes files and registry keys and would
+        /// otherwise stall the window during startup.
+        /// </summary>
         private async Task InitializeBrowserIntegrationAsync()
         {
-            TxtExtensionStatus.Text = "Checking browser integration...";
+            TxtExtensionStatus.Text = _locService.Get("install_checking", "Checking browser integration...");
 
             try
             {
                 bool firstRun = _configService.Config.FirstRun;
                 var result = await Task.Run(() =>
                 {
+                    // The recorded host path is refreshed on every launch, since
+                    // the app may have moved. A full install is only needed on a
+                    // first run.
                     _browserService.RepairNativeHostPath();
                     return firstRun
                         ? _browserService.InstallAll()
-                        : (true, "Native messaging host path checked. Use Install / repair if the extension is missing.", "");
+                        : null;
                 });
 
-                TxtExtensionStatus.Text = result.Item2;
+                if (result == null)
+                {
+                    TxtExtensionStatus.Text = _locService.Get("install_repair_hint",
+                        "Native messaging host path checked. Use Install / repair if the extension is missing.");
+                    return;
+                }
 
-                if (firstRun && result.Item1)
+                // A first run shows the full summary so the paths and ids are on
+                // screen; later launches keep the status line short.
+                TxtExtensionStatus.Text = result.Success
+                    ? (firstRun ? BuildInstallMessage(result)
+                                : _locService.Get("ext_installed",
+                                    "Browser extensions and native messaging registered."))
+                    : _locService.Get("install_error", "Browser extension install failed:") + " " + result.Error;
+
+                if (firstRun && result.Success)
                 {
                     _configService.Config.FirstRun = false;
                     _configService.Save();
@@ -241,7 +387,8 @@ namespace MpvLauncher.Gui
             }
             catch (Exception ex)
             {
-                TxtExtensionStatus.Text = "Browser integration check failed: " + ex.Message;
+                TxtExtensionStatus.Text = _locService.Get("install_error",
+                    "Browser extension install failed:") + " " + ex.Message;
             }
         }
 
@@ -262,6 +409,13 @@ namespace MpvLauncher.Gui
         private async void BtnInstallFfmpeg_Click(object sender, RoutedEventArgs e)
             => await RunInstallAsync(ToolKind.Ffmpeg);
 
+        /**
+         * Downloads and installs one tool, driving the progress bar.
+         *
+         * Re-entrancy is blocked by _isInstalling and the buttons are disabled
+         * for the duration: two installs at once would race over the same
+         * destination folder and leave a half-written binary behind.
+         */
         private async System.Threading.Tasks.Task RunInstallAsync(ToolKind kind)
         {
             if (_isInstalling) return;
@@ -329,29 +483,167 @@ namespace MpvLauncher.Gui
             BtnInstallFfmpeg.IsEnabled = enabled;
         }
 
-        private void BtnInstallExtensions_Click(object sender, RoutedEventArgs e)
+        /// <summary>
+        /// Install / repair. Always performs a complete install, so it doubles as
+        /// the repair action: running it again rewrites every file, manifest and
+        /// registry entry from scratch rather than skipping what already exists.
+        ///
+        /// The work happens on a worker thread because it copies files, rewrites
+        /// shortcuts and writes several registry keys.
+        /// </summary>
+        private async void BtnInstallExtensions_Click(object sender, RoutedEventArgs e)
         {
-            var res = _browserService.InstallAll();
-            TxtExtensionStatus.Text = res.Message;
-            TxtStatus.Text = res.Success
-                ? _locService.Get("ext_installed", "Browser extensions installed. Restart your browsers.")
-                : res.Message;
-            MessageBox.Show(res.Message, "MPV Launcher", MessageBoxButton.OK,
-                res.Success ? MessageBoxImage.Information : MessageBoxImage.Error);
+            BtnInstallExtensions.IsEnabled = false;
+            TxtExtensionStatus.Text = "Installing browser extension...";
+            TxtStatus.Text = "Installing browser extension...";
+
+            try
+            {
+                var res = await Task.Run(() => _browserService.InstallAll());
+
+                string message = res.Success
+                    ? BuildInstallMessage(res)
+                    : _locService.Get("install_error", "Browser extension install failed:") + " " + res.Error;
+
+                TxtExtensionStatus.Text = message;
+                TxtStatus.Text = res.Success
+                    ? _locService.Get("ext_install_success", "Browser extensions installed successfully. Restart your browsers.")
+                    : _locService.Get("ext_install_error", "Failed to install browser extensions. Please try again.");
+
+                MessageBox.Show(message, _locService.Get("app_title", "MPV Launcher"), MessageBoxButton.OK,
+                    res.Success ? MessageBoxImage.Information : MessageBoxImage.Error);
+            }
+            catch (Exception ex)
+            {
+                string msg = _locService.Get("install_error", "Browser extension install failed:") + " " + ex.Message;
+                TxtExtensionStatus.Text = msg;
+                TxtStatus.Text = msg;
+                MessageBox.Show(msg, _locService.Get("app_title", "MPV Launcher"), MessageBoxButton.OK,
+                    MessageBoxImage.Error);
+            }
+            finally
+            {
+                BtnInstallExtensions.IsEnabled = true;
+            }
         }
 
+        /// <summary>
+        /// Renders the install summary from the service's structured result.
+        ///
+        /// Mirrors BuildUninstallMessage: the service hands over keys and values,
+        /// and every sentence is resolved here so it comes from the active
+        /// language file. The follow-up hint is kept because an install is not
+        /// finished until the user has actually loaded the unpacked folder.
+        /// </summary>
+        private string BuildInstallMessage(ExtensionInstallResult res)
+        {
+            string head = _locService.Get(
+                "install_success_head",
+                "Browser extension files and the native messaging host are ready.");
+
+            var bullet = Environment.NewLine + "• ";
+            var lines = res.Details
+                .Select(d => _locService.Format(d.Key, d.Key, d.Args));
+
+            return head + Environment.NewLine + bullet + string.Join(bullet, lines)
+                   + Environment.NewLine + Environment.NewLine
+                   + _locService.Get("install_hint_chromium",
+                       "In Chrome / Edge / Brave: open chrome://extensions, turn on Developer mode, and choose 'Load unpacked' then select the Chromium folder above.")
+                   + Environment.NewLine
+                   + _locService.Get("install_hint_firefox",
+                       "In Firefox: open about:debugging, choose 'This Firefox', and load the temporary add-on from the XPI path above.");
+        }
+
+        /// <summary>
+        /// Uninstall, behind a confirmation.
+        ///
+        /// This is destructive and partly outside the app's own folders - it
+        /// edits browser launch commands and Firefox profiles - so the user is
+        /// asked first and told exactly what will change.
+        /// </summary>
+        private async void BtnUninstallExtensions_Click(object sender, RoutedEventArgs e)
+        {
+            var confirmText = _locService.Get("uninstall_confirm_body",
+                "Extension files, native messaging entries, the Firefox profile XPI and browser launch commands will be removed.");
+            var answer = MessageBox.Show(
+                confirmText + "\n\n" + _locService.Get("uninstall_confirm_question", "Continue?"),
+                _locService.Get("app_title", "MPV Launcher"),
+                MessageBoxButton.YesNo, MessageBoxImage.Warning);
+            if (answer != MessageBoxResult.Yes) return;
+
+            BtnUninstallExtensions.IsEnabled = false;
+            TxtExtensionStatus.Text = _locService.Get("uninstall_running", "Removing browser extension...");
+            TxtStatus.Text = TxtExtensionStatus.Text;
+
+            try
+            {
+                var res = await Task.Run(() => _browserService.UninstallAll());
+
+                string message = res.Success
+                    ? BuildUninstallMessage(res)
+                    : _locService.Get("uninstall_error", "Browser extension uninstall failed:") + " " + res.Error;
+
+                TxtExtensionStatus.Text = message;
+                TxtStatus.Text = res.Success
+                    ? _locService.Get("uninstall_success", "Browser extension removed.")
+                    : message;
+
+                MessageBox.Show(message, _locService.Get("app_title", "MPV Launcher"), MessageBoxButton.OK,
+                    res.Success ? MessageBoxImage.Information : MessageBoxImage.Error);
+            }
+            catch (Exception ex)
+            {
+                string msg = _locService.Get("uninstall_error", "Browser extension uninstall failed:") + " " + ex.Message;
+                TxtExtensionStatus.Text = msg;
+                TxtStatus.Text = msg;
+                MessageBox.Show(msg, _locService.Get("app_title", "MPV Launcher"), MessageBoxButton.OK,
+                    MessageBoxImage.Error);
+            }
+            finally
+            {
+                BtnUninstallExtensions.IsEnabled = true;
+            }
+        }
+
+        /// <summary>
+        /// Turns the service's structured result into a localized summary.
+        ///
+        /// The service deliberately returns localization keys rather than
+        /// sentences, so all user-facing wording lives here and is translated
+        /// with everything else. "Nothing removed" is a distinct outcome from
+        /// "removed nothing successfully" and gets its own message, because it
+        /// usually means the button was pressed before anything was installed.
+        /// </summary>
+        private string BuildUninstallMessage(UninstallResult res)
+        {
+            if (!res.AnyRemoved)
+                return _locService.Get("uninstall_nothing", "Nothing to remove. The extension was not installed.");
+
+            var bullet = Environment.NewLine + "• ";
+            var lines = res.Items
+                .Select(i => _locService.Get(i.Key, i.Key) + " (" + i.Count + ")");
+
+            return _locService.Get("uninstall_removed", "Removed:") + bullet + string.Join(bullet, lines)
+                   + Environment.NewLine + Environment.NewLine
+                   + _locService.Get("uninstall_note",
+                       "Note: if it still shows up in your browser, remove it from chrome://extensions or about:debugging.");
+        }
+
+        /// <summary>
+        /// Opens the Chromium extension folder in Explorer, and nothing else.
+        ///
+        /// This is the "where are my files" button - it does not install or
+        /// repair anything, which is what the separate install button is for. The
+        /// folder is created if absent so the button never appears to do nothing
+        /// on a fresh install.
+        /// </summary>
         private void BtnOpenExtensionFolder_Click(object sender, RoutedEventArgs e)
         {
             try
             {
                 AppPaths.EnsureLayout();
-                ResourceSeeder.Extract(overwriteExtension: true);
-                new ExtensionInstallService().InstallAll();
-
                 string extDir = AppPaths.ChromiumExtensionDir;
                 Directory.CreateDirectory(extDir);
-
-                try { Clipboard.SetText(extDir); } catch { }
 
                 Process.Start(new ProcessStartInfo
                 {
@@ -359,7 +651,6 @@ namespace MpvLauncher.Gui
                     Arguments = $"\"{extDir}\"",
                     UseShellExecute = true
                 });
-                TxtStatus.Text = "Extension folder opened (path copied to clipboard).";
             }
             catch (Exception ex)
             {
@@ -372,24 +663,86 @@ namespace MpvLauncher.Gui
             try
             {
                 Clipboard.SetText("chrome://extensions");
-                string msg = _locService.Get("copied_chrome_extensions", "chrome://extensions panoya kopyalandı! Tarayıcınızın adres çubuğuna yapıştırın.");
-                TxtExtensionStatus.Text = msg;
-                TxtStatus.Text = msg;
+            }
+            catch { }
 
-                Process.Start(new ProcessStartInfo
-                {
-                    FileName = "cmd.exe",
-                    Arguments = "/c start chrome://extensions || start edge://extensions",
-                    UseShellExecute = true,
-                    CreateNoWindow = true
-                });
-            }
-            catch
-            {
-                TxtStatus.Text = "chrome://extensions panoya kopyalandı.";
-            }
+            string msg = _locService.Get("copied_chrome_extensions", "chrome://extensions copied to clipboard! Paste it in your browser address bar.");
+            TxtExtensionStatus.Text = msg;
+            ShowToast(msg);
         }
 
+        /// <summary>
+        /// Shows a transient message at the bottom of the window.
+        ///
+        /// Built in code rather than declared in XAML because the content is
+        /// dynamic. It fades in, holds, fades out and removes itself, and a
+        /// toast already on screen is cleared first so two never overlap.
+        /// </summary>
+        private void ShowToast(string message)
+        {
+            if (string.IsNullOrWhiteSpace(message)) return;
+
+            var border = new Border
+            {
+                Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#1E222D")),
+                BorderBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#6366F1")),
+                BorderThickness = new Thickness(1, 1, 1, 1),
+                CornerRadius = new CornerRadius(8),
+                Padding = new Thickness(16, 10, 16, 10),
+                Margin = new Thickness(0, 0, 0, 20),
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Bottom,
+                Opacity = 0
+            };
+
+            var text = new TextBlock
+            {
+                Text = message,
+                Foreground = Brushes.White,
+                FontSize = 12,
+                TextWrapping = TextWrapping.Wrap
+            };
+
+            border.Child = text;
+
+            if (border.Parent is Panel parent)
+            {
+                parent.Children.Add(border);
+            }
+            else
+            {
+                // Fallback: add to the main grid
+                if (WindowContentClip != null)
+                {
+                    WindowContentClip.Children.Add(border);
+                }
+            }
+
+            var fadeIn = new System.Windows.Media.Animation.DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(300));
+            var fadeOut = new System.Windows.Media.Animation.DoubleAnimation(1, 0, TimeSpan.FromMilliseconds(300))
+            {
+                BeginTime = TimeSpan.FromSeconds(3)
+            };
+
+            border.BeginAnimation(OpacityProperty, fadeIn);
+            border.BeginAnimation(OpacityProperty, fadeOut);
+
+            var timer = new System.Windows.Threading.DispatcherTimer
+            {
+                Interval = TimeSpan.FromSeconds(3.5)
+            };
+            timer.Tick += (s, e) =>
+            {
+                timer.Stop();
+                if (border.Parent is Panel p)
+                {
+                    p.Children.Remove(border);
+                }
+            };
+            timer.Start();
+        }
+
+        /// <summary>Opens the add-on listing page on addons.mozilla.org.</summary>
         private void BtnFirefoxAddon_Click(object sender, RoutedEventArgs e)
         {
             try
@@ -403,6 +756,7 @@ namespace MpvLauncher.Gui
             catch { }
         }
 
+        /// <summary>Opens the application data folder in Explorer.</summary>
         private void BtnShowDataFolder_Click(object sender, RoutedEventArgs e)
         {
             try
@@ -419,6 +773,32 @@ namespace MpvLauncher.Gui
             {
                 MessageBox.Show(ex.Message, "MPV Launcher", MessageBoxButton.OK, MessageBoxImage.Error);
             }
+        }
+
+        private void BtnBrowseMpv_Click(object sender, RoutedEventArgs e)
+        {
+            var dlg = new OpenFileDialog
+            {
+                Filter = "mpv.exe|mpv.exe|Executables (*.exe)|*.exe|All files (*.*)|*.*",
+                Title = "Select mpv.exe"
+            };
+            if (dlg.ShowDialog() == true)
+            {
+                TxtMpvPath.Text = dlg.FileName;
+            }
+        }
+
+        private void BtnSaveMpvSettings_Click(object sender, RoutedEventArgs e)
+        {
+            _configService.Config.MpvPath = TxtMpvPath.Text.Trim();
+            _configService.Config.AlwaysOnTop = ChkAlwaysOnTop.IsChecked ?? true;
+            _configService.Config.ForceWindow = (CmbForceWindow.SelectedItem as ComboBoxItem)?.Tag?.ToString() ?? "immediate";
+            _configService.Config.Geometry = TxtMpvGeometry.Text.Trim();
+            _configService.Config.MpvProfile = TxtMpvProfile.Text.Trim();
+            _configService.Config.ExtraArgs = TxtMpvExtraArgs.Text.Trim();
+            _configService.Save();
+
+            TxtStatus.Text = _locService.Get("settings_saved", "Settings saved successfully.");
         }
         #endregion
 
@@ -461,75 +841,138 @@ namespace MpvLauncher.Gui
             }
         }
 
+        /// <summary>
+        /// Applies the selected theme and the user's appearance overrides to
+        /// every brush the window uses.
+        ///
+        /// Precedence throughout is: an explicit override in config, then the
+        /// theme's value, then a built-in default. ApplyCardStyle and ToBrush
+        /// below are what encode that, so this method reads as a list of
+        /// decisions rather than a wall of colour parsing.
+        /// </summary>
         private void UpdateTheme()
         {
             var tm = _themeService.CurrentTheme;
+            var cfg = _configService.Config;
 
-            string bgUrl = !string.IsNullOrEmpty(_configService.Config.CustomBackground)
-                ? _configService.Config.CustomBackground
+            string bgUrl = !string.IsNullOrEmpty(cfg.CustomBackground)
+                ? cfg.CustomBackground
                 : tm.Background.Image;
 
-            WindowFrame.Background = ToBrush(tm.Background.Color, "#12141A");
+            string bgColor = !string.IsNullOrEmpty(cfg.CustomBgColor) ? cfg.CustomBgColor : tm.Background.Color;
+            WindowFrame.Background = ToBrush(bgColor, "#12141A");
             BgOverlayBorder.Background = ToBrush(tm.Background.OverlayColor, "#B20D0F18");
 
-            if (!string.IsNullOrEmpty(bgUrl))
+            WindowFrame.CornerRadius = new CornerRadius(cfg.WindowCornerRadius);
+            BgOverlayBorder.CornerRadius = new CornerRadius(cfg.WindowCornerRadius);
+
+            if (WindowFrame.Effect is System.Windows.Media.Effects.DropShadowEffect dse)
             {
-                try
-                {
-                    var bmp = new BitmapImage();
-                    bmp.BeginInit();
-                    bmp.UriSource = new Uri(bgUrl, UriKind.RelativeOrAbsolute);
-                    bmp.CacheOption = BitmapCacheOption.OnLoad;
-                    bmp.EndInit();
-                    BgImageElement.Source = bmp;
-                }
-                catch { BgImageElement.Source = null; }
-            }
-            else
-            {
-                BgImageElement.Source = null;
+                dse.BlurRadius = cfg.CustomShadowBlur;
+                dse.Opacity = cfg.CustomShadowOpacity;
             }
 
-            BgBlurEffect.Radius = _configService.Config.CustomBlur > 0
-                ? _configService.Config.CustomBlur
-                : tm.Background.BlurRadius;
+            if (WindowContentClip != null)
+            {
+                double w = WindowContentClip.ActualWidth > 0 ? WindowContentClip.ActualWidth : Width;
+                double h = WindowContentClip.ActualHeight > 0 ? WindowContentClip.ActualHeight : Height;
+                WindowContentClip.Clip = new RectangleGeometry(new Rect(0, 0, w, h), cfg.WindowCornerRadius, cfg.WindowCornerRadius);
+            }
+
+            SetBackgroundImage(bgUrl);
+
+            BgBlurEffect.Radius = cfg.CustomBlur >= 0 ? cfg.CustomBlur : tm.Background.BlurRadius;
 
             try
             {
-                byte alpha = (byte)(_configService.Config.CustomOpacity * 255);
-                var cardColor = ToColor(tm.Colors.CardBg, "#1A1E27");
-                cardColor.A = alpha;
-
+                byte cardAlpha = (byte)Math.Clamp(cfg.CustomCardOpacity * 255, 10, 255);
+                var cardColor = ToColor(!string.IsNullOrEmpty(cfg.CustomCardColor) ? cfg.CustomCardColor : tm.Colors.CardBg, "#1E222D");
+                cardColor.A = cardAlpha;
                 var cardBrush = new SolidColorBrush(cardColor);
-                CardUrl.Background = cardBrush;
-                CardHistory.Background = cardBrush;
-                CardStatus.Background = cardBrush;
-                CardDownloads.Background = cardBrush;
-                CardBrowser.Background = cardBrush;
-                CardThemes.Background = cardBrush;
-                CardThemeAnime4k.Background = cardBrush;
-                CardCustomBg.Background = cardBrush;
-                CardLang.Background = cardBrush;
-                CardDataFolder.Background = cardBrush;
-                PanelThemeEditor.Background = new SolidColorBrush(Color.FromArgb(0x30, cardColor.R, cardColor.G, cardColor.B));
+
+                var cardRadius = new CornerRadius(cfg.CardCornerRadius);
+
+                ApplyCardStyle(CardUrl, cardBrush, cardRadius);
+                ApplyCardStyle(CardHistory, cardBrush, cardRadius);
+                ApplyCardStyle(CardStatus, cardBrush, cardRadius);
+                ApplyCardStyle(CardDownloads, cardBrush, cardRadius);
+                ApplyCardStyle(CardBrowser, cardBrush, cardRadius);
+                ApplyCardStyle(CardThemes, cardBrush, cardRadius);
+                ApplyCardStyle(CardThemeAnime4k, cardBrush, cardRadius);
+                ApplyCardStyle(CardThemeCustomizer, cardBrush, cardRadius);
+                ApplyCardStyle(CardMpvConfig, cardBrush, cardRadius);
+                ApplyCardStyle(CardLang, cardBrush, cardRadius);
+                ApplyCardStyle(CardDataFolder, cardBrush, cardRadius);
 
                 if (SidebarBorder != null)
                 {
-                    byte sideAlpha = (byte)Math.Clamp(alpha + 20, 30, 255);
-                    SidebarBorder.Background = new SolidColorBrush(Color.FromArgb(sideAlpha, cardColor.R, cardColor.G, cardColor.B));
+                    byte sideAlpha = (byte)Math.Clamp(cfg.CustomSidebarOpacity * 255, 10, 255);
+                    var sideColor = ToColor(!string.IsNullOrEmpty(cfg.CustomSidebarColor) ? cfg.CustomSidebarColor : tm.Background.Color, "#12141A");
+                    sideColor.A = sideAlpha;
+                    SidebarBorder.Background = new SolidColorBrush(sideColor);
                 }
 
-                if (BorderBrandIcon != null && !string.IsNullOrWhiteSpace(tm.Colors.Accent))
+                string accent = !string.IsNullOrWhiteSpace(cfg.CustomAccentColor) ? cfg.CustomAccentColor : tm.Colors.Accent;
+                var accentBrush = ToBrush(accent, "#6366F1");
+
+                if (BorderBrandIcon != null)
                 {
-                    BorderBrandIcon.Background = ToBrush(tm.Colors.Accent, "#6366F1");
+                    // Logo tint, in order of precedence: the user's explicit
+                    // override, then the theme's own logo colour, then accent.
+                    string logoColor = !string.IsNullOrWhiteSpace(cfg.CustomLogoColor)
+                        ? cfg.CustomLogoColor
+                        : (!string.IsNullOrWhiteSpace(_themeService?.CurrentTheme?.Colors?.Logo)
+                            ? _themeService.CurrentTheme.Colors.Logo
+                            : accent);
+                    BorderBrandIcon.Background = ToBrush(logoColor, accent);
                 }
+
+                if (_activeNavButton != null)
+                {
+                    _activeNavButton.Background = accentBrush;
+                    _activeNavButton.Foreground = Brushes.White;
+                }
+                else if (BtnNavPlayer != null && BtnNavPlayer.Background != Brushes.Transparent)
+                {
+                    BtnNavPlayer.Background = accentBrush;
+                    BtnNavPlayer.Foreground = Brushes.White;
+                }
+
+                if (BtnPlayUrl != null) BtnPlayUrl.Background = accentBrush;
+                if (BtnInstallExtensions != null) BtnInstallExtensions.Background = accentBrush;
+                if (BtnInstallMpv != null) BtnInstallMpv.Background = accentBrush;
+                if (BtnInstallYtdlp != null) BtnInstallYtdlp.Background = accentBrush;
+                if (BtnInstallFfmpeg != null) BtnInstallFfmpeg.Background = accentBrush;
+                if (BtnSaveMpvSettings != null) BtnSaveMpvSettings.Background = accentBrush;
+                if (BtnApplyColors != null) BtnApplyColors.Background = accentBrush;
             }
             catch { }
+        }
+
+        /// <summary>Applies the fill and corner radius to one card border.</summary>
+        private static void ApplyCardStyle(Border? card, Brush bg, CornerRadius radius)
+        {
+            if (card != null)
+            {
+                card.Background = bg;
+                card.CornerRadius = radius;
+            }
         }
 
         private static SolidColorBrush ToBrush(string value, string fallback)
             => new(ToColor(value, fallback));
 
+        /// <summary>
+        /// Parses a colour, returning the fallback instead of throwing.
+        ///
+        /// Colours come from three places - the config file, theme JSON, and a
+        /// text box the user types into - so any of them can hold something
+        /// unparseable. A wrong colour must never take the window down, which is
+        /// why there is no exception path out of here.
+        ///
+        /// "rgba(r,g,b,a)" is unpacked by hand: theme files use CSS notation
+        /// that WPF's own converter does not accept.
+        /// </summary>
         private static Color ToColor(string value, string fallback)
         {
             try
@@ -558,26 +1001,6 @@ namespace MpvLauncher.Gui
             return (Color)ColorConverter.ConvertFromString(fallback);
         }
 
-        private void BtnApplyCustomBg_Click(object sender, RoutedEventArgs e)
-        {
-            _configService.Config.CustomBackground = TxtCustomBgUrl.Text.Trim();
-            _configService.Save();
-            UpdateTheme();
-            TxtStatus.Text = "Custom background applied.";
-        }
-
-        private void SliderOpacity_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
-        {
-            if (TxtOpacityVal != null && _configService != null)
-            {
-                int val = (int)e.NewValue;
-                TxtOpacityVal.Text = $"{val}%";
-                _configService.Config.CustomOpacity = val / 100.0;
-                _configService.Save();
-                UpdateTheme();
-            }
-        }
-
         private void SliderBlur_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
         {
             if (TxtBlurVal != null && _configService != null)
@@ -588,6 +1011,145 @@ namespace MpvLauncher.Gui
                 _configService.Save();
                 UpdateTheme();
             }
+        }
+
+        private void SliderOpacity_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+        {
+            if (TxtOpacityVal != null && _configService != null)
+            {
+                int val = (int)e.NewValue;
+                TxtOpacityVal.Text = $"{val}%";
+                _configService.Config.CustomCardOpacity = val / 100.0;
+                _configService.Save();
+                UpdateTheme();
+            }
+        }
+
+        private void SliderSidebarOpacity_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+        {
+            if (TxtSidebarOpacityVal != null && _configService != null)
+            {
+                int val = (int)e.NewValue;
+                TxtSidebarOpacityVal.Text = $"{val}%";
+                _configService.Config.CustomSidebarOpacity = val / 100.0;
+                _configService.Save();
+                UpdateTheme();
+            }
+        }
+
+        private void SliderInputOpacity_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+        {
+            if (TxtInputOpacityVal != null && _configService != null)
+            {
+                int val = (int)e.NewValue;
+                TxtInputOpacityVal.Text = $"{val}%";
+                _configService.Config.CustomInputOpacity = val / 100.0;
+                _configService.Save();
+            }
+        }
+
+        private void SliderButtonOpacity_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+        {
+            if (TxtButtonOpacityVal != null && _configService != null)
+            {
+                int val = (int)e.NewValue;
+                TxtButtonOpacityVal.Text = $"{val}%";
+                _configService.Config.CustomButtonOpacity = val / 100.0;
+                _configService.Save();
+            }
+        }
+
+        private void BtnApplyColors_Click(object sender, RoutedEventArgs e)
+        {
+            _configService.Config.CustomBgColor = TxtColorBg.Text.Trim();
+            _configService.Config.CustomSidebarColor = TxtColorSidebar.Text.Trim();
+            _configService.Config.CustomCardColor = TxtColorCard.Text.Trim();
+            _configService.Config.CustomAccentColor = TxtColorAccent.Text.Trim();
+            _configService.Config.CustomBorderColor = TxtColorBorder.Text.Trim();
+            _configService.Config.CustomTextPrimary = TxtColorTextPrimary.Text.Trim();
+            _configService.Config.CustomTextSecondary = TxtColorTextSecondary.Text.Trim();
+            _configService.Config.CustomLogoColor = TxtColorLogo.Text.Trim();
+            _configService.Save();
+            UpdateTheme();
+            TxtStatus.Text = _locService.Get("colors_applied", "Custom colors applied.");
+        }
+
+        private void BtnPickColor_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is Button btn && btn.Tag is string targetBoxName)
+            {
+                TextBox? targetBox = targetBoxName switch
+                {
+                    "TxtColorBg" => TxtColorBg,
+                    "TxtColorSidebar" => TxtColorSidebar,
+                    "TxtColorCard" => TxtColorCard,
+                    "TxtColorAccent" => TxtColorAccent,
+                    "TxtColorBorder" => TxtColorBorder,
+                    "TxtColorTextPrimary" => TxtColorTextPrimary,
+                    "TxtColorTextSecondary" => TxtColorTextSecondary,
+                    _ => null
+                };
+
+                if (targetBox != null)
+                {
+                    var dlg = new ColorPickerDialog(targetBox.Text.Trim());
+                    try { dlg.Owner = this; } catch { }
+                    if (dlg.ShowDialog() == true)
+                    {
+                        targetBox.Text = dlg.ResultColor;
+                        BtnApplyColors_Click(sender, e);
+                    }
+                }
+            }
+        }
+
+        private void BtnBrowseBgImage_Click(object sender, RoutedEventArgs e)
+        {
+            var dlg = new OpenFileDialog
+            {
+                Filter = "Image Files|*.png;*.jpg;*.jpeg;*.webp;*.bmp|All Files|*.*",
+                Title = "Select Background Image"
+            };
+            if (dlg.ShowDialog() == true)
+            {
+                TxtCustomBgUrl.Text = dlg.FileName;
+                _configService.Config.CustomBackground = dlg.FileName;
+                _configService.Save();
+                UpdateTheme();
+            }
+        }
+
+        private void BtnApplyCustomBg_Click(object sender, RoutedEventArgs e)
+        {
+            _configService.Config.CustomBackground = TxtCustomBgUrl.Text.Trim();
+            _configService.Save();
+            UpdateTheme();
+            TxtStatus.Text = "Custom background applied.";
+        }
+
+        private void BtnResetThemeDefaults_Click(object sender, RoutedEventArgs e)
+        {
+            _configService.Config.ResetThemeSettings();
+            _configService.Save();
+            _themeService.LoadTheme("dark");
+
+            SliderBlur.Value = _configService.Config.CustomBlur;
+            SliderOpacity.Value = _configService.Config.CustomCardOpacity * 100;
+            SliderSidebarOpacity.Value = _configService.Config.CustomSidebarOpacity * 100;
+            SliderInputOpacity.Value = _configService.Config.CustomInputOpacity * 100;
+            SliderButtonOpacity.Value = _configService.Config.CustomButtonOpacity * 100;
+            TxtColorBg.Text = _configService.Config.CustomBgColor;
+            TxtColorSidebar.Text = _configService.Config.CustomSidebarColor;
+            TxtColorCard.Text = _configService.Config.CustomCardColor;
+            TxtColorAccent.Text = _configService.Config.CustomAccentColor;
+            TxtColorBorder.Text = _configService.Config.CustomBorderColor;
+            TxtColorTextPrimary.Text = _configService.Config.CustomTextPrimary;
+            TxtColorTextSecondary.Text = _configService.Config.CustomTextSecondary;
+            TxtColorLogo.Text = _configService.Config.CustomLogoColor;
+            TxtCustomBgUrl.Text = "";
+
+            UpdateTheme();
+            TxtStatus.Text = _locService.Get("theme_reset_success", "Theme and UI settings reset to defaults.");
         }
 
         private async void BtnImportTheme_Click(object sender, RoutedEventArgs e)
@@ -602,137 +1164,6 @@ namespace MpvLauncher.Gui
                 TxtThemeUrl.Text = "";
                 PopulateThemes();
             }
-        }
-
-        private void BtnThemeEditor_Click(object sender, RoutedEventArgs e)
-        {
-            PanelThemeEditor.Visibility = PanelThemeEditor.Visibility == Visibility.Visible
-                ? Visibility.Collapsed
-                : Visibility.Visible;
-
-            if (PanelThemeEditor.Visibility == Visibility.Visible)
-                FillThemeEditor();
-        }
-
-        private void FillThemeEditor()
-        {
-            var tm = _themeService.CurrentTheme;
-            TxtThemeEditName.Text = tm.Name;
-            TxtThemeEditAuthor.Text = tm.Author;
-            TxtThemeEditBgImage.Text = tm.Background.Image;
-            TxtThemeEditBgColor.Text = tm.Background.Color;
-            TxtThemeEditCardColor.Text = tm.Colors.CardBg.StartsWith("rgba(", StringComparison.OrdinalIgnoreCase)
-                ? "#1A1E27"
-                : tm.Colors.CardBg;
-            TxtThemeEditAccent.Text = tm.Colors.Accent;
-            TxtThemeEditTextPrimary.Text = tm.Colors.TextPrimary;
-            TxtThemeEditTextSecondary.Text = tm.Colors.TextSecondary;
-            TxtThemeEditBlur.Text = tm.Background.BlurRadius.ToString("0.##", CultureInfo.InvariantCulture);
-            TxtThemeEditOpacity.Text = tm.Opacity.Cards.ToString("0.##", CultureInfo.InvariantCulture);
-        }
-
-        private void BtnApplyThemeEdit_Click(object sender, RoutedEventArgs e)
-        {
-            var theme = BuildThemeFromEditor();
-            _configService.Config.CustomBackground = "";
-            _configService.Config.CustomBlur = theme.Background.BlurRadius;
-            _configService.Config.CustomOpacity = theme.Opacity.Cards;
-            _configService.Save();
-            _themeService.ApplyTheme(theme);
-            TxtCustomBgUrl.Text = "";
-            SliderBlur.Value = theme.Background.BlurRadius;
-            SliderOpacity.Value = theme.Opacity.Cards * 100;
-            TxtStatus.Text = "Theme preview applied.";
-        }
-
-        private void BtnSaveThemeEdit_Click(object sender, RoutedEventArgs e)
-        {
-            var theme = BuildThemeFromEditor();
-            _configService.Config.CustomBackground = "";
-            _configService.Config.CustomBlur = theme.Background.BlurRadius;
-            _configService.Config.CustomOpacity = theme.Opacity.Cards;
-            var res = _themeService.SaveTheme(theme);
-            TxtStatus.Text = res.Message;
-            if (res.Success)
-            {
-                _configService.Config.Theme = theme.Id;
-                _configService.Save();
-                TxtCustomBgUrl.Text = "";
-                SliderBlur.Value = theme.Background.BlurRadius;
-                SliderOpacity.Value = theme.Opacity.Cards * 100;
-                PopulateThemes();
-            }
-        }
-
-        private ThemeModel BuildThemeFromEditor()
-        {
-            var current = _themeService.CurrentTheme;
-            string name = string.IsNullOrWhiteSpace(TxtThemeEditName.Text) ? current.Name : TxtThemeEditName.Text.Trim();
-            string id = MakeThemeId(name);
-            double blur = ParseDouble(TxtThemeEditBlur.Text, current.Background.BlurRadius);
-            double opacity = Math.Clamp(ParseDouble(TxtThemeEditOpacity.Text, current.Opacity.Cards), 0.2, 1.0);
-
-            return new ThemeModel
-            {
-                Id = id,
-                Name = name,
-                Author = string.IsNullOrWhiteSpace(TxtThemeEditAuthor.Text) ? current.Author : TxtThemeEditAuthor.Text.Trim(),
-                Background = new ThemeBackground
-                {
-                    Type = string.IsNullOrWhiteSpace(TxtThemeEditBgImage.Text) ? "solid" : "image",
-                    Color = NormalizeColorText(TxtThemeEditBgColor.Text, current.Background.Color),
-                    Image = TxtThemeEditBgImage.Text.Trim(),
-                    BlurRadius = blur,
-                    OverlayColor = current.Background.OverlayColor
-                },
-                Colors = new ThemeColors
-                {
-                    CardBg = NormalizeColorText(TxtThemeEditCardColor.Text, current.Colors.CardBg),
-                    CardBorder = current.Colors.CardBorder,
-                    Accent = NormalizeColorText(TxtThemeEditAccent.Text, current.Colors.Accent),
-                    AccentHover = current.Colors.AccentHover,
-                    TextPrimary = NormalizeColorText(TxtThemeEditTextPrimary.Text, current.Colors.TextPrimary),
-                    TextSecondary = NormalizeColorText(TxtThemeEditTextSecondary.Text, current.Colors.TextSecondary),
-                    TextMuted = current.Colors.TextMuted,
-                    Success = current.Colors.Success,
-                    Danger = current.Colors.Danger
-                },
-                Opacity = new ThemeOpacity
-                {
-                    Cards = opacity,
-                    Inputs = current.Opacity.Inputs,
-                    Buttons = current.Opacity.Buttons
-                }
-            };
-        }
-
-        private static string NormalizeColorText(string value, string fallback)
-        {
-            string trimmed = value.Trim();
-            _ = ToColor(trimmed, fallback);
-            return string.IsNullOrWhiteSpace(trimmed) ? fallback : trimmed;
-        }
-
-        private static double ParseDouble(string value, double fallback)
-            => double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out double parsed)
-                ? parsed
-                : fallback;
-
-        private static string MakeThemeId(string name)
-        {
-            string raw = name.Trim().ToLowerInvariant();
-            var chars = new char[raw.Length];
-            int index = 0;
-            foreach (char c in raw)
-            {
-                if (char.IsLetterOrDigit(c))
-                    chars[index++] = c;
-                else if (index > 0 && chars[index - 1] != '_')
-                    chars[index++] = '_';
-            }
-
-            string id = new string(chars, 0, index).Trim('_');
-            return string.IsNullOrWhiteSpace(id) ? "custom_theme" : id;
         }
 
         private async void BtnInstallThemeAnime4k_Click(object sender, RoutedEventArgs e)
@@ -789,6 +1220,118 @@ namespace MpvLauncher.Gui
             }
         }
 
+        /// <summary>
+        /// Loads the window background from a path or a URL.
+        ///
+        /// A local file is read directly. A URL is cached under the app's cache
+        /// folder first and only re-fetched when that file is missing, so the
+        /// background does not delay startup on every launch and works offline
+        /// once seen. The cache name is a hash of the URL rather than the URL
+        /// itself, which keeps arbitrary query strings from becoming file names.
+        /// </summary>
+        private void SetBackgroundImage(string? bgUrl)
+        {
+            if (string.IsNullOrWhiteSpace(bgUrl))
+            {
+                BgImageElement.Source = null;
+                return;
+            }
+
+            try
+            {
+                // 1. Local file on disk
+                if (File.Exists(bgUrl))
+                {
+                    var bmp = new BitmapImage();
+                    bmp.BeginInit();
+                    bmp.UriSource = new Uri(Path.GetFullPath(bgUrl), UriKind.Absolute);
+                    bmp.CacheOption = BitmapCacheOption.OnLoad;
+                    bmp.CreateOptions = BitmapCreateOptions.PreservePixelFormat;
+                    bmp.EndInit();
+                    bmp.Freeze();
+                    BgImageElement.Source = bmp;
+                    return;
+                }
+
+                // 2. Remote URL: Check cache in %APPDATA%\MPVLauncher\cache
+                if (Uri.TryCreate(bgUrl, UriKind.Absolute, out var uri) && (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps))
+                {
+                    string hash = Convert.ToHexString(System.Security.Cryptography.MD5.HashData(System.Text.Encoding.UTF8.GetBytes(bgUrl))).ToLowerInvariant();
+                    string ext = Path.GetExtension(uri.AbsolutePath);
+                    if (string.IsNullOrWhiteSpace(ext) || ext.Length > 5) ext = ".png";
+                    string cachedFile = Path.Combine(AppPaths.CacheDir, $"bg_{hash}{ext}");
+
+                    if (File.Exists(cachedFile))
+                    {
+                        var bmp = new BitmapImage();
+                        bmp.BeginInit();
+                        bmp.UriSource = new Uri(cachedFile, UriKind.Absolute);
+                        bmp.CacheOption = BitmapCacheOption.OnLoad;
+                        bmp.CreateOptions = BitmapCreateOptions.PreservePixelFormat;
+                        bmp.EndInit();
+                        bmp.Freeze();
+                        BgImageElement.Source = bmp;
+                        return;
+                    }
+
+                    // Download asynchronously and cache
+                    Task.Run(async () =>
+                    {
+                        try
+                        {
+                            using var client = new System.Net.Http.HttpClient();
+                            client.DefaultRequestHeaders.UserAgent.ParseAdd("Mozilla/5.0");
+                            byte[] data = await client.GetByteArrayAsync(uri);
+                            Directory.CreateDirectory(AppPaths.CacheDir);
+                            await File.WriteAllBytesAsync(cachedFile, data);
+
+                            Dispatcher.Invoke(() =>
+                            {
+                                try
+                                {
+                                    var bmp = new BitmapImage();
+                                    bmp.BeginInit();
+                                    bmp.UriSource = new Uri(cachedFile, UriKind.Absolute);
+                                    bmp.CacheOption = BitmapCacheOption.OnLoad;
+                                    bmp.CreateOptions = BitmapCreateOptions.PreservePixelFormat;
+                                    bmp.EndInit();
+                                    bmp.Freeze();
+                                    BgImageElement.Source = bmp;
+                                }
+                                catch { }
+                            });
+                        }
+                        catch { }
+                    });
+                    return;
+                }
+
+                // 3. Fallback
+                var fallbackBmp = new BitmapImage();
+                fallbackBmp.BeginInit();
+                fallbackBmp.UriSource = new Uri(bgUrl, UriKind.RelativeOrAbsolute);
+                fallbackBmp.CacheOption = BitmapCacheOption.OnLoad;
+                fallbackBmp.EndInit();
+                fallbackBmp.Freeze();
+                BgImageElement.Source = fallbackBmp;
+            }
+            catch
+            {
+                BgImageElement.Source = null;
+            }
+        }
+
+        /// <summary>
+        /// Re-labels every control in the window.
+        ///
+        /// Called on startup and whenever the user picks a language. Every
+        /// lookup passes an English fallback, so a language pack that is missing
+        /// a key still renders readable text rather than the raw key - which is
+        /// also why the fallback has to be kept in step with the locale files.
+        ///
+        /// Only text is touched: nothing here rebuilds a panel, so switching
+        /// language cannot change the current page or lose a typed value.
+        /// </summary>
         private void UpdateLocalization()
         {
             Title = _locService.Get("app_title", "MPV Launcher");
@@ -797,7 +1340,9 @@ namespace MpvLauncher.Gui
 
             BtnNavPlayer.Content = _locService.Get("tab_player", "Player");
             BtnNavTools.Content = _locService.Get("tab_tools", "Dependencies");
-            BtnNavSettings.Content = _locService.Get("tab_settings", "Themes & Settings");
+            BtnNavSettings.Content = _locService.Get("tab_settings", "Settings");
+            BtnNavThemes.Content = _locService.Get("tab_themes", "Themes");
+            BtnNavGuide.Content = _locService.Get("tab_guide", "Guide");
 
             TxtPlayerTitle.Text = _locService.Get("player_title", "Media & Stream Player");
             TxtPlayerDesc.Text = _locService.Get("player_desc", "Paste a video URL or drag and drop a local video file.");
@@ -813,6 +1358,7 @@ namespace MpvLauncher.Gui
             BtnUpdateYtdl.Content = _locService.Get("btn_update_ytdl", "Update yt-dlp (-U)");
             BtnRefreshTools.Content = _locService.Get("btn_refresh", "Refresh");
             TxtDownloadsTitle.Text = _locService.Get("downloads_title", "Download sources");
+            TxtInstallDir.Text = $"{_locService.Get("tools_folder_label", "Tools folder:")} {AppPaths.BinDir}";
             BtnInstallMpv.Content = _locService.Get("btn_download_install", "Download & Install");
             BtnInstallYtdlp.Content = _locService.Get("btn_download_install", "Download & Install");
             BtnInstallFfmpeg.Content = _locService.Get("btn_download_install", "Download & Install");
@@ -820,23 +1366,94 @@ namespace MpvLauncher.Gui
             TxtBrowserTitle.Text = _locService.Get("browser_integration_title", "Browser extension integration");
             TxtBrowserDesc.Text = _locService.Get("browser_desc", "Extensions and native messaging are installed automatically when the app starts. Restart your browser after the first run.");
             BtnInstallExtensions.Content = _locService.Get("btn_install_extensions", "Install / repair extensions");
+            BtnUninstallExtensions.Content = _locService.Get("btn_uninstall_extensions", "Uninstall extension");
+            BtnFirefoxAddon.Content = _locService.Get("btn_firefox_addon", "🦊 Firefox Add-on");
             BtnOpenExtensionFolder.Content = _locService.Get("btn_open_ext_folder", "Open Extension Folder");
             BtnOpenChromeExtensions.Content = _locService.Get("btn_open_browser_ext", "Open chrome://extensions");
 
-            TxtSettingsTitle.Text = _locService.Get("theme_title", "Appearance & Settings");
+            TxtSettingsTitle.Text = _locService.Get("settings_title", "Application & MPV Settings");
+            TxtMpvConfigTitle.Text = _locService.Get("mpv_config_title", "MPV Player Configuration");
+            TxtMpvPathLabel.Text = _locService.Get("mpv_path_label", "MPV Executable Path:");
+            BtnBrowseMpv.Content = _locService.Get("btn_browse_mpv", "Browse");
+            ChkAlwaysOnTop.Content = _locService.Get("label_always_on_top", "Always on top (--ontop)");
+            TxtForceWindowLabel.Text = _locService.Get("label_force_window", "Force Window (--force-window):");
+            if (CmbForceWindow != null)
+            {
+                foreach (ComboBoxItem item in CmbForceWindow.Items)
+                {
+                    string tag = item.Tag?.ToString() ?? "";
+                    if (tag.Equals("immediate", StringComparison.OrdinalIgnoreCase))
+                        item.Content = _locService.Get("fw_immediate", "immediate (Fastest / Open Immediately)");
+                    else if (tag.Equals("yes", StringComparison.OrdinalIgnoreCase))
+                        item.Content = _locService.Get("fw_yes", "yes (When Media Loaded)");
+                    else if (tag.Equals("no", StringComparison.OrdinalIgnoreCase))
+                        item.Content = _locService.Get("fw_no", "no (Disabled)");
+                }
+            }
+
+            TxtMpvGeometryLabel.Text = _locService.Get("label_mpv_geometry", "Window Geometry (--geometry):");
+            TxtMpvProfileLabel.Text = _locService.Get("label_mpv_profile", "MPV Profile (--profile):");
+            TxtMpvExtraArgsLabel.Text = _locService.Get("label_mpv_extra_args", "Extra MPV Parameters (e.g. --hwdec=auto):");
+            BtnSaveMpvSettings.Content = _locService.Get("btn_save_settings", "Save Settings");
+
             TxtDataFolderTitle.Text = _locService.Get("data_folder_title", "Application data folder");
             BtnShowDataFolder.Content = _locService.Get("btn_show_folder", "Show folder");
+            TxtLangTitle.Text = _locService.Get("lang_title", "Application Language");
+            TxtLangDesc.Text = _locService.Get("lang_desc", "Application display language");
+
+            TxtThemeTitle.Text = _locService.Get("theme_title", "Themes & UI Customization");
+            TxtThemesTitle.Text = _locService.Get("theme_select", "Available themes");
             TxtThemeAnime4kTitle.Text = _locService.Get("theme_anime4k_title", "ModernZ Theme + Anime4K");
             TxtThemeAnime4kDesc.Text = _locService.Get("theme_anime4k_desc", "Downloads ModernZ theme files and installs Anime4K shaders to %APPDATA%\\mpv");
-            BtnInstallThemeAnime4k.Content = _locService.Get("btn_theme_anime4k", "Tema+anime4k");
-            TxtThemesTitle.Text = _locService.Get("theme_select", "Available themes");
+            BtnInstallThemeAnime4k.Content = _locService.Get("btn_theme_anime4k", "Install Theme+Anime4K");
             TxtThemeImport.Text = _locService.Get("theme_import_title", "Import theme from URL (GitHub / Pastebin RAW JSON)");
             BtnImportTheme.Content = _locService.Get("btn_import_theme", "Download & Apply");
-            TxtCustomBgTitle.Text = _locService.Get("custom_bg_title", "Custom background & glass effect");
+            TxtThemeCustomTitle.Text = _locService.Get("theme_custom_title", "Advanced UI Appearance Customization");
+            TxtGlassShadowSection.Text = _locService.Get("label_glass_shadow_section", "Frosted Glass & Shadow Effects");
+            TxtOpacitySection.Text = _locService.Get("label_opacity_section", "Independent Section Opacity");
+            TxtColorPaletteSection.Text = _locService.Get("label_color_palette_section", "Color Palette");
+
+            TxtCustomBgTitle.Text = _locService.Get("custom_bg_title", "Custom background image");
+            BtnBrowseBgImage.Content = _locService.Get("btn_browse_bg", "Browse");
             BtnApplyCustomBg.Content = _locService.Get("btn_apply_bg", "Apply");
-            TxtOpacityLabel.Text = _locService.Get("label_card_opacity", "Card opacity:");
             TxtBlurLabel.Text = _locService.Get("label_blur", "Frosted glass (blur):");
-            TxtLangTitle.Text = _locService.Get("lang_title", "Language");
+            TxtOpacityLabel.Text = _locService.Get("label_card_opacity", "Card Opacity:");
+            TxtSidebarOpacityLabel.Text = _locService.Get("label_sidebar_opacity", "Sidebar Opacity:");
+            TxtInputOpacityLabel.Text = _locService.Get("label_input_opacity", "Inputs Opacity:");
+            TxtButtonOpacityLabel.Text = _locService.Get("label_button_opacity", "Buttons Opacity:");
+            TxtColorBgLabel.Text = _locService.Get("label_bg_color", "Background Color:");
+            TxtColorSidebarLabel.Text = _locService.Get("label_sidebar_color", "Sidebar Color:");
+            TxtColorCardLabel.Text = _locService.Get("label_card_color", "Card Color:");
+            TxtColorAccentLabel.Text = _locService.Get("label_accent_color", "Accent Color:");
+            TxtColorBorderLabel.Text = _locService.Get("label_border_color", "Border Color:");
+            TxtColorTextPrimaryLabel.Text = _locService.Get("label_text_primary", "Primary Text Color:");
+            TxtColorTextSecondaryLabel.Text = _locService.Get("label_text_secondary", "Secondary Text Color:");
+            BtnApplyColors.Content = _locService.Get("btn_apply_colors", "Apply Colors");
+            if (TxtColorLogoLabel != null)
+                TxtColorLogoLabel.Text = _locService.Get("label_logo_color", "Logo Color:");
+            BtnResetThemeDefaults.Content = _locService.Get("btn_reset_defaults", "Reset to Defaults");
+
+            // Guide sections
+            TxtGuideTitle.Text = _locService.Get("guide_title", "User Guide & Information");
+            TxtGuideQuickStartTitle.Text = _locService.Get("guide_quickstart_title", "🎬 Quick Start & Video Playback");
+            TxtGuideQuickStartSub.Text = _locService.Get("guide_quickstart_sub", "MPV Launcher allows seamless playback of internet streams and local media files with high-performance MPV.");
+            TxtGuideQuickStartBody.Text = _locService.Get("guide_quickstart_body", "• URL Playback: Paste video URLs from YouTube, Twitch, Vimeo, X, or direct streams in the 'Player' tab and click 'Play with MPV' or press Enter.\n• Drag & Drop: Drag and drop video files (.mp4, .mkv, .webm, etc.) directly into the launcher window.\n• Playback History: Last 50 media links are saved in the history list; double-click any item to replay.");
+
+            TxtGuideDepsTitle.Text = _locService.Get("guide_deps_title", "📦 Dependencies (MPV, yt-dlp, FFmpeg)");
+            TxtGuideDepsSub.Text = _locService.Get("guide_deps_sub", "Three core tools are required for optimal operation:");
+            TxtGuideDepsBody.Text = _locService.Get("guide_deps_body", "1. MPV: Hardware-accelerated modern media player engine.\n2. yt-dlp: CLI tool extracting streams from hundreds of video platforms. Update frequently with 'Update yt-dlp (-U)'.\n3. FFmpeg: Media stream demuxer and converter engine.\n\nAll tools can be downloaded and installed with one click in the 'Dependencies' tab.");
+
+            TxtGuideBrowserTitle.Text = _locService.Get("guide_browser_title", "🌐 Browser Extension Integration");
+            TxtGuideBrowserSub.Text = _locService.Get("guide_browser_sub", "Open web videos in MPV directly from your browser:");
+            TxtGuideBrowserBody.Text = _locService.Get("guide_browser_body", "• Chrome / Edge / Brave / Opera: Open 'chrome://extensions', enable 'Developer Mode', and click 'Load unpacked' selecting the Extension Folder.\n• Firefox: Click 'Firefox Add-on' to install directly from the Mozilla Add-ons store.\n• Native Messaging Host: Automatically configured on application launch.");
+
+            TxtGuideAnime4kTitle.Text = _locService.Get("guide_anime4k_title", "✨ Anime4K & ModernZ Theme");
+            TxtGuideAnime4kSub.Text = _locService.Get("guide_anime4k_sub", "Anime4K is a real-time AI upscaling and edge-refining shader algorithm for anime and animated content.");
+            TxtGuideAnime4kBody.Text = _locService.Get("guide_anime4k_body", "• Click 'Install Theme+Anime4K' in the 'Themes' tab to install ModernZ OSC and Anime4K GLSL shaders to %APPDATA%\\mpv.\n• MPV Shortcuts:\n   - CTRL+0: Disable Anime4K\n   - CTRL+1: Anime4K Mode A (Fast)\n   - CTRL+2: Anime4K Mode B (HQ)\n   - CTRL+3: Anime4K Mode C (Very Fast)\n   - CTRL+4: Anime4K Mode A+A\n   - CTRL+5: Anime4K Mode B+B\n   - CTRL+6: Anime4K Mode C+A");
+
+            TxtGuideCustomTitle.Text = _locService.Get("guide_custom_title", "🎨 UI & Theme Customization Tips");
+            TxtGuideCustomSub.Text = _locService.Get("guide_custom_sub", "Customize every visual aspect of the launcher in the 'Themes' tab:");
+            TxtGuideCustomBody.Text = _locService.Get("guide_custom_body", "• Corner Radii: Adjust window and card corners between 0px and 24px.\n• Independent Opacity: Fine-tune transparency for cards, sidebar, inputs, and buttons.\n• Frosted Glass & Shadow: Adjust blur strength and shadow intensity in real time.\n• Reset to Defaults: Restore default theme and styling anytime with the red 'Reset to Defaults' button.");
 
             TxtStatus.Text = _locService.Get("status_ready", "Ready");
         }
