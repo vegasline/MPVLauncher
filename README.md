@@ -77,6 +77,13 @@ site-specific workaround. This makes it one click.
 **No administrator rights needed.** Everything is written under
 `%APPDATA%\MPVLauncher\` and `HKEY_CURRENT_USER`.
 
+> ⚠️ **Moved `MPVLauncher.exe` to a different folder?** Just open the app once.
+> It repairs the native messaging host path by itself on startup, so nothing
+> needs reinstalling. **Restart your browser afterwards, though** — the browser
+> reads that path when it launches the host, so one that was already open keeps
+> using the old path and the button will look like it does nothing. This is the
+> usual reason for "it worked yesterday".
+
 > 💡 Button names follow the app's language setting, so they appear translated
 > if you switch the interface to Turkish or one of the other 11 languages.
 

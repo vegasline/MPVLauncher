@@ -76,6 +76,13 @@ bir yöntem gerekir. Bu proje bunu tek tıkla hâle getirir.
 **Yönetici hakkı gerekmez.** Her şey `%APPDATA%\MPVLauncher\` ve
 `HKEY_CURRENT_USER` altına yazılır.
 
+> ⚠️ **`MPVLauncher.exe`'yi başka bir klasöre taşıdıysanız** uygulamayı bir kez
+> açmanız yeterli. Native messaging host yolunu başlangıçta kendisi onarır,
+> yeniden kurulum gerekmez. **Ama tarayıcınızı sonra yeniden başlatın** —
+> tarayıcı bu yolu host'u başlatırken okur; zaten açık olan tarayıcı eski yolu
+> kullanmaya devam eder ve düğme hiçbir şey yapmıyormuş gibi görünür. "Dün
+> çalışıyordu" demek sorunlarının çoğu bu yüzden.
+
 > 💡 Düğme adları arayüz diline göre değişir; arayüzü Türkçe dışında bir dile
 > alırsanız İngilizce görünürler.
 
