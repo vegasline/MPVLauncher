@@ -4,10 +4,20 @@ using System.IO;
 namespace MpvLauncher.Gui.Services
 {
     /// <summary>
-    /// All application data lives under %APPDATA%\MPVLauncher\ in category folders.
+    /// Every path the application uses, in one place.
+    ///
+    /// All application data lives under %APPDATA%\MPVLauncher\ in category
+    /// folders. Nothing here is user-configurable and nothing is relative to the
+    /// working directory, so the app behaves the same however it is launched -
+    /// from a shortcut, from a browser, or from a test harness.
+    ///
+    /// The properties are computed rather than stored because APPDATA is fixed
+    /// for the process; they are properties only so there is a single definition
+    /// to change if the layout ever moves.
     /// </summary>
     public static class AppPaths
     {
+        /// <summary>Root of all application data.</summary>
         public static string Root { get; } = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
             "MPVLauncher");
@@ -43,14 +53,33 @@ namespace MpvLauncher.Gui.Services
         public static string MpvScriptOptsDir => Path.Combine(MpvAppDataDir, "script-opts");
         public static string MpvShadersDir => Path.Combine(MpvAppDataDir, "shaders");
 
+        /// <summary>
+        /// Stable Firefox add-on id.
+        ///
+        /// It is a fixed GUID rather than a generated one because the XPI file
+        /// name and the profile/registry entries are keyed on it, and Firefox
+        /// refuses to install a second add-on with an id it already has.
+        /// </summary>
         public const string FirefoxAddonId = "{264eb39b-fe04-417b-940e-81df026edbc3}";
 
+        /// <summary>
+        /// Pre-AppData location, kept only so <see cref="MigrateLegacyFiles"/> can
+        /// move anything left there by an older build.
+        /// </summary>
         private static string LegacyInstallRoot => Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
             "Programs", "MPVLauncher");
 
+        /// <summary>
+        /// Guards EnsureLayout so the directory walk and the migration run once
+        /// per process rather than on every call.
+        /// </summary>
         private static bool _ensured;
 
+        /// <summary>
+        /// Creates every folder the app uses, once. Safe and cheap to call from
+        /// anywhere: the host process calls it before touching its log.
+        /// </summary>
         public static void EnsureLayout()
         {
             if (_ensured) return;
@@ -82,20 +111,55 @@ namespace MpvLauncher.Gui.Services
 
             string baseDir = AppContext.BaseDirectory;
             CopyTemplateDir(Path.Combine(baseDir, "themes"), ThemesDir);
-            CopyTemplateDir(Path.Combine(baseDir, "locales"), LanguagesDir);
-            CopyTemplateDir(Path.Combine(baseDir, "languages"), LanguagesDir);
-            CopyTemplateDir(Path.Combine(baseDir, "extension"), ExtensionBundleDir, allFiles: true);
+            CopyTemplateDir(Path.Combine(baseDir, "locales"), LanguagesDir, overwrite: true);
+            CopyTemplateDir(Path.Combine(baseDir, "languages"), LanguagesDir, overwrite: true);
+            CopyTemplateDir(Path.Combine(baseDir, "extension"), ExtensionBundleDir, allFiles: true, overwrite: true);
 
-            string projectRoot = Path.GetFullPath(Path.Combine(baseDir, @"..\..\..\.."));
-            if (Directory.Exists(Path.Combine(projectRoot, "themes")))
+            // Development build: walk up looking for the repository root,
+            // recognised by the project file that marks it.
+            string? projectRoot = FindProjectRoot(baseDir);
+            if (projectRoot != null)
+            {
                 CopyTemplateDir(Path.Combine(projectRoot, "themes"), ThemesDir);
-            if (Directory.Exists(Path.Combine(projectRoot, "locales")))
-                CopyTemplateDir(Path.Combine(projectRoot, "locales"), LanguagesDir);
-            if (Directory.Exists(Path.Combine(projectRoot, "extension")))
-                CopyTemplateDir(Path.Combine(projectRoot, "extension"), ExtensionBundleDir, allFiles: true);
+                CopyTemplateDir(Path.Combine(projectRoot, "locales"), LanguagesDir, overwrite: true);
+                // Files on disk can be newer than the embedded copies in a dev build,
+            // so this source wins.
+                CopyTemplateDir(Path.Combine(projectRoot, "extension"), ExtensionBundleDir, allFiles: true, overwrite: true);
+            }
         }
 
-        private static void CopyTemplateDir(string source, string dest, bool allFiles = false)
+        /// <summary>
+        /// Walks up from <paramref name="startDir"/> looking for the repository root
+        /// (a directory that contains the csproj and the extension/ folder).
+        /// </summary>
+        private static string? FindProjectRoot(string startDir)
+        {
+            try
+            {
+                var dir = new DirectoryInfo(startDir);
+                for (int i = 0; i < 10 && dir != null; i++, dir = dir.Parent)
+                {
+                    if (File.Exists(Path.Combine(dir.FullName, "MpvLauncher.Gui.csproj")) ||
+                        File.Exists(Path.Combine(dir.FullName, "MpvLauncher.Gui", "MpvLauncher.Gui.csproj")))
+                    {
+                        return File.Exists(Path.Combine(dir.FullName, "extension", "background.js"))
+                            ? dir.FullName
+                            : Path.Combine(dir.FullName, "MpvLauncher.Gui");
+                    }
+                }
+            }
+            catch { }
+            return null;
+        }
+
+        /**
+         * Copies a template folder into the data directory.
+         *
+         * Only the file name is used to build the destination, so a template
+         * folder cannot write outside the target. The "allFiles" switch exists
+         * because the extension is not made of JSON alone.
+         */
+        private static void CopyTemplateDir(string source, string dest, bool allFiles = false, bool overwrite = false)
         {
             if (!Directory.Exists(source)) return;
             Directory.CreateDirectory(dest);
@@ -103,10 +167,24 @@ namespace MpvLauncher.Gui.Services
             foreach (string file in Directory.EnumerateFiles(source, pattern))
             {
                 string target = Path.Combine(dest, Path.GetFileName(file));
-                TryCopyIfMissing(file, target);
+                if (overwrite)
+                {
+                    try { File.Copy(file, target, overwrite: true); } catch { }
+                }
+                else
+                {
+                    TryCopyIfMissing(file, target);
+                }
             }
         }
 
+        /// <summary>
+        /// Moves anything an older layout left behind into the current folders.
+        ///
+        /// Runs once from EnsureLayout. Files are moved rather than copied and
+        /// never overwrite an existing destination, so a user's newer file is
+        /// never clobbered by a leftover.
+        /// </summary>
         private static void MigrateLegacyFiles()
         {
             TryMoveFile(Path.Combine(Root, "config.json"), ConfigFile);
@@ -130,6 +208,7 @@ namespace MpvLauncher.Gui.Services
             }
         }
 
+        /// <summary>Moves a file only when the destination does not exist yet.</summary>
         private static void TryMoveFile(string src, string dest)
         {
             try
@@ -141,6 +220,7 @@ namespace MpvLauncher.Gui.Services
             catch { }
         }
 
+        /// <summary>Copies a file only when the destination is missing.</summary>
         private static void TryCopyIfMissing(string src, string dest)
         {
             try

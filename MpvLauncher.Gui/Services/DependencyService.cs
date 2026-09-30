@@ -5,6 +5,18 @@ using System.Threading.Tasks;
 
 namespace MpvLauncher.Gui.Services
 {
+    /// <summary>
+    /// Reports which external tools are available.
+    ///
+    /// Every method here answers for the settings page: it locates a binary and
+    /// returns a short human-readable status string. None of them installs
+    /// anything - that is DownloadInstallService's job - and none of them throw:
+    /// a missing tool is a normal state the UI has to render, not an error.
+    ///
+    /// The returned strings are deliberately not localised, because they are
+    /// built from the tool's own output ("mpv v0.41.0", "yt-dlp 2025.x") which
+    /// the user needs verbatim.
+    /// </summary>
     public class DependencyService
     {
         private readonly ProcessService _processService;
@@ -14,6 +26,10 @@ namespace MpvLauncher.Gui.Services
             _processService = processService;
         }
 
+        /// <summary>
+        /// Asks mpv for its version. Returns "MPV not found" when there is no
+        /// binary, and the first line of "mpv --version" when there is.
+        /// </summary>
         public string CheckMpvStatus()
         {
             string path = _processService.FindMpvPath();
@@ -37,6 +53,11 @@ namespace MpvLauncher.Gui.Services
             return "MPV not found";
         }
 
+        /// <summary>
+        /// Locates yt-dlp: the copy the installer put in the tools folder first,
+        /// then one sitting next to mpv (a common manual install layout), and
+        /// finally a bare name for the status line to display.
+        /// </summary>
         public string FindYtdlPath()
         {
             string bundled = AppPaths.YtDlpExe;
@@ -52,6 +73,7 @@ namespace MpvLauncher.Gui.Services
             return "yt-dlp.exe";
         }
 
+        /// <summary>Same lookup order as <see cref="FindYtdlPath"/>, for ffmpeg.</summary>
         public string FindFfmpegPath()
         {
             string bundled = AppPaths.FfmpegExe;
@@ -67,6 +89,7 @@ namespace MpvLauncher.Gui.Services
             return "ffmpeg.exe";
         }
 
+        /// <summary>Runs "yt-dlp --version" and returns its first line.</summary>
         public string CheckYtdlStatus()
         {
             string path = FindYtdlPath();
@@ -90,6 +113,10 @@ namespace MpvLauncher.Gui.Services
             return "yt-dlp not found";
         }
 
+        /// <summary>
+        /// Runs "ffmpeg -version". That prints its banner on stderr, so the
+        /// first line of stdout is often empty - hence the fallback strings.
+        /// </summary>
         public string CheckFfmpegStatus()
         {
             string path = FindFfmpegPath();
@@ -108,7 +135,7 @@ namespace MpvLauncher.Gui.Services
                     string? line = p?.StandardOutput.ReadLine();
                     if (!string.IsNullOrWhiteSpace(line))
                     {
-                        // "ffmpeg version N-xxxxx ..." → ilk 3 kelime
+                        // "ffmpeg version N-xxxxx ..." -> keep the first three words
                         var parts = line.Split(' ', StringSplitOptions.RemoveEmptyEntries);
                         if (parts.Length >= 3)
                             return $"{parts[0]} {parts[1]} {parts[2]}";
@@ -121,6 +148,13 @@ namespace MpvLauncher.Gui.Services
             return "FFmpeg not found";
         }
 
+        /// <summary>
+        /// Runs "yt-dlp -U", which makes it replace itself in place.
+        ///
+        /// Wrapped in Task.Run because WaitForExit blocks, and given a 30 second
+        /// budget so a stalled download cannot freeze the UI thread. The tool
+        /// writes to both streams, so both are captured for the status line.
+        /// </summary>
         public async Task<(bool Success, string Output)> UpdateYtdlAsync()
         {
             string path = FindYtdlPath();
