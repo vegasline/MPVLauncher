@@ -2,23 +2,56 @@ name: Build and Release MPVLauncher
 
 on:
   push:
+    branches: [ "main" ]
     tags:
       - 'v*'
       - 'beta-*'
   pull_request:
     branches: [ "main" ]
+  workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  build:
+  test:
+    # The extension and locale suites are pure Node and need no SDK, so they run
+    # as their own job: they fail in seconds and say exactly which file broke,
+    # rather than being discovered at the end of a publish.
+    name: Extension and locale tests
     runs-on: windows-latest
 
     steps:
-    - name: Checkout Repository
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+
+    # 147 checks: media classification, the native message payload, the
+    # Firefox event-page restart, and the rule that no extension file evaluates
+    # page-supplied code.
+    - name: Extension tests
+      run: node tools/extension-tests.js
+
+    # 29 checks: every locale parses, all twelve share one key set, and no key
+    # the C# looks up is missing from a translation.
+    - name: Locale tests
+      run: node tools/locale-tests.js
+
+  build:
+    name: Build desktop app
+    runs-on: windows-latest
+    needs: test
+
+    steps:
+    - name: Checkout repository
       uses: actions/checkout@v4
       with:
+        # Release notes are generated from the full history, so tags must exist
+        # locally too.
         fetch-depth: 0
 
     - name: Install .NET 10
@@ -26,29 +59,42 @@ jobs:
       with:
         dotnet-version: 10.0.x
 
-    # Single-File Exe Derleme (~4MB)
+    # Single-file executable, framework-dependent. The extension is embedded as
+    # manifest resources at this point, so a change under extension/ only ships
+    # if this step runs - which is why it is part of the release path and not a
+    # separate manual step.
     - name: Publish MPVLauncher
       run: |
-        $csproj = Get-ChildItem -Filter MpvLauncher.Gui.csproj -Recurse | Select-Object -First 1
-        dotnet publish $csproj.FullName -c Release -r win-x64 --self-contained false `
+        dotnet publish MpvLauncher.Gui/MpvLauncher.Gui.csproj `
+          -c Release -r win-x64 --self-contained false `
           -p:PublishSingleFile=true `
           -p:IncludeNativeLibrariesForSelfExtract=true `
           -o ./publish
 
-    # Her yapılandırma kontrolü için Artifacts yüklemesi
-    - name: Upload Build Artifacts
+    - name: Upload build artifact
       uses: actions/upload-artifact@v4
       with:
         name: MPVLauncher-Executable
         path: ./publish/MPVLauncher.exe
 
-    # Yalnızca Versiyon Etiketi (Tag) basıldığında Release Oluşturur
-    - name: Create GitHub Release
-      if: startsWith(github.ref, 'refs/tags/')
+  release:
+    name: Create GitHub release
+    # Tags only: a plain push to main builds and tests but publishes nothing.
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: build
+    runs-on: windows-latest
+    permissions:
+      contents: write
+
+    steps:
+    - name: Download build artifact
+      uses: actions/download-artifact@v4
+      with:
+        name: MPVLauncher-Executable
+        path: ./dist
+
+    - name: Create release
       uses: softprops/action-gh-release@v2
       with:
-        tag_name: ${{ github.ref_name }}
-        name: MPVLauncher ${{ github.ref_name }}
-        files: ./publish/MPVLauncher.exe
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        files: ./dist/MPVLauncher.exe
+        generate_release_notes: true
