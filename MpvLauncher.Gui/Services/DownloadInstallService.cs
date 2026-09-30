@@ -8,6 +8,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using SharpCompress.Archives;
 using SharpCompress.Common;
+using SharpCompress.Readers;
 
 namespace MpvLauncher.Gui.Services
 {
@@ -34,6 +35,15 @@ namespace MpvLauncher.Gui.Services
 
     /// <summary>
     /// Downloads MPV / yt-dlp / FFmpeg into %APPDATA%\MPVLauncher\bin.
+    ///
+    /// Each tool is fetched from its upstream GitHub release: the release list
+    /// comes from the API, then the newest asset matching a predicate is chosen
+    /// and downloaded. Nothing is installed by this class beyond dropping the
+    /// binary in the tools folder - no registry, no PATH change.
+    ///
+    /// Two limits are enforced on every download, because the response is
+    /// executed afterwards: a size ceiling, and per-entry containment when the
+    /// archive is unpacked. See ExtractArchive for why that second one matters.
     /// </summary>
     public class DownloadInstallService
     {
@@ -41,6 +51,9 @@ namespace MpvLauncher.Gui.Services
         public static string BinDir => AppPaths.BinDir;
         public static string CacheDir => AppPaths.CacheDir;
 
+        // Upstream projects. The asset is then chosen by predicate, so a release
+        // that renames or adds a build does not break the lookup as long as one
+        // asset still matches.
         private const string MpvRepo = "shinchiro/mpv-winbuild-cmake";
         private const string MpvAssetPrefix = "mpv-x86_64-v3";
         private const string YtDlpRepo = "yt-dlp/yt-dlp";
@@ -56,6 +69,13 @@ namespace MpvLauncher.Gui.Services
             AppPaths.EnsureLayout();
         }
 
+        /**
+         * Shared client.
+         *
+         * Connections are recycled every 10 minutes because these downloads are
+         * long-lived and a stale socket would otherwise be reused for a request
+         * that never completes.
+         */
         private static HttpClient CreateHttpClient()
         {
             var handler = new SocketsHttpHandler
@@ -78,6 +98,11 @@ namespace MpvLauncher.Gui.Services
             _ => throw new ArgumentOutOfRangeException(nameof(kind))
         };
 
+        /// <summary>
+        /// Full install for one tool: resolve the asset, download it, and place
+        /// the binary. Reports progress throughout and never throws - a failed
+        /// install comes back as a result the UI can show.
+        /// </summary>
         public async Task<InstallResult> InstallAsync(
             ToolKind kind,
             IProgress<DownloadProgress>? progress = null,
@@ -89,7 +114,7 @@ namespace MpvLauncher.Gui.Services
 
                 var (url, fileName) = await ResolveDownloadAsync(kind, ct);
 
-                // yt-dlp doğrudan exe olarak indiriliyor — zip açmaya gerek yok
+                // yt-dlp ships as a bare executable, so there is no archive to unpack.
                 if (kind == ToolKind.YtDlp)
                 {
                     Directory.CreateDirectory(BinDir);
@@ -156,7 +181,7 @@ namespace MpvLauncher.Gui.Services
                     var asset = await FindGitHubAssetAsync(YtDlpRepo, name =>
                         name.Equals(YtDlpAssetName, StringComparison.OrdinalIgnoreCase), ct);
                     return (asset.Url, asset.Name);
-                    // Doğrudan exe indiriliyor, zip açmaya gerek yok
+                    // Bare executable; no extraction step.
                 }
                 case ToolKind.Ffmpeg:
                 {
@@ -180,6 +205,13 @@ namespace MpvLauncher.Gui.Services
             }
         }
 
+        /**
+         * Picks the newest release asset matching a predicate.
+         *
+         * The API's "latest" release is trusted for its asset names and URLs,
+         * which is why every caller pairs this with a size and containment check
+         * on the result - the download is an executable that runs afterwards.
+         */
         private async Task<(string Name, string Url)> FindGitHubAssetAsync(
             string repo,
             Func<string, bool> predicate,
@@ -211,6 +243,11 @@ namespace MpvLauncher.Gui.Services
             throw new InvalidOperationException($"{repo}: matching asset not found.");
         }
 
+        /// <summary>
+        /// Streams a URL to a file, reporting progress and enforcing the size
+        /// limit. Content-Length is used only to compute a percentage; the limit
+        /// itself is applied to the bytes that actually arrive.
+        /// </summary>
         private static async Task DownloadFileAsync(
             string url,
             string destination,
@@ -221,6 +258,9 @@ namespace MpvLauncher.Gui.Services
             resp.EnsureSuccessStatusCode();
 
             long? total = resp.Content.Headers.ContentLength;
+            if (total is > MaxDownloadBytes)
+                throw new InvalidOperationException($"Download is larger than the {MaxDownloadBytes / 1024 / 1024} MB limit.");
+
             await using var input = await resp.Content.ReadAsStreamAsync(ct);
             await using var output = new FileStream(destination, FileMode.Create, FileAccess.Write, FileShare.None, 512 * 1024, true);
 
@@ -231,8 +271,13 @@ namespace MpvLauncher.Gui.Services
 
             while ((read = await input.ReadAsync(buffer.AsMemory(0, buffer.Length), ct)) > 0)
             {
-                await output.WriteAsync(buffer.AsMemory(0, read), ct);
                 readTotal += read;
+                // The server may omit or lie about Content-Length, so the limit
+                // is enforced on what actually arrives.
+                if (readTotal > MaxDownloadBytes)
+                    throw new InvalidOperationException("Download exceeded the size limit.");
+
+                await output.WriteAsync(buffer.AsMemory(0, read), ct);
 
                 if (total is > 0)
                 {
@@ -260,6 +305,12 @@ namespace MpvLauncher.Gui.Services
             }
         }
 
+        /**
+         * Unpacks into a throwaway folder, then copies out only what is needed.
+         *
+         * The folder is removed either way, so a partial extraction cannot be
+         * mistaken for an installed tool on the next run.
+         */
         private string ExtractAndPlace(ToolKind kind, string archivePath)
         {
             string extractDir = Path.Combine(CacheDir, "extract_" + Guid.NewGuid().ToString("N")[..8]);
@@ -283,15 +334,76 @@ namespace MpvLauncher.Gui.Services
             }
         }
 
+        /// <summary>
+        /// Upper bound for a downloaded tool archive. These are desktop builds of
+        /// ffmpeg and mpv; anything beyond this is not something we want to write
+        /// to disk, and an unbounded stream would let a bad response fill the
+        /// volume.
+        /// </summary>
+        private const long MaxDownloadBytes = 512L * 1024 * 1024;
+
+        /// <summary>
+        /// Extracts an archive, refusing any entry whose destination escapes the
+        /// extraction folder.
+        ///
+        /// Entry names are the only thing that decides where bytes land, and
+        /// with ExtractFullPath a name like "..\..\Windows\...\hosts" would be
+        /// written exactly where it points. PlaceTree then copies whatever ended
+        /// up in the folder next to mpv.exe, so one crafted entry would reach
+        /// the binary directory. The library's own ExtractionOptions.SafeExtract
+        /// does not help - it still sets ExtractFullPath - so the check is done
+        /// here. Link entries are refused as well: they can redirect a later
+        /// entry outside the tree after the path check passed.
+        ///
+        /// Uses ArchiveFactory rather than ReaderFactory on purpose. The reader
+        /// API is the smaller one and does not handle 7z, which is exactly what
+        /// the mpv and FFmpeg release assets are, so the reader reports
+        /// "Cannot determine compressed stream type" and nothing gets installed.
+        /// </summary>
         private static void ExtractArchive(string archivePath, string extractDir)
         {
-            ArchiveFactory.WriteToDirectory(archivePath, extractDir, new ExtractionOptions
+            string root = Path.GetFullPath(extractDir);
+            if (!root.EndsWith(Path.DirectorySeparatorChar))
+                root += Path.DirectorySeparatorChar;
+
+            using var archive = ArchiveFactory.OpenArchive(archivePath, new ReaderOptions());
+            foreach (var entry in archive.Entries)
             {
-                ExtractFullPath = true,
-                Overwrite = true
-            });
+                string? key = entry.Key;
+                if (string.IsNullOrWhiteSpace(key)) continue;
+
+                if (!string.IsNullOrEmpty(entry.LinkTarget))
+                    throw new InvalidOperationException($"Archive entry '{key}' is a link.");
+
+                // Path.Combine discards the root for an absolute key, so the
+                // containment check below also rejects rooted names.
+                string destination = Path.GetFullPath(Path.Combine(root, key));
+                if (!destination.StartsWith(root, StringComparison.OrdinalIgnoreCase))
+                {
+                    throw new InvalidOperationException(
+                        $"Archive entry '{key}' points outside the extraction folder.");
+                }
+
+                if (entry.IsDirectory)
+                {
+                    Directory.CreateDirectory(destination);
+                    continue;
+                }
+
+                string? parent = Path.GetDirectoryName(destination);
+                if (!string.IsNullOrEmpty(parent)) Directory.CreateDirectory(parent);
+
+                entry.WriteToFile(destination, new ExtractionOptions { Overwrite = true });
+            }
         }
 
+        /**
+         * Finds the executable inside the extracted tree and copies its whole
+         * directory into the tools folder.
+         *
+         * The whole directory is needed because mpv and ffmpeg share their folder
+         * with their shared libraries and data files.
+         */
         private static string PlaceTree(string extractDir, string exeName)
         {
             string? found = Directory.EnumerateFiles(extractDir, exeName, SearchOption.AllDirectories)
@@ -321,6 +433,10 @@ namespace MpvLauncher.Gui.Services
             }
         }
 
+        /// <summary>
+        /// FFmpeg's archive is a single flat bin\ folder, so only the three
+        /// executables are copied rather than the whole tree.
+        /// </summary>
         private static string PlaceFfmpeg(string extractDir)
         {
             string? ffmpeg = Directory.EnumerateFiles(extractDir, "ffmpeg.exe", SearchOption.AllDirectories)
