@@ -1,208 +1,208 @@
-<h1 align="center">MPVLauncher</h1>
+﻿<h1 align="center">MPVLauncher</h1>
 
-<p align="center">Tarayıcıdaki her videoyu <a href="https://mpv.io/"><b>mpv</b></a>'de tek tıkla oynatın.</p>
+<p align="center">TarayÄ±cÄ±daki her videoyu <a href="https://mpv.io/"><b>mpv</b></a>'de tek tÄ±kla oynatÄ±n.</p>
 
 <p align="center">
-<a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="MIT Lisansı"></a>
-<a href="https://github.com/vegasline/MPVLauncher/releases/latest"><img src="https://img.shields.io/badge/app-1.9.4-blue.svg" alt="Uygulama sürümü 1.9.4"></a>
+<a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="MIT LisansÄ±"></a>
+<a href="https://github.com/vegasline/MPVLauncher/releases/latest"><img src="https://img.shields.io/badge/app-1.9.5-blue.svg" alt="Uygulama sÃ¼rÃ¼mÃ¼ 1.9.4"></a>
 <a href="https://addons.mozilla.org/firefox/addon/mpv-launcher/"><img src="https://img.shields.io/badge/Firefox_Eklentisi-FF7139FF?logo=firefox-browser&logoColor=white" alt="Firefox eklentisi"></a>
 </p>
 
-<p align="center"><a href="README.md">🌐 English</a> · Türkçe</p>
+<p align="center"><a href="README.md">ðŸŒ English</a> Â· TÃ¼rkÃ§e</p>
 
-> 🤖 Bu proje yapay zekâ desteğiyle yazıldı — uygulama, eklenti, dokümantasyon ve
-> testler — ve bir insan tarafından gözden geçirildi. Kodu okumaya, çalıştırmaya
-> ve değiştirmeye açıktır.
+> ðŸ¤– Bu proje yapay zekÃ¢ desteÄŸiyle yazÄ±ldÄ± â€” uygulama, eklenti, dokÃ¼mantasyon ve
+> testler â€” ve bir insan tarafÄ±ndan gÃ¶zden geÃ§irildi. Kodu okumaya, Ã§alÄ±ÅŸtÄ±rmaya
+> ve deÄŸiÅŸtirmeye aÃ§Ä±ktÄ±r.
 
 ---
 
-## 📸 Nasıl görünüyor
+## ðŸ“¸ NasÄ±l gÃ¶rÃ¼nÃ¼yor
 
-| 🖥️ Masaüstü uygulaması | 🧩 Tarayıcı eklentisi |
+| ðŸ–¥ï¸ MasaÃ¼stÃ¼ uygulamasÄ± | ðŸ§© TarayÄ±cÄ± eklentisi |
 | :---: | :---: |
-| ![MPVLauncher ana pencere](MPVLauncher.png) | ![MPVLauncher eklenti açılır menüsü](Extension.png) |
+| ![MPVLauncher ana pencere](MPVLauncher.png) | ![MPVLauncher eklenti aÃ§Ä±lÄ±r menÃ¼sÃ¼](Extension.png) |
 
 ---
 
-## 🎬 Ne yapar
+## ðŸŽ¬ Ne yapar
 
-MPVLauncher, [mpv](https://mpv.io/) için küçük bir başlatıcıdır; yanında da web'deki
-videoyu doğrudan oynatıcınıza gönderen bir tarayıcı eklentisi bulunur.
+MPVLauncher, [mpv](https://mpv.io/) iÃ§in kÃ¼Ã§Ã¼k bir baÅŸlatÄ±cÄ±dÄ±r; yanÄ±nda da web'deki
+videoyu doÄŸrudan oynatÄ±cÄ±nÄ±za gÃ¶nderen bir tarayÄ±cÄ± eklentisi bulunur.
 
-Normalde tarayıcıdan bir video açmak için indirme aracı, betik ya da sayfaya özel
-bir yöntem gerekir. Bu proje bunu tek tıkla hâle getirir.
+Normalde tarayÄ±cÄ±dan bir video aÃ§mak iÃ§in indirme aracÄ±, betik ya da sayfaya Ã¶zel
+bir yÃ¶ntem gerekir. Bu proje bunu tek tÄ±kla hÃ¢le getirir.
 
-- 📥 **mpv'nin ihtiyacı olanları kurar** — mpv, yt-dlp ve FFmpeg'i kendi resmî
-  yayınlarından. Python yok, harici çalışma zamanı yok, sisteme kurulum yok.
-- 🔌 **Eklentiyi kurar** — Chrome, Edge, Brave, Opera, Vivaldi, Yandex ve Firefox
-  için; uygulama klasörü taşınırsa onarır.
-- 🎨 **Temalar ve görünüm düzenleyici** — 4 tema, özel renkler, bulanıklık, köşe
-  yuvarlaklığı ve arka plan görseli.
-- ✨ **Anime4K ve ModernZ** — anime yükseltme ve daha güzel ekran üstü kontrol.
-- 🗂️ **Oynatma geçmişi** — son 50 kayıt, eklentiyle paylaşılır.
-- 🌍 **12 dil** uygulamada, **13 dil** eklentide.
+- ðŸ“¥ **mpv'nin ihtiyacÄ± olanlarÄ± kurar** â€” mpv, yt-dlp ve FFmpeg'i kendi resmÃ®
+  yayÄ±nlarÄ±ndan. Python yok, harici Ã§alÄ±ÅŸma zamanÄ± yok, sisteme kurulum yok.
+- ðŸ”Œ **Eklentiyi kurar** â€” Chrome, Edge, Brave, Opera, Vivaldi, Yandex ve Firefox
+  iÃ§in; uygulama klasÃ¶rÃ¼ taÅŸÄ±nÄ±rsa onarÄ±r.
+- ðŸŽ¨ **Temalar ve gÃ¶rÃ¼nÃ¼m dÃ¼zenleyici** â€” 4 tema, Ã¶zel renkler, bulanÄ±klÄ±k, kÃ¶ÅŸe
+  yuvarlaklÄ±ÄŸÄ± ve arka plan gÃ¶rseli.
+- âœ¨ **Anime4K ve ModernZ** â€” anime yÃ¼kseltme ve daha gÃ¼zel ekran Ã¼stÃ¼ kontrol.
+- ðŸ—‚ï¸ **Oynatma geÃ§miÅŸi** â€” son 50 kayÄ±t, eklentiyle paylaÅŸÄ±lÄ±r.
+- ðŸŒ **12 dil** uygulamada, **13 dil** eklentide.
 
-### 🔍 Eklenti neleri bulur
+### ðŸ” Eklenti neleri bulur
 
-- **Bağımsız iki algılama katmanı.** Bir ağ dinleyicisi sayfanın yaptığı her medya
-  isteğini yakalar; bir içerik betiği henüz yüklenmemiş akışları işaretleme içinde
-  arar. Sonuçlar birleştirilir, böylece tembel yüklenen bir oynatıcının arkasında
-  kalan akışı kaçırmazsınız.
-- **Yaygın durumlar** — HLS/m3u8, DASH, doğrudan dosyalar, `<video>` ve `<source>`,
-  `object`/`embed` oynatıcıları, JSON-LD, blob ve MSE adresleri.
-- **iframe'ler** — başka siteden gelen gömülü oynatıcılar listelenir; başka bir
-  sayfadaki YouTube gömmesi de çalışır.
-- **Filtreler** — akışları, dosyaları ve iframe'leri ayrı açıp kapatma, en küçük
-  boyut belirleme, ilgilenmediğiniz sunucuları gizleme.
-- **Daha anlaşılır hatalar** — bir captcha veya Cloudflare doğrulaması "boş sayfa"
-  yerine olduğu gibi bildirilir.
-
----
-
-## 🚀 Hızlı başlangıç
-
-1. [Son sürümden](https://github.com/vegasline/MPVLauncher/releases/latest)
-   **MPVLauncher.exe** dosyasını indirin ve açın.
-2. **Bağımlılıklar** sekmesine geçin ve **mpv**, **yt-dlp** ile **FFmpeg** için
-   **İndir & Kur**'a tıklayın — üç ayrı düğme, üçünü de kurun. mpv oynatıcının
-   kendisidir; diğer ikisi bir akış adresini açabilmesi için gereklidir. Aynı
-   sekmede **Tema+anime4k Kur** düğmesi ModernZ arayüzünü ve Anime4K shader
-   setini `%APPDATA%\mpv` içine kurar.
-3. Yine **Bağımlılıklar** sekmesinde **Eklentileri hazırla / onar**'a tıklayarak
-   tarayıcı eklentisini kurun. Aynı sekmede eklenti sayfasını açan
-   **🦊 Firefox Eklentisi** ve Chromium'un ihtiyaç duyduğu klasörü açan
-   **Eklenti Klasörünü Aç** düğmeleri de var.
-
-**Yönetici hakkı gerekmez.** Her şey `%APPDATA%\MPVLauncher\` ve
-`HKEY_CURRENT_USER` altına yazılır.
-
-> ⚠️ **`MPVLauncher.exe`'yi başka bir klasöre taşıdıysanız** uygulamayı bir kez
-> açmanız yeterli. Native messaging host yolunu başlangıçta kendisi onarır,
-> yeniden kurulum gerekmez. **Ama tarayıcınızı sonra yeniden başlatın** —
-> tarayıcı bu yolu host'u başlatırken okur; zaten açık olan tarayıcı eski yolu
-> kullanmaya devam eder ve düğme hiçbir şey yapmıyormuş gibi görünür. "Dün
-> çalışıyordu" demek sorunlarının çoğu bu yüzden.
-
-> 💡 Düğme adları arayüz diline göre değişir; arayüzü Türkçe dışında bir dile
-> alırsanız İngilizce görünürler.
+- **BaÄŸÄ±msÄ±z iki algÄ±lama katmanÄ±.** Bir aÄŸ dinleyicisi sayfanÄ±n yaptÄ±ÄŸÄ± her medya
+  isteÄŸini yakalar; bir iÃ§erik betiÄŸi henÃ¼z yÃ¼klenmemiÅŸ akÄ±ÅŸlarÄ± iÅŸaretleme iÃ§inde
+  arar. SonuÃ§lar birleÅŸtirilir, bÃ¶ylece tembel yÃ¼klenen bir oynatÄ±cÄ±nÄ±n arkasÄ±nda
+  kalan akÄ±ÅŸÄ± kaÃ§Ä±rmazsÄ±nÄ±z.
+- **YaygÄ±n durumlar** â€” HLS/m3u8, DASH, doÄŸrudan dosyalar, `<video>` ve `<source>`,
+  `object`/`embed` oynatÄ±cÄ±larÄ±, JSON-LD, blob ve MSE adresleri.
+- **iframe'ler** â€” baÅŸka siteden gelen gÃ¶mÃ¼lÃ¼ oynatÄ±cÄ±lar listelenir; baÅŸka bir
+  sayfadaki YouTube gÃ¶mmesi de Ã§alÄ±ÅŸÄ±r.
+- **Filtreler** â€” akÄ±ÅŸlarÄ±, dosyalarÄ± ve iframe'leri ayrÄ± aÃ§Ä±p kapatma, en kÃ¼Ã§Ã¼k
+  boyut belirleme, ilgilenmediÄŸiniz sunucularÄ± gizleme.
+- **Daha anlaÅŸÄ±lÄ±r hatalar** â€” bir captcha veya Cloudflare doÄŸrulamasÄ± "boÅŸ sayfa"
+  yerine olduÄŸu gibi bildirilir.
 
 ---
 
-## 🎮 Nasıl kullanılır
+## ðŸš€ HÄ±zlÄ± baÅŸlangÄ±Ã§
 
-İki yol var ve ikisi de aynı mpv'de sonlanır.
+1. [Son sÃ¼rÃ¼mden](https://github.com/vegasline/MPVLauncher/releases/latest)
+   **MPVLauncher.exe** dosyasÄ±nÄ± indirin ve aÃ§Ä±n.
+2. **BaÄŸÄ±mlÄ±lÄ±klar** sekmesine geÃ§in ve **mpv**, **yt-dlp** ile **FFmpeg** iÃ§in
+   **Ä°ndir & Kur**'a tÄ±klayÄ±n â€” Ã¼Ã§ ayrÄ± dÃ¼ÄŸme, Ã¼Ã§Ã¼nÃ¼ de kurun. mpv oynatÄ±cÄ±nÄ±n
+   kendisidir; diÄŸer ikisi bir akÄ±ÅŸ adresini aÃ§abilmesi iÃ§in gereklidir. AynÄ±
+   sekmede **Tema+anime4k Kur** dÃ¼ÄŸmesi ModernZ arayÃ¼zÃ¼nÃ¼ ve Anime4K shader
+   setini `%APPDATA%\mpv` iÃ§ine kurar.
+3. Yine **BaÄŸÄ±mlÄ±lÄ±klar** sekmesinde **Eklentileri hazÄ±rla / onar**'a tÄ±klayarak
+   tarayÄ±cÄ± eklentisini kurun. AynÄ± sekmede eklenti sayfasÄ±nÄ± aÃ§an
+   **ðŸ¦Š Firefox Eklentisi** ve Chromium'un ihtiyaÃ§ duyduÄŸu klasÃ¶rÃ¼ aÃ§an
+   **Eklenti KlasÃ¶rÃ¼nÃ¼ AÃ§** dÃ¼ÄŸmeleri de var.
 
-**🧩 Tarayıcıdan** — herhangi bir sayfada eklenti simgesine tıklayın. Bulduğu
-her şey **Open in MPV** düğmesiyle listelenir: gerçek akış, doğrudan medya
-dosyaları ve gömülü oynatıcılar. Birini seçin, açılsın.
+**YÃ¶netici hakkÄ± gerekmez.** Her ÅŸey `%APPDATA%\MPVLauncher\` ve
+`HKEY_CURRENT_USER` altÄ±na yazÄ±lÄ±r.
 
-**🖥️ Programdan** — **Oynatıcı** sekmesini açın, video adresini yapıştırın ve
-**MPV ile Oynat**'a basın. Dosyeyi pencereye sürükleyip bırakabilir veya
-**Dosya Seç**'i kullanabilirsiniz.
+> âš ï¸ **`MPVLauncher.exe`'yi baÅŸka bir klasÃ¶re taÅŸÄ±dÄ±ysanÄ±z** uygulamayÄ± bir kez
+> aÃ§manÄ±z yeterli. Native messaging host yolunu baÅŸlangÄ±Ã§ta kendisi onarÄ±r,
+> yeniden kurulum gerekmez. **Ama tarayÄ±cÄ±nÄ±zÄ± sonra yeniden baÅŸlatÄ±n** â€”
+> tarayÄ±cÄ± bu yolu host'u baÅŸlatÄ±rken okur; zaten aÃ§Ä±k olan tarayÄ±cÄ± eski yolu
+> kullanmaya devam eder ve dÃ¼ÄŸme hiÃ§bir ÅŸey yapmÄ±yormuÅŸ gibi gÃ¶rÃ¼nÃ¼r. "DÃ¼n
+> Ã§alÄ±ÅŸÄ±yordu" demek sorunlarÄ±nÄ±n Ã§oÄŸu bu yÃ¼zden.
 
-Hangisini kullanırsanız kullanın, son 50 oynatma **Oynatıcı** sekmesindeki
-geçmişte kalır ve iki yol arasında ortaktır.
+> ðŸ’¡ DÃ¼ÄŸme adlarÄ± arayÃ¼z diline gÃ¶re deÄŸiÅŸir; arayÃ¼zÃ¼ TÃ¼rkÃ§e dÄ±ÅŸÄ±nda bir dile
+> alÄ±rsanÄ±z Ä°ngilizce gÃ¶rÃ¼nÃ¼rler.
 
 ---
 
-### 🦊 Firefox
+## ðŸŽ® NasÄ±l kullanÄ±lÄ±r
 
-İmzalı eklentiyi
+Ä°ki yol var ve ikisi de aynÄ± mpv'de sonlanÄ±r.
+
+**ðŸ§© TarayÄ±cÄ±dan** â€” herhangi bir sayfada eklenti simgesine tÄ±klayÄ±n. BulduÄŸu
+her ÅŸey **Open in MPV** dÃ¼ÄŸmesiyle listelenir: gerÃ§ek akÄ±ÅŸ, doÄŸrudan medya
+dosyalarÄ± ve gÃ¶mÃ¼lÃ¼ oynatÄ±cÄ±lar. Birini seÃ§in, aÃ§Ä±lsÄ±n.
+
+**ðŸ–¥ï¸ Programdan** â€” **OynatÄ±cÄ±** sekmesini aÃ§Ä±n, video adresini yapÄ±ÅŸtÄ±rÄ±n ve
+**MPV ile Oynat**'a basÄ±n. Dosyeyi pencereye sÃ¼rÃ¼kleyip bÄ±rakabilir veya
+**Dosya SeÃ§**'i kullanabilirsiniz.
+
+Hangisini kullanÄ±rsanÄ±z kullanÄ±n, son 50 oynatma **OynatÄ±cÄ±** sekmesindeki
+geÃ§miÅŸte kalÄ±r ve iki yol arasÄ±nda ortaktÄ±r.
+
+---
+
+### ðŸ¦Š Firefox
+
+Ä°mzalÄ± eklentiyi
 [addons.mozilla.org](https://addons.mozilla.org/firefox/addon/mpv-launcher/)
-adresinden kurun — en kolay yol bu ve doğrudan çalışır. Manifest V3 desteği için
+adresinden kurun â€” en kolay yol bu ve doÄŸrudan Ã§alÄ±ÅŸÄ±r. Manifest V3 desteÄŸi iÃ§in
 Firefox 128+ gerekir.
 
-### 🌐 Chrome, Edge, Brave, Opera, Vivaldi, Yandex
+### ðŸŒ Chrome, Edge, Brave, Opera, Vivaldi, Yandex
 
-Kurulumu yaptıktan sonra `chrome://extensions` adresini açın,
-**Geliştirici modu**'nu etkinleştirin, **Paketlenmemiş öğe yükle**'yi seçin ve şu
-klasörü gösterin:
+Kurulumu yaptÄ±ktan sonra `chrome://extensions` adresini aÃ§Ä±n,
+**GeliÅŸtirici modu**'nu etkinleÅŸtirin, **PaketlenmemiÅŸ Ã¶ÄŸe yÃ¼kle**'yi seÃ§in ve ÅŸu
+klasÃ¶rÃ¼ gÃ¶sterin:
 
 ```
 %APPDATA%\MPVLauncher\extensions\chromium
 ```
 
-Uygulamadaki **Eklenti Klasörünü Aç** düğmesi bu klasörü sizin için açar.
+Uygulamadaki **Eklenti KlasÃ¶rÃ¼nÃ¼ AÃ§** dÃ¼ÄŸmesi bu klasÃ¶rÃ¼ sizin iÃ§in aÃ§ar.
 
-> 💡 Chromium paketlenmemiş eklenti istediği için eklentinin her açılışta
-> yüklenmesi gerekir. Kurulum, bunu tarayıcının başlatma komutuna kullanıcı
-> düzeyinde geçersiz kılmalar yazarak halleder — yönetici hakkı gerekmez ve
-> tarayıcının güncelleme sırasında yaptığı hiçbir şey bunu geri almaz. Kaldırma
-> yalnızca bu değerleri siler.
+> ðŸ’¡ Chromium paketlenmemiÅŸ eklenti istediÄŸi iÃ§in eklentinin her aÃ§Ä±lÄ±ÅŸta
+> yÃ¼klenmesi gerekir. Kurulum, bunu tarayÄ±cÄ±nÄ±n baÅŸlatma komutuna kullanÄ±cÄ±
+> dÃ¼zeyinde geÃ§ersiz kÄ±lmalar yazarak halleder â€” yÃ¶netici hakkÄ± gerekmez ve
+> tarayÄ±cÄ±nÄ±n gÃ¼ncelleme sÄ±rasÄ±nda yaptÄ±ÄŸÄ± hiÃ§bir ÅŸey bunu geri almaz. KaldÄ±rma
+> yalnÄ±zca bu deÄŸerleri siler.
 
 ---
 
-## 🔒 Gizlilik
+## ðŸ”’ Gizlilik
 
-Eklenti gezdiğiniz sayfalardan adres okur; bu yüzden sınırları açıkça
+Eklenti gezdiÄŸiniz sayfalardan adres okur; bu yÃ¼zden sÄ±nÄ±rlarÄ± aÃ§Ä±kÃ§a
 belirtmek gerekir:
 
-- 🔑 **Kimlik bilgileri hiçbir zaman yakalanmaz.** `Cookie` ve `Authorization`
-  daha ilk adımda elenir. Bu yüzden giriş gerektiren bir video mpv'de açılmaz —
-  bu bilinçli bir tercihtir.
-- 🚫 **Sayfa betiği çalıştırılmaz.** Paketlenmiş oynatıcı betikleri metin olarak
-  ayrıştırılır, hiçbir zaman `eval` veya `new Function`'a verilmez.
-- 🔒 **Yalnızca `http` ve `https`** oynatıcıya ulaşır ve her argüman düzgün
-  alıntılanır; böylece bir adres ek mpv seçeneği sıkıştıramaz.
-- 📦 **Arşiv çıkarma sınırlıdır**, indirmeler boyut sınırına tabidir ve imzalı
-  medya adreslerinin erişim anahtarı günlüğe yazılmaz.
+- ðŸ”‘ **Kimlik bilgileri hiÃ§bir zaman yakalanmaz.** `Cookie` ve `Authorization`
+  daha ilk adÄ±mda elenir. Bu yÃ¼zden giriÅŸ gerektiren bir video mpv'de aÃ§Ä±lmaz â€”
+  bu bilinÃ§li bir tercihtir.
+- ðŸš« **Sayfa betiÄŸi Ã§alÄ±ÅŸtÄ±rÄ±lmaz.** PaketlenmiÅŸ oynatÄ±cÄ± betikleri metin olarak
+  ayrÄ±ÅŸtÄ±rÄ±lÄ±r, hiÃ§bir zaman `eval` veya `new Function`'a verilmez.
+- ðŸ”’ **YalnÄ±zca `http` ve `https`** oynatÄ±cÄ±ya ulaÅŸÄ±r ve her argÃ¼man dÃ¼zgÃ¼n
+  alÄ±ntÄ±lanÄ±r; bÃ¶ylece bir adres ek mpv seÃ§eneÄŸi sÄ±kÄ±ÅŸtÄ±ramaz.
+- ðŸ“¦ **ArÅŸiv Ã§Ä±karma sÄ±nÄ±rlÄ±dÄ±r**, indirmeler boyut sÄ±nÄ±rÄ±na tabidir ve imzalÄ±
+  medya adreslerinin eriÅŸim anahtarÄ± gÃ¼nlÃ¼ÄŸe yazÄ±lmaz.
 
-Ayrıntılar:
+AyrÄ±ntÄ±lar:
 [`MpvLauncher.Gui/Services/NativeHostService.cs`](MpvLauncher.Gui/Services/NativeHostService.cs)
 
 ---
 
-## ⌨️ Anime4K kısayolları (mpv içinde)
+## âŒ¨ï¸ Anime4K kÄ±sayollarÄ± (mpv iÃ§inde)
 
-| Tuş | İşlev |
+| TuÅŸ | Ä°ÅŸlev |
 | --- | --- |
-| `Ctrl+0` | Anime4K'yı kapat |
-| `Ctrl+1` | Mod A (hızlı) |
-| `Ctrl+2` | Mod B (yüksek kalite) |
-| `Ctrl+3` | Mod C (çok hızlı) |
+| `Ctrl+0` | Anime4K'yÄ± kapat |
+| `Ctrl+1` | Mod A (hÄ±zlÄ±) |
+| `Ctrl+2` | Mod B (yÃ¼ksek kalite) |
+| `Ctrl+3` | Mod C (Ã§ok hÄ±zlÄ±) |
 | `Ctrl+4` | Mod A+A |
 | `Ctrl+5` | Mod B+B |
 | `Ctrl+6` | Mod C+A |
 
 ---
 
-## 🛠️ Kaynaktan derleme
+## ðŸ› ï¸ Kaynaktan derleme
 
-.NET 10 SDK'si gerekir. Node.js yalnızca eklenti testleri için.
+.NET 10 SDK'si gerekir. Node.js yalnÄ±zca eklenti testleri iÃ§in.
 
 ```powershell
 dotnet build MpvLauncher.Gui\MpvLauncher.Gui.csproj -c Debug
 ```
 
-Eklenti çalıştırılabilir dosyanın içine gömülüdür; bu yüzden bir değişikliğin
-`%APPDATA%` klasörüne ulaşması için C# projesinin yeniden derlenmesi gerekir.
-Ardından uygulamada **Eklentileri hazırla / onar**'ı yeniden çalıştırın.
+Eklenti Ã§alÄ±ÅŸtÄ±rÄ±labilir dosyanÄ±n iÃ§ine gÃ¶mÃ¼lÃ¼dÃ¼r; bu yÃ¼zden bir deÄŸiÅŸikliÄŸin
+`%APPDATA%` klasÃ¶rÃ¼ne ulaÅŸmasÄ± iÃ§in C# projesinin yeniden derlenmesi gerekir.
+ArdÄ±ndan uygulamada **Eklentileri hazÄ±rla / onar**'Ä± yeniden Ã§alÄ±ÅŸtÄ±rÄ±n.
 
 ```powershell
-node tools\extension-tests.js   # 147 kontrol - eklenti mantığı ve güvenlik
-node tools\locale-tests.js      #  29 kontrol - dil dosyaları tutarlı kalır
+node tools\extension-tests.js   # 147 kontrol - eklenti mantÄ±ÄŸÄ± ve gÃ¼venlik
+node tools\locale-tests.js      #  29 kontrol - dil dosyalarÄ± tutarlÄ± kalÄ±r
 ```
 
 ---
 
-## 🌍 Diller
+## ðŸŒ Diller
 
-**Uygulama (12):** English, Türkçe, Deutsch, Español, Bahasa Indonesia, 日本語,
-한국어, Polski, Português (Brasil), Русский, Tiếng Việt, 中文 (简体)
+**Uygulama (12):** English, TÃ¼rkÃ§e, Deutsch, EspaÃ±ol, Bahasa Indonesia, æ—¥æœ¬èªž,
+í•œêµ­ì–´, Polski, PortuguÃªs (Brasil), Ð ÑƒÑÑÐºÐ¸Ð¹, Tiáº¿ng Viá»‡t, ä¸­æ–‡ (ç®€ä½“)
 
-**Eklenti (13):** aynı liste, artı Français.
+**Eklenti (13):** aynÄ± liste, artÄ± FranÃ§ais.
 
 ---
 
-## 🙏 Teşekkürler
+## ðŸ™ TeÅŸekkÃ¼rler
 
-- [mpv](https://mpv.io/) — bu projenin var olma sebebi olan oynatıcı
-- [yt-dlp](https://github.com/yt-dlp/yt-dlp) — akış çıkarımı
-- [FFmpeg](https://ffmpeg.org/) — ayrıştırma ve dönüştürme
-- [Anime4K](https://github.com/bloc97/Anime4K) — gerçek zamanlı anime yükseltme
-- [ModernZ](https://github.com/Samillion/ModernZ) — mpv için modern OSC
-- [SharpCompress](https://github.com/adamhathcock/sharpcompress) — arşiv çıkarma
+- [mpv](https://mpv.io/) â€” bu projenin var olma sebebi olan oynatÄ±cÄ±
+- [yt-dlp](https://github.com/yt-dlp/yt-dlp) â€” akÄ±ÅŸ Ã§Ä±karÄ±mÄ±
+- [FFmpeg](https://ffmpeg.org/) â€” ayrÄ±ÅŸtÄ±rma ve dÃ¶nÃ¼ÅŸtÃ¼rme
+- [Anime4K](https://github.com/bloc97/Anime4K) â€” gerÃ§ek zamanlÄ± anime yÃ¼kseltme
+- [ModernZ](https://github.com/Samillion/ModernZ) â€” mpv iÃ§in modern OSC
+- [SharpCompress](https://github.com/adamhathcock/sharpcompress) â€” arÅŸiv Ã§Ä±karma
 
-## 📄 Lisans
+## ðŸ“„ Lisans
 
 [MIT](LICENSE)
