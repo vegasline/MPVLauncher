@@ -149,6 +149,6 @@
     "status_error": "Đã xảy ra lỗi.",
     "play_mpv_loader": "không thể khởi chạy mpv — Windows từ chối tải nó ({0}).",
     "play_mpv_broken": "không thể khởi chạy mpv ({0}).",
-    "play_mpv_loader_fix": "Thường là do trình điều khiển đồ họa hoặc môi trường Vulkan đã cũ: mpv cần Vulkan 1.1 trở lên. Để xác nhận, hãy xem phiên bản của %SystemRoot%\\System32\\vulkan-1.dll - nếu thấp hơn 1.1 thì cập nhật trình điều khiển đồ họa. Không có tùy chọn nào trong MPVLauncher khắc phục được."
+    "play_mpv_loader_fix": "Đây là vấn đề đã biết và chúng tôi đang tìm cách khắc phục."
   }
 }

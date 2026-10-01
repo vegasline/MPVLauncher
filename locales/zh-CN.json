@@ -149,6 +149,6 @@
     "status_error": "发生错误。",
     "play_mpv_loader": "无法启动 mpv — Windows 无法加载它（{0}）。",
     "play_mpv_broken": "无法启动 mpv（{0}）。",
-    "play_mpv_loader_fix": "通常是显卡驱动或 Vulkan 运行时过旧：mpv 需要 Vulkan 1.1 或更高版本。要确认这一点，请查看 %SystemRoot%\\System32\\vulkan-1.dll 的版本 - 如果低于 1.1，请更新显卡驱动程序。MPVLauncher 中的任何选项都无法绕过此问题。"
+    "play_mpv_loader_fix": "这是一个已知问题，我们正在处理中。"
   }
 }

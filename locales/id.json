@@ -149,6 +149,6 @@
     "status_error": "Terjadi kesalahan.",
     "play_mpv_loader": "mpv tidak dapat dimulai - Windows menolak memuatnya ({0}).",
     "play_mpv_broken": "mpv tidak dapat dimulai ({0}).",
-    "play_mpv_loader_fix": "Biasanya driver grafis atau runtime Vulkan yang sudah usang: mpv membutuhkan Vulkan 1.1 atau lebih baru. Untuk memastikan, periksa versi %SystemRoot%\\System32\\vulkan-1.dll - jika di bawah 1.1, perbarui driver grafis. Tidak ada opsi di MPVLauncher yang dapat mengatasinya."
+    "play_mpv_loader_fix": "Ini adalah masalah yang diketahui dan kami sedang mengerjakannya."
   }
 }

@@ -149,6 +149,6 @@
     "status_error": "Ocurrió un error.",
     "play_mpv_loader": "mpv no puede iniciarse: Windows no pudo cargarlo ({0}).",
     "play_mpv_broken": "mpv no puede iniciarse ({0}).",
-    "play_mpv_loader_fix": "Normalmente es un controlador de gráficos o un entorno de Vulkan desactualizado: mpv necesita Vulkan 1.1 o posterior. Para confirmarlo, compruebe la versión de %SystemRoot%\\System32\\vulkan-1.dll; si es inferior a 1.1, actualice el controlador. Ninguna opción de MPVLauncher puede evitarlo."
+    "play_mpv_loader_fix": "Este es un problema conocido y estamos trabajando en una solución."
   }
 }

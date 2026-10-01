@@ -149,6 +149,6 @@
     "status_error": "Hata oluştu.",
     "play_mpv_loader": "mpv başlatılamıyor - Windows dosyayı yükleyemedi ({0}).",
     "play_mpv_broken": "mpv başlatılamıyor ({0}).",
-    "play_mpv_loader_fix": "Genellikle eski bir ekran kartı sürücüsü veya Vulkan runtime'ı: mpv Vulkan 1.1 veya üzeri gerektirir. Doğrulamak için %SystemRoot%\\System32\\vulkan-1.dll dosyasının sürümüne bakın - 1.1'den küçükse ekran kartı sürücüsünü güncelleyin. MPVLauncher'daki hiçbir ayar bunu çözemez."
+    "play_mpv_loader_fix": "Bu bilinen bir sorundur ve üzerine çalışıyoruz."
   }
 }
