@@ -268,7 +268,21 @@ namespace MpvLauncher.Gui
         {
             TxtStatus.Text = _locService.Get("status_playing", "Launching MPV...");
             var res = _procService.PlayMedia(target);
-            TxtStatus.Text = res.Message;
+
+            // A loader failure is the one case where the raw reason is not
+            // enough on its own. The user has a dialog on screen with a
+            // procedure name in it and no way to know it is not an mpv setting
+            // to change, so the message names the actual remedy.
+            TxtStatus.Text = res.Probe.Health == MpvHealth.NotRunnable
+                ? (res.Probe.IsLoaderProblem
+                    ? _locService.Format("play_mpv_loader", "", res.Probe.Describe()) +
+                      " " + _locService.Get("play_mpv_loader_fix",
+                          "This is almost always an out-of-date graphics driver or Vulkan runtime " +
+                          "- mpv needs Vulkan 1.1 or newer. Update the driver. No option in " +
+                          "MPVLauncher can work around this.")
+                    : _locService.Format("play_mpv_broken", "mpv cannot start ({0}).", res.Probe.Describe()))
+                : res.Message;
+
             LoadHistory();
         }
 

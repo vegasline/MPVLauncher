@@ -27,30 +27,35 @@ namespace MpvLauncher.Gui.Services
         }
 
         /// <summary>
-        /// Asks mpv for its version. Returns "MPV not found" when there is no
-        /// binary, and the first line of "mpv --version" when there is.
+        /// Asks mpv for its version.
+        ///
+        /// The distinction between "the file is there" and "the file runs" is
+        /// the whole point of this method. An mpv whose static imports cannot be
+        /// resolved exists, downloads correctly, and still cannot be started, so
+        /// reporting it as installed here is what turns a loader failure into an
+        /// unexplained dialog much later, with nothing on screen tying the two
+        /// together.
+        ///
+        /// Not localised on purpose, like every status on this page: the useful
+        /// part of each string is the tool's own output, which has to be verbatim
+        /// to be checkable against upstream.
         /// </summary>
         public string CheckMpvStatus()
         {
-            string path = _processService.FindMpvPath();
-            if (File.Exists(path))
+            var probe = _processService.ProbeMpv();
+
+            return probe.Health switch
             {
-                try
-                {
-                    var p = Process.Start(new ProcessStartInfo
-                    {
-                        FileName = path,
-                        Arguments = "--version",
-                        RedirectStandardOutput = true,
-                        UseShellExecute = false,
-                        CreateNoWindow = true
-                    });
-                    string? line = p?.StandardOutput.ReadLine();
-                    return line ?? "MPV installed";
-                }
-                catch { return "MPV installed"; }
-            }
-            return "MPV not found";
+                MpvHealth.NotInstalled => "MPV not found",
+                MpvHealth.Ok => probe.Version,
+                _ => probe.IsLoaderProblem
+                    // Says what the state is and that it is not the user's mpv
+                    // settings, because the natural reaction is to start changing
+                    // options that cannot possibly matter here.
+                    ? $"MPV cannot start: {probe.Describe()} " +
+                      "(unresolved Windows import - update the graphics driver / Vulkan runtime)"
+                    : $"MPV cannot start: {probe.Describe()}"
+            };
         }
 
         /// <summary>

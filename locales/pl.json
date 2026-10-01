@@ -146,6 +146,9 @@
     "status_ready": "Gotowy",
     "status_playing": "Uruchamianie MPV...",
     "status_success": "Operacja zakończona sukcesem.",
-    "status_error": "Wystąpił błąd."
+    "status_error": "Wystąpił błąd.",
+    "play_mpv_loader": "mpv nie może się uruchomić - Windows nie mógł go wczytać ({0}).",
+    "play_mpv_broken": "mpv nie może się uruchomić ({0}).",
+    "play_mpv_loader_fix": "Zwykle stary sterownik graficzny lub środowisko uruchomieniowe Vulkan: mpv wymaga Vulkan 1.1 lub nowszego. Aby to potwierdzić, sprawdź wersję %SystemRoot%\\System32\\vulkan-1.dll - jeśli jest poniżej 1.1, zaktualizuj sterownik. Żadna opcja w MPVLauncher nie obejdzie tego."
   }
 }

@@ -146,6 +146,9 @@
     "status_ready": "準備完了",
     "status_playing": "MPV を起動中...",
     "status_success": "処理が完了しました。",
-    "status_error": "エラーが発生しました。"
+    "status_error": "エラーが発生しました。",
+    "play_mpv_loader": "mpv を起動できません - Windows が読み込めませんでした ({0})。",
+    "play_mpv_broken": "mpv を起動できません ({0})。",
+    "play_mpv_loader_fix": "多くの場合は古いグラフィックスドライバーまたは Vulkan ランタイムが原因です。mpv には Vulkan 1.1 以降が必要です。確認するには %SystemRoot%\\System32\\vulkan-1.dll のバージョンを調べ、1.1 未満ならドライバーを更新してください。MPVLauncher の設定では回避できません。"
   }
 }
