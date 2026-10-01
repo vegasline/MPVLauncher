@@ -140,5 +140,58 @@ section("no key is referenced by the code but missing from a locale");
     missing.length === 0, missing.join(", "));
 }
 
+section("documentation files are clean UTF-8");
+{
+  // Rewriting a text file through a shell is where this goes wrong: Windows
+  // PowerShell reads a BOM-less UTF-8 file as Windows-1252, so emoji and
+  // Turkish characters arrive as mojibake and are then written straight back
+  // out. The file still parses as valid UTF-8 - the bytes are simply the wrong
+  // characters - and no JSON test would notice, because the damage is in the
+  // markdown.
+  //
+  // This was not hypothetical: a version bump done with Get-Content | -replace
+  // | Set-Content double-encoded both READMEs.
+  const DOCS = ["README.md", "README_TR.md"];
+
+  // Sequences that can only appear if UTF-8 bytes were decoded as Windows-1252
+  // and re-encoded. A genuine Turkish or Japanese document never contains these.
+  // Escapes again, for the same reason as above.
+  const MOJIBAKE = ["Ã¼", "Ã§", "Ã¶", "â€", "Ã¯Â", "Ã¢Å“"];
+
+  for (const f of DOCS) {
+    const p = path.join(ROOT, f);
+    const buf = fs.readFileSync(p);
+
+    const hasBom = buf[0] === 0xEF && buf[1] === 0xBB && buf[2] === 0xBF;
+    check(`${f} has no byte-order mark`, !hasBom,
+      hasBom ? "a BOM makes GitHub guess the encoding and renders the page wrong" : "");
+
+    let text = "";
+    let valid = true;
+    try { text = new TextDecoder("utf-8", { fatal: true }).decode(buf); }
+    catch { valid = false; }
+    check(`${f} is valid UTF-8`, valid);
+
+    const hit = MOJIBAKE.find(s => text.includes(s));
+    check(`${f} is not double-encoded`, !hit, hit ? "found " + JSON.stringify(hit) : "");
+  }
+
+  // The Turkish README must actually keep the characters that were lost.
+  // Written as escapes rather than literals, so this file cannot become an
+  // encoding casualty of the very thing it is checking for.
+  const tr = fs.readFileSync(path.join(ROOT, "README_TR.md"), "utf8");
+  // The six lowercase forms plus dotted capital I. The other capitals - G with
+  // breve, S cedilla, C cedilla, O and U umlaut - genuinely do not occur in
+  // this document, so demanding all twelve would fail on correct input.
+  const TR_CHARS = ["ğ", "ı", "ş", "ç", "ö", "ü", "İ"];
+  const missingTr = TR_CHARS.filter(c => !tr.includes(c));
+  check("README_TR.md keeps its Turkish-specific characters",
+    missingTr.length === 0,
+    missingTr.length ? "missing " + missingTr.map(c => "U+" + c.codePointAt(0).toString(16).toUpperCase()).join(", ") : "");
+
+  const clapper = String.fromCodePoint(0x1F3AC);
+  check("README_TR.md keeps its emoji", tr.includes(clapper), "no clapper board found");
+}
+
 console.log(`\nRESULT: ${pass} passed, ${fail} failed`);
 process.exit(fail === 0 ? 0 : 1);

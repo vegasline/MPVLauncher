@@ -1,6 +1,6 @@
-﻿<h1 align="center">MPVLauncher</h1>
+<h1 align="center">MPVLauncher</h1>
 
-<p align="center">Play any video from your browser in <a href="https://mpv.io/"><b>mpv</b></a> â€” with one click.</p>
+<p align="center">Play any video from your browser in <a href="https://mpv.io/"><b>mpv</b></a> — with one click.</p>
 
 <p align="center">
 <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="MIT License"></a>
@@ -8,23 +8,23 @@
 <a href="https://addons.mozilla.org/firefox/addon/mpv-launcher/"><img src="https://img.shields.io/badge/Firefox_Add--on-FF7139FF?logo=firefox-browser&logoColor=white" alt="Firefox add-on"></a>
 </p>
 
-<p align="center">ðŸŒ English Â· <a href="README_TR.md">TÃ¼rkÃ§e</a></p>
+<p align="center">🌐 English · <a href="README_TR.md">Türkçe</a></p>
 
-> ðŸ¤– This project was written with AI assistance â€” the app, the extension, the
-> docs and the tests â€” and reviewed by a human maintainer. The code is open to
+> 🤖 This project was written with AI assistance — the app, the extension, the
+> docs and the tests — and reviewed by a human maintainer. The code is open to
 > read, run and change.
 
 ---
 
-## ðŸ“¸ What it looks like
+## 📸 What it looks like
 
-| ðŸ–¥ï¸ Desktop app | ðŸ§© Browser extension |
+| 🖥️ Desktop app | 🧩 Browser extension |
 | :---: | :---: |
 | ![MPVLauncher main window](MPVLauncher.png) | ![MPVLauncher extension popup](Extension.png) |
 
 ---
 
-## ðŸŽ¬ What it does
+## 🎬 What it does
 
 MPVLauncher is a small launcher for [mpv](https://mpv.io/) plus a browser
 extension that sends web video straight to your player.
@@ -32,72 +32,72 @@ extension that sends web video straight to your player.
 Normally playing a video from a browser means a download tool, a script, or a
 site-specific workaround. This makes it one click.
 
-- ðŸ“¥ **Installs what mpv needs** â€” mpv, yt-dlp and FFmpeg, from their upstream
+- 📥 **Installs what mpv needs** — mpv, yt-dlp and FFmpeg, from their upstream
   releases. No Python, no separate runtime, no system-wide install.
-- ðŸ”Œ **Installs the extension** for Chrome, Edge, Brave, Opera, Vivaldi, Yandex
+- 🔌 **Installs the extension** for Chrome, Edge, Brave, Opera, Vivaldi, Yandex
   and Firefox, and repairs it if the app folder moves.
-- ðŸŽ¨ **Themes + appearance editor** â€” 4 themes, custom colours, blur, corner
+- 🎨 **Themes + appearance editor** — 4 themes, custom colours, blur, corner
   radii and background image.
-- âœ¨ **Anime4K and ModernZ** â€” anime upscaling and a nicer on-screen controller.
-- ðŸ—‚ï¸ **Playback history** â€” your last 50 entries, shared with the extension.
-- ðŸŒ **12 languages** in the app, **13** in the extension.
+- ✨ **Anime4K and ModernZ** — anime upscaling and a nicer on-screen controller.
+- 🗂️ **Playback history** — your last 50 entries, shared with the extension.
+- 🌍 **12 languages** in the app, **13** in the extension.
 
-### ðŸ” What the extension finds
+### 🔍 What the extension finds
 
 - **Two detection layers.** A network listener catches every media request the
   page makes; a content script scans the markup for streams that have not loaded
   yet. Results are merged, so you don't miss the one that's still behind a
   lazy-loaded player.
-- **The usual suspects** â€” HLS/m3u8, DASH, direct files, `<video>` and
+- **The usual suspects** — HLS/m3u8, DASH, direct files, `<video>` and
   `<source>`, `object`/`embed` players, JSON-LD, blob and MSE URLs.
-- **Iframes** â€” cross-origin embedded players are listed, so a YouTube embed
+- **Iframes** — cross-origin embedded players are listed, so a YouTube embed
   on someone else's page works too.
-- **Filters** â€” toggle streams, files and iframes, set a minimum size, hide
+- **Filters** — toggle streams, files and iframes, set a minimum size, hide
   hosts you don't care about.
-- **Clearer errors** â€” a captcha or a Cloudflare check is reported as such
+- **Clearer errors** — a captcha or a Cloudflare check is reported as such
   instead of as an empty page.
 
 ---
 
-## ðŸš€ Quick start
+## 🚀 Quick start
 
 1. Download **MPVLauncher.exe** from the
    [latest release](https://github.com/vegasline/MPVLauncher/releases/latest)
    and open it.
 2. Go to the **Dependencies** tab and press **Download & Install** for **mpv**,
-   **yt-dlp** and **FFmpeg** â€” three separate buttons, install all three. mpv is
+   **yt-dlp** and **FFmpeg** — three separate buttons, install all three. mpv is
    the player; the other two are what let it open a stream URL. On the same tab,
    **Install Theme+Anime4K** adds the ModernZ interface and the Anime4K shader
    set into `%APPDATA%\mpv`.
 3. Still on **Dependencies**, press **Install / repair extensions** to set up the
-   browser extension. The same tab has a **ðŸ¦Š Firefox Add-on** button that opens
+   browser extension. The same tab has a **🦊 Firefox Add-on** button that opens
    the add-on page, and an **Extension Folder** button that opens the folder
    Chromium needs.
 
 **No administrator rights needed.** Everything is written under
 `%APPDATA%\MPVLauncher\` and `HKEY_CURRENT_USER`.
 
-> âš ï¸ **Moved `MPVLauncher.exe` to a different folder?** Just open the app once.
+> ⚠️ **Moved `MPVLauncher.exe` to a different folder?** Just open the app once.
 > It repairs the native messaging host path by itself on startup, so nothing
-> needs reinstalling. **Restart your browser afterwards, though** â€” the browser
+> needs reinstalling. **Restart your browser afterwards, though** — the browser
 > reads that path when it launches the host, so one that was already open keeps
 > using the old path and the button will look like it does nothing. This is the
 > usual reason for "it worked yesterday".
 
-> ðŸ’¡ Button names follow the app's language setting, so they appear translated
+> 💡 Button names follow the app's language setting, so they appear translated
 > if you switch the interface to Turkish or one of the other 11 languages.
 
 ---
 
-## ðŸŽ® Using it
+## 🎮 Using it
 
 Two ways in, and both end up in the same mpv.
 
-**ðŸ§© From the browser** â€” click the extension icon on any page. Everything it
+**🧩 From the browser** — click the extension icon on any page. Everything it
 found is listed with an **Open in MPV** button: the real stream, direct media
 files, and embedded players. Pick one and it opens.
 
-**ðŸ–¥ï¸ From the app** â€” open the **Player** tab, paste a video URL and press
+**🖥️ From the app** — open the **Player** tab, paste a video URL and press
 **Play with MPV**. You can also drop a file onto the window, or use
 **Select File**.
 
@@ -106,14 +106,14 @@ between both routes.
 
 ---
 
-### ðŸ¦Š Firefox
+### 🦊 Firefox
 
 Install the signed add-on from
-[addons.mozilla.org](https://addons.mozilla.org/firefox/addon/mpv-launcher/) â€”
+[addons.mozilla.org](https://addons.mozilla.org/firefox/addon/mpv-launcher/) —
 it is the easiest path and works out of the box. Firefox 128+ is required for
 Manifest V3.
 
-### ðŸŒ Chrome, Edge, Brave, Opera, Vivaldi, Yandex
+### 🌐 Chrome, Edge, Brave, Opera, Vivaldi, Yandex
 
 Run the installer, then open `chrome://extensions`, enable **Developer mode**,
 choose **Load unpacked** and pick:
@@ -124,33 +124,33 @@ choose **Load unpacked** and pick:
 
 The **Extension folder** button in the app opens that folder for you.
 
-> ðŸ’¡ Chromium requires an unpacked extension, so it has to be loaded on every
+> 💡 Chromium requires an unpacked extension, so it has to be loaded on every
 > start. The installer handles this by writing per-user overrides of the browser
-> launch command â€” no administrator rights, and nothing the browser does on
+> launch command — no administrator rights, and nothing the browser does on
 > update can undo it. Uninstall removes exactly those values again.
 
 ---
 
-## ðŸ”’ Privacy
+## 🔒 Privacy
 
 The extension reads URLs from pages you visit, so the boundaries are worth
 stating plainly:
 
-- ðŸ”‘ **No credentials are ever captured.** `Cookie` and `Authorization` are
+- 🔑 **No credentials are ever captured.** `Cookie` and `Authorization` are
   dropped before anything else happens. A video behind a login therefore will
-  not play in mpv â€” that is the trade, and it is deliberate.
-- ðŸš« **No page script is executed.** Packed player scripts are parsed as text,
+  not play in mpv — that is the trade, and it is deliberate.
+- 🚫 **No page script is executed.** Packed player scripts are parsed as text,
   never handed to `eval` or `new Function`.
-- ðŸ”’ **Only `http` and `https`** reach the player, and every argument is quoted
+- 🔒 **Only `http` and `https`** reach the player, and every argument is quoted
   properly, so a URL cannot smuggle in extra mpv options.
-- ðŸ“¦ **Archive extraction is contained**, downloads are size-capped, and signed
+- 📦 **Archive extraction is contained**, downloads are size-capped, and signed
   media URLs keep their access token out of the log.
 
 Full details in [`MpvLauncher.Gui/Services/NativeHostService.cs`](MpvLauncher.Gui/Services/NativeHostService.cs).
 
 ---
 
-## âŒ¨ï¸ Anime4K shortcuts (inside mpv)
+## ⌨️ Anime4K shortcuts (inside mpv)
 
 | Key | Action |
 | --- | --- |
@@ -164,7 +164,7 @@ Full details in [`MpvLauncher.Gui/Services/NativeHostService.cs`](MpvLauncher.Gu
 
 ---
 
-## ðŸ› ï¸ Building from source
+## 🛠️ Building from source
 
 Needs the .NET 10 SDK. Node.js only for the extension tests.
 
@@ -183,25 +183,25 @@ node tools\locale-tests.js      #  29 checks - locale files stay consistent
 
 ---
 
-## ðŸŒ Languages
+## 🌍 Languages
 
-**App (12):** English, TÃ¼rkÃ§e, Deutsch, EspaÃ±ol, Bahasa Indonesia, æ—¥æœ¬èªž,
-í•œêµ­ì–´, Polski, PortuguÃªs (Brasil), Ð ÑƒÑÑÐºÐ¸Ð¹, Tiáº¿ng Viá»‡t, ä¸­æ–‡ (ç®€ä½“)
+**App (12):** English, Türkçe, Deutsch, Español, Bahasa Indonesia, 日本語,
+한국어, Polski, Português (Brasil), Русский, Tiếng Việt, 中文 (简体)
 
-**Extension (13):** the same list, plus FranÃ§ais.
+**Extension (13):** the same list, plus Français.
 
 ---
 
-## ðŸ™ Credits
+## 🙏 Credits
 
-- [mpv](https://mpv.io/) â€” the player this project exists to serve
-- [yt-dlp](https://github.com/yt-dlp/yt-dlp) â€” stream extraction
-- [FFmpeg](https://ffmpeg.org/) â€” demuxing and conversion
-- [Anime4K](https://github.com/bloc97/Anime4K) â€” real-time anime upscaling
-- [ModernZ](https://github.com/Samillion/ModernZ) â€” modern OSC for mpv
-- [SharpCompress](https://github.com/adamhathcock/sharpcompress) â€” archive
+- [mpv](https://mpv.io/) — the player this project exists to serve
+- [yt-dlp](https://github.com/yt-dlp/yt-dlp) — stream extraction
+- [FFmpeg](https://ffmpeg.org/) — demuxing and conversion
+- [Anime4K](https://github.com/bloc97/Anime4K) — real-time anime upscaling
+- [ModernZ](https://github.com/Samillion/ModernZ) — modern OSC for mpv
+- [SharpCompress](https://github.com/adamhathcock/sharpcompress) — archive
   extraction
 
-## ðŸ“„ License
+## 📄 License
 
 [MIT](LICENSE)
