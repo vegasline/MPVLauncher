@@ -275,25 +275,15 @@ body {
   letter-spacing: 0.5px;
 }
 
-/* The two header buttons sit side by side at the right edge. The section header
-   is itself a flex row with space-between, so they need their own container
-   rather than becoming two separate flex children. */
-.header-actions {
-  display: flex;
-  align-items: center;
-  gap: 2px;
-}
+/* The clear button lives in the settings panel rather than beside the rescan
+   button: it is a rarely used action, and a second icon in the header crowds
+   the one control that gets pressed regularly. */
 
-.btn-icon-only:hover {
-  color: var(--text-primary);
-}
-
-/* Nothing to clear: the button is inert rather than missing, so its position
-   does not move when a list happens to be empty. */
-.btn-icon-only[disabled] {
-  opacity: 0.35;
+/* Nothing to clear: the button stays in place but is inert, so the row does not
+   reflow as the list fills and empties. */
+.btn-small[disabled] {
+  opacity: 0.4;
   cursor: default;
-  transform: none;
 }
 
 .media-list {

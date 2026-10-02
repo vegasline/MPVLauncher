@@ -1037,15 +1037,23 @@ function runContentScript({ url, videos = [], widgets = [], innerText = "", hasM
     const html = fs.readFileSync(path.join(EXT, "popup.html"), "utf8");
 
     check("popup.html has a clear button", /id="btn-clear"/.test(html));
-    check("clear button sits beside the rescan button",
-      /id="btn-clear"[\s\S]{0,200}id="btn-rescan"|id="btn-rescan"[\s\S]{0,200}id="btn-clear"/.test(html));
-    check("clear button is icon-only, matching rescan",
-      /id="btn-clear"[^>]*class="[^"]*btn-icon-only/.test(html));
-    check("clear button has a title for the tooltip", /id="btn-clear"[^>]*title=/.test(html));
+    // It lives in the settings panel, not the header: it is a rare action and a
+    // second icon beside rescan crowded the control that gets used often.
+    check("clear button is inside the settings panel",
+      /id="settings-panel"[\s\S]{0,2000}id="btn-clear"/.test(html));
+    check("clear button is not in the section header",
+      !/class="section-header"[\s\S]{0,400}id="btn-clear"/.test(html));
+    check("clear button shows text rather than being icon-only",
+      /id="btn-clear"[^>]*class="[^"]*btn-small/.test(html) &&
+      /id="btn-clear"[^>]*>\s*\w/.test(html));
+    check("clear button has a label beside it", /id="lbl-clear-list"/.test(html));
 
     const popup = fs.readFileSync(path.join(EXT, "popup.js"), "utf8");
     check("popup.js looks the button up", /getElementById\("btn-clear"\)/.test(popup));
     check("popup.js wires a click handler", /btnClear\.onclick/.test(popup));
+    check("popup.js localises the button text and its label",
+      /btnClear\.textContent = t\("btn_clear"\)/.test(popup) &&
+      /lblClearList\.textContent = t\("clear_list_tooltip"\)/.test(popup));
     check("popup.js sends clear_network_media",
       /action:\s*"clear_network_media"/.test(popup));
     check("popup.js passes the tab id, so other tabs are untouched",
@@ -1061,7 +1069,8 @@ function runContentScript({ url, videos = [], widgets = [], innerText = "", hasM
 
     // The button's label has to exist in every language or it shows the raw key.
     const i18n = read("i18n.js");
-    for (const k of ["clear_list_tooltip", "list_cleared", "list_cleared_hint", "list_cleared_status"]) {
+    for (const k of ["clear_list_tooltip", "btn_clear", "list_cleared",
+                    "list_cleared_hint", "list_cleared_status"]) {
       const n = (i18n.match(new RegExp(`"${k}":`, "g")) || []).length;
       check(`i18n defines ${k} in all 13 locales`, n === 13, `found ${n}`);
     }
