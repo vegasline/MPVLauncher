@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Reflection;
+using System.Text.Json;
 
 namespace MpvLauncher.Gui.Services
 {
@@ -12,9 +13,12 @@ namespace MpvLauncher.Gui.Services
     /// unpacks them into %APPDATA% on first run, where the user and the rest of
     /// the app expect to find them.
     ///
-    /// Overwrite policy differs per set and is deliberate: themes and languages
-    /// are written once so a user's edits survive, while the extension bundle is
-    /// refreshed so a repaired install actually picks up the new files.
+    /// Overwrite policy differs per set and is deliberate. The extension bundle
+    /// is refreshed outright, so a repaired install picks up the new files.
+    /// Themes are written once so a hand-edited copy survives. Language packs are
+    /// written once too, but only while they carry every key the build ships -
+    /// see <see cref="Write"/> - because a translation added later has to reach a
+    /// machine that installed an earlier version.
     /// </summary>
     public static class ResourceSeeder
     {
@@ -42,7 +46,8 @@ namespace MpvLauncher.Gui.Services
                 if (name.StartsWith(PrefixThemes, StringComparison.Ordinal))
                     Write(asm, name, Path.Combine(AppPaths.ThemesDir, name[PrefixThemes.Length..]), overwrite: false);
                 else if (name.StartsWith(PrefixLanguages, StringComparison.Ordinal))
-                    Write(asm, name, Path.Combine(AppPaths.LanguagesDir, name[PrefixLanguages.Length..]), overwrite: false);
+                    Write(asm, name, Path.Combine(AppPaths.LanguagesDir, name[PrefixLanguages.Length..]),
+                          overwrite: false, mergeForward: true);
                 else if (name.StartsWith(PrefixExtension, StringComparison.Ordinal))
                     Write(asm, name, Path.Combine(AppPaths.ExtensionBundleDir, name[PrefixExtension.Length..]), overwriteExtension);
             }
@@ -126,18 +131,75 @@ namespace MpvLauncher.Gui.Services
         /// The destination path is built from the resource name, which is
         /// controlled by the build, not by anything the user supplies.
         /// </summary>
-        private static void Write(Assembly asm, string resourceName, string destPath, bool overwrite)
+        /// <param name="overwrite">
+        /// When false an existing file is left alone. That is the policy for
+        /// themes, where a hand-edited copy is plausibly the user's own.
+        /// </param>
+        /// <param name="mergeForward">
+        /// When true the file is replaced if it does not already carry every key
+        /// the shipped one has. Language packs need this and themes do not: a
+        /// translation added in a later release has to reach machines that
+        /// installed an earlier one, and without it the lookup falls back to the
+        /// English default and the new text silently never appears - the window
+        /// then mixes languages, with the older labels translated and the newer
+        /// ones not.
+        ///
+        /// Only files this build ships are considered, so a language pack the
+        /// user added themselves is never touched. Their wording for keys they
+        /// already have is kept; what they could not have is filled in.
+        /// </param>
+        private static void Write(Assembly asm, string resourceName, string destPath,
+                                  bool overwrite, bool mergeForward = false)
         {
             try
             {
-                if (!overwrite && File.Exists(destPath)) return;
-                Directory.CreateDirectory(Path.GetDirectoryName(destPath)!);
                 using Stream? src = asm.GetManifestResourceStream(resourceName);
                 if (src == null) return;
+
+                if (!overwrite && File.Exists(destPath))
+                {
+                    if (!mergeForward || HasAllKeys(src, destPath)) return;
+                }
+
+                Directory.CreateDirectory(Path.GetDirectoryName(destPath)!);
+                src.Position = 0;
                 using var dst = File.Create(destPath);
                 src.CopyTo(dst);
             }
             catch { }
+        }
+
+        /// <summary>
+        /// Reports whether the file on disk already defines every translation
+        /// key the shipped one does.
+        ///
+        /// Only the key sets are compared, not the text, so a user who translated
+        /// a key themselves keeps their wording while still picking up the keys
+        /// added since they last ran the app. A file that cannot be read as such
+        /// counts as complete, because overwriting it would throw away work the
+        /// only evidence for is the file being unreadable.
+        /// </summary>
+        private static bool HasAllKeys(Stream embedded, string destPath)
+        {
+            try
+            {
+                using var shipped = JsonDocument.Parse(embedded);
+                using var onDisk = JsonDocument.Parse(File.ReadAllBytes(destPath));
+
+                if (!shipped.RootElement.TryGetProperty("translations", out var want) ||
+                    !onDisk.RootElement.TryGetProperty("translations", out var have))
+                    return true;
+
+                foreach (var key in want.EnumerateObject())
+                    if (!have.TryGetProperty(key.Name, out _))
+                        return false;
+
+                return true;
+            }
+            catch
+            {
+                return true;
+            }
         }
     }
 }

@@ -199,5 +199,41 @@ section("documentation files are clean UTF-8");
   check("README_TR.md keeps its emoji", tr.includes(clapper), "no clapper board found");
 }
 
+section("the shipped translations actually reach an existing installation");
+{
+  // This is the check that would have caught the update card showing English on
+  // a Turkish install. The locale files can be perfect and still never arrive:
+  // they are embedded resources, unpacked to %APPDATA% on launch, and for years
+  // that unpack was write-once. A machine installed before a key existed kept its
+  // old file forever and every lookup for the new key fell back to English, so
+  // the window mixed languages - older labels translated, newer ones not.
+  //
+  // The guard has to survive an edit to the seeder, so both halves are pinned:
+  // languages must be merged forward rather than skipped when present, and the
+  // seeder must actually be called on every launch rather than on first run.
+  const seeder = fs.readFileSync(path.join(ROOT, "MpvLauncher.Gui", "Services",
+    "ResourceSeeder.cs"), "utf8");
+
+  // Matched from the branch that tests the languages prefix to the end of the
+  // call it makes, rather than from the constant declaration: matching from the
+  // declaration runs into the themes branch first and never reaches this one.
+  const langBranch = /name\.StartsWith\(PrefixLanguages[\s\S]*?\);/.exec(seeder);
+  check("ResourceSeeder has a branch that writes the language packs",
+    !!langBranch, "the embedded.languages prefix is not written anywhere");
+
+  const merge = /mergeForward:\s*true/.test(langBranch ? langBranch[0] : "");
+  check("language packs are merged forward, not skipped when the file exists",
+    merge,
+    "languages are still written once, so a translation added in a later " +
+    "release cannot reach a machine installed before it");
+
+  const main = fs.readFileSync(path.join(ROOT, "MpvLauncher.Gui",
+    "MainWindow.xaml.cs"), "utf8");
+  check("SeedTemplates runs on every launch, not only on the first",
+    /SeedTemplates\(\s*(?:overwriteEmbedded:\s*)?_configService\.Config\.FirstRun\s*\)/.test(main),
+    "seeding appears to be conditional, so a returning user never picks up " +
+    "new translations");
+}
+
 console.log(`\nRESULT: ${pass} passed, ${fail} failed`);
 process.exit(fail === 0 ? 0 : 1);
