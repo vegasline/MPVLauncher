@@ -32,6 +32,39 @@ namespace MpvLauncher.Gui
         // stateless apart from ConfigService, which caches the live AppConfig.
         private readonly ConfigService _configService;
         private readonly UpdateService _updateService;
+
+        /// <summary>
+        /// What the Updates card is currently showing.
+        ///
+        /// Held rather than rendered once and forgotten, because a language
+        /// change redraws every other label on the window and this card would
+        /// otherwise be the one place left speaking the previous language. It is
+        /// also what keeps the install button: re-applying the label blindly on a
+        /// language switch would replace "Restart &amp; install" with "Check now"
+        /// while the staged update was still waiting behind it.
+        /// </summary>
+        private UpdateStatus? _updateStatus;
+
+        /// <summary>
+        /// Set after an update is installed, which is not a status the service
+        /// reports because it only knows about checks.
+        /// </summary>
+        private bool _updateInstalled;
+
+        /// <summary>
+        /// Why an install failed, kept as a key and its arguments rather than a
+        /// sentence so the message can be redrawn in a new language like
+        /// everything else on the card. Null when there is nothing to report.
+        /// </summary>
+        private sealed record UpdateFailure(string Key, string[] Args);
+
+        private UpdateFailure? _updateFailure;
+
+        /// <summary>
+        /// Set while a check or an install is in flight, holding which one so
+        /// the progress line survives a language change.
+        /// </summary>
+        private string? _updateBusyKey;
         private readonly LocalizationService _locService;
         private readonly ThemeService _themeService;
         private readonly ProcessService _procService;
@@ -148,8 +181,7 @@ namespace MpvLauncher.Gui
             _ = InitializeBrowserIntegrationAsync();
             _ = CheckForUpdatesInBackgroundAsync();
 
-            TxtUpdateVersion.Text = _locService.Format(
-                "update_current_label", "Version {0}", UpdateService.CurrentVersion);
+            RenderUpdateCard();
         }
 
         #region Window
@@ -847,7 +879,7 @@ namespace MpvLauncher.Gui
             }
 
             BtnCheckUpdate.IsEnabled = false;
-            TxtUpdateVersion.Text = _locService.Get("update_checking", "Checking for updates...");
+            SetUpdateBusy("update_checking");
 
             var status = await _updateService.CheckAsync();
 
@@ -863,7 +895,72 @@ namespace MpvLauncher.Gui
         /// </summary>
         private void ShowUpdateStatus(UpdateStatus status)
         {
+            _updateStatus = status;
+            _updateInstalled = false;
+            _updateFailure = null;
+            _updateBusyKey = null;
+            RenderUpdateCard();
+        }
+
+        /// <summary>
+        /// Shows progress while a check or an install runs.
+        ///
+        /// The key is held rather than the sentence for the same reason the
+        /// rest of the card is: a language change during a slow check would
+        /// otherwise leave "Checking for updates..." behind in the old language
+        /// for as long as the request took.
+        /// </summary>
+        private void SetUpdateBusy(string? key)
+        {
+            _updateBusyKey = key;
+            RenderUpdateCard();
+        }
+
+        /// <summary>
+        /// Draws the Updates card from the state it is holding.
+        ///
+        /// Called both when the state changes and when the language changes, so
+        /// the two cannot drift apart. Nothing here decides anything; it only
+        /// reflects <see cref="_updateStatus"/> in the current language.
+        /// </summary>
+        private void RenderUpdateCard()
+        {
+            if (TxtUpdateVersion == null || BtnCheckUpdate == null) return;
+
             ChkAutoUpdate.IsChecked = _configService.Config.AutoUpdate;
+
+            // Progress wins over everything else while an operation runs,
+            // because redrawing on a language change would otherwise wipe it.
+            if (_updateBusyKey is { } busy)
+            {
+                TxtUpdateVersion.Text = busy == "update_installing"
+                    ? _locService.Get(busy, "Installing...")
+                    : _locService.Get(busy, "Checking for updates...");
+                return;
+            }
+
+            if (_updateInstalled)
+            {
+                TxtUpdateVersion.Text = _locService.Get("update_installed",
+                    "Updated. Restart MPVLauncher to use the new version.");
+                ResetUpdateButton();
+                return;
+            }
+
+            // A failed install outranks whatever the last check said, and it is
+            // held as a key so this line is redrawn on a language change rather
+            // than staying in the language it happened to fail in.
+            if (_updateFailure is { } failure)
+            {
+                TxtUpdateVersion.Text = _locService.Format("update_install_failed",
+                    "Could not install the update: {0}",
+                    _locService.Format(failure.Key, failure.Key, failure.Args));
+                ResetUpdateButton();
+                return;
+            }
+
+            var status = _updateStatus
+                ?? new UpdateStatus(UpdateStage.UpToDate, UpdateService.CurrentVersion, null);
 
             switch (status.Stage)
             {
@@ -876,13 +973,16 @@ namespace MpvLauncher.Gui
 
                 case UpdateStage.Available:
                     TxtUpdateVersion.Text = FormatUpdateDetail(status, "update_unavailable");
+                    ResetUpdateButton();
                     break;
 
                 default:
                     TxtUpdateVersion.Text = status.DetailKey is { Length: > 0 }
                         ? FormatUpdateDetail(status, "update_check_failed")
-                        : _locService.Format("update_current",
-                            "You are on the latest version ({0}).", UpdateService.CurrentVersion);
+                        : (status.Version.Length > 0
+                            ? _locService.Format("update_current_label", "Version {0}", status.Version)
+                            : _locService.Format("update_current",
+                                "You are on the latest version ({0}).", UpdateService.CurrentVersion));
                     ResetUpdateButton();
                     break;
             }
@@ -971,22 +1071,23 @@ namespace MpvLauncher.Gui
         private async Task InstallStagedUpdateAsync()
         {
             BtnCheckUpdate.IsEnabled = false;
-            TxtUpdateVersion.Text = _locService.Get("update_installing", "Installing...");
+            SetUpdateBusy("update_installing");
 
             var (key, args) = await _updateService.ApplyAsync();
             BtnCheckUpdate.IsEnabled = true;
+            _updateBusyKey = null;
 
             if (key is null)
             {
-                TxtUpdateVersion.Text = _locService.Get("update_installed",
-                    "Updated. Restart MPVLauncher to use the new version.");
-                ResetUpdateButton();
+                _updateInstalled = true;
+                _updateFailure = null;
+                RenderUpdateCard();
             }
             else
             {
-                TxtUpdateVersion.Text = _locService.Format("update_install_failed",
-                    "Could not install the update: {0}",
-                    _locService.Format(key, key, args));
+                _updateInstalled = false;
+                _updateFailure = new UpdateFailure(key, args);
+                RenderUpdateCard();
             }
         }
 
@@ -1611,9 +1712,13 @@ namespace MpvLauncher.Gui
             TxtMpvExtraArgsLabel.Text = _locService.Get("label_mpv_extra_args", "Extra MPV Parameters (e.g. --hwdec=auto):");
             BtnSaveMpvSettings.Content = _locService.Get("btn_save_settings", "Save Settings");
             ChkAutoUpdate.Content = _locService.Get("label_auto_update", "Download new versions automatically");
-            ChkAutoUpdate.IsChecked = _configService.Config.AutoUpdate;
             TxtUpdateTitle.Text = _locService.Get("label_updates", "Updates");
-            BtnCheckUpdate.Content = _locService.Get("btn_check_update", "Check now");
+
+            // Redrawn from the state it is holding rather than given a fixed
+            // label, so a staged update keeps its install button across a
+            // language change and the status line stops being the one place on
+            // the window that still speaks the previous language.
+            RenderUpdateCard();
 
             TxtDataFolderTitle.Text = _locService.Get("data_folder_title", "Application data folder");
             BtnShowDataFolder.Content = _locService.Get("btn_show_folder", "Show folder");
