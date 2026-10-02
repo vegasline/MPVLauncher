@@ -16,7 +16,7 @@
     <!-- App version. Deliberately separate from extension/manifest.json: the
          extension ships through addons.mozilla.org on its own schedule, and
          the two must not be bumped together. Keep this in step with the git tag. -->
-    <Version>1.9.7</Version>
+    <Version>1.9.8</Version>
   </PropertyGroup>
 
   <ItemGroup>

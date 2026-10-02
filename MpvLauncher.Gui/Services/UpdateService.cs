@@ -66,10 +66,25 @@ namespace MpvLauncher.Gui.Services
         /// <summary>Ceiling for the download, matching the workflow's own limit.</summary>
         private const long MaxDownloadBytes = 128L * 1024 * 1024;
 
-        private static readonly HttpClient Http = new()
+        /// <summary>
+        /// GitHub refuses REST requests that carry no User-Agent, answering 403
+        /// with "Request forbidden by administrative rules" rather than saying
+        /// what was wrong. .NET's HttpClient sends none by default, so this has
+        /// to be set here or every check fails.
+        ///
+        /// DownloadInstallService sets one on its own client for the same reason.
+        /// </summary>
+        public static readonly string UserAgent =
+            "MPVLauncher/" + Repo.Replace("/", "-") + " (+https://github.com/" + Repo + ")";
+
+        private static readonly HttpClient Http = CreateClient();
+
+        private static HttpClient CreateClient()
         {
-            Timeout = TimeSpan.FromSeconds(60)
-        };
+            var client = new HttpClient { Timeout = TimeSpan.FromSeconds(60) };
+            client.DefaultRequestHeaders.UserAgent.ParseAdd(UserAgent);
+            return client;
+        }
 
         private readonly ConfigService _configService;
 
@@ -166,7 +181,7 @@ namespace MpvLauncher.Gui.Services
 
                 using var resp = await Http.SendAsync(req, ct);
                 if (!resp.IsSuccessStatusCode)
-                    return new UpdateStatus(UpdateStage.UpToDate, "", $"HTTP {(int)resp.StatusCode}");
+                    return new UpdateStatus(UpdateStage.UpToDate, "", DescribeHttpFailure(resp));
 
                 await using var stream = await resp.Content.ReadAsStreamAsync(ct);
                 using var doc = await JsonDocument.ParseAsync(stream, cancellationToken: ct);
@@ -199,6 +214,32 @@ namespace MpvLauncher.Gui.Services
             {
                 return new UpdateStatus(UpdateStage.UpToDate, "", ex.Message);
             }
+        }
+
+        /// <summary>
+        /// Turns an HTTP failure into something the user can act on.
+        ///
+        /// 403 from this endpoint is almost always the unauthenticated rate
+        /// limit - sixty requests an hour, per address - and it is worth saying
+        /// so rather than showing a number that means nothing. 404 means there
+        /// is no release at all, which on a fresh repository is not a fault.
+        /// </summary>
+        private static string DescribeHttpFailure(HttpResponseMessage resp)
+        {
+            int code = (int)resp.StatusCode;
+
+            if (resp.Headers.TryGetValues("X-RateLimit-Remaining", out var left) &&
+                left.FirstOrDefault() == "0")
+            {
+                return "GitHub's hourly request limit was reached - try again later";
+            }
+
+            return code switch
+            {
+                403 => "GitHub refused the request (hourly limit reached)",
+                404 => "no published release",
+                _ => $"HTTP {code}"
+            };
         }
 
         private static bool TryFindAsset(
