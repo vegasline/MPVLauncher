@@ -275,17 +275,6 @@ body {
   letter-spacing: 0.5px;
 }
 
-/* The clear button lives in the settings panel rather than beside the rescan
-   button: it is a rarely used action, and a second icon in the header crowds
-   the one control that gets pressed regularly. */
-
-/* Nothing to clear: the button stays in place but is inert, so the row does not
-   reflow as the list fills and empties. */
-.btn-small[disabled] {
-  opacity: 0.4;
-  cursor: default;
-}
-
 .media-list {
   list-style: none;
   display: flex;

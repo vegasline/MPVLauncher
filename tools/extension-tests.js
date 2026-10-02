@@ -1028,51 +1028,61 @@ function runContentScript({ url, videos = [], widgets = [], innerText = "", hasM
     check("referer is forwarded", /referrer/.test(body));
   }
 
-  section("the clear-list button is wired end to end");
+  section("the rescan button clears the stored captures before it scans");
   {
     // background.js has handled "clear_network_media" since it was written,
     // and nothing ever sent it. A handler nobody calls is indistinguishable
-    // from no feature at all, so the whole path is checked here rather than
-    // only the parts that are new.
+    // from no feature at all, so the whole path is checked here.
     const html = fs.readFileSync(path.join(EXT, "popup.html"), "utf8");
-
-    check("popup.html has a clear button", /id="btn-clear"/.test(html));
-    // It lives in the settings panel, not the header: it is a rare action and a
-    // second icon beside rescan crowded the control that gets used often.
-    check("clear button is inside the settings panel",
-      /id="settings-panel"[\s\S]{0,2000}id="btn-clear"/.test(html));
-    check("clear button is not in the section header",
-      !/class="section-header"[\s\S]{0,400}id="btn-clear"/.test(html));
-    check("clear button shows text rather than being icon-only",
-      /id="btn-clear"[^>]*class="[^"]*btn-small/.test(html) &&
-      /id="btn-clear"[^>]*>\s*\w/.test(html));
-    check("clear button has a label beside it", /id="lbl-clear-list"/.test(html));
+    check("no separate clear button in the markup", !/id="btn-clear"/.test(html));
+    check("no clear row in the settings panel", !/id="lbl-clear-list"/.test(html));
+    check("the rescan button is still there", /id="btn-rescan"/.test(html));
 
     const popup = fs.readFileSync(path.join(EXT, "popup.js"), "utf8");
-    check("popup.js looks the button up", /getElementById\("btn-clear"\)/.test(popup));
-    check("popup.js wires a click handler", /btnClear\.onclick/.test(popup));
-    check("popup.js localises the button text and its label",
-      /btnClear\.textContent = t\("btn_clear"\)/.test(popup) &&
-      /lblClearList\.textContent = t\("clear_list_tooltip"\)/.test(popup));
     check("popup.js sends clear_network_media",
       /action:\s*"clear_network_media"/.test(popup));
     check("popup.js passes the tab id, so other tabs are untouched",
       /clear_network_media[\s\S]{0,200}tabId/.test(popup));
-    check("popup.js empties its own copy of the results",
-      /clearCurrentTab[\s\S]{0,600}domItems = \[\]/.test(popup) &&
-      /clearCurrentTab[\s\S]{0,600}networkItems = \[\]/.test(popup));
+    check("popup.js no longer references a clear button",
+      !/btnClear|lblClearList|updateClearButton|clearCurrentTab/.test(popup));
+
+    // The clear has to happen inside the scan, and before anything is read back
+    // - otherwise it runs after the results it was meant to discard.
+    const scanAt = popup.indexOf("async function scanCurrentTab");
+    const clearAt = popup.indexOf("await clearTabCaptures()", scanAt);
+    const fetchAt = popup.indexOf("await fetchNetworkMedia()", scanAt);
+    check("the scan clears the captures", clearAt > scanAt, "no clear call inside scanCurrentTab");
+    check("the clear runs before the captures are read back",
+      clearAt > scanAt && fetchAt > clearAt,
+      `clear at ${clearAt}, read at ${fetchAt}`);
+
+    // Only the rescan button may discard them. If opening the popup cleared as
+    // well, simply looking at the list would destroy captures that the next
+    // scan cannot reproduce.
+    check("the rescan button asks for a fresh scan",
+      /btnRescan\.onclick = \(\) => scanCurrentTab\(\{ fresh: true \}\)/.test(popup));
+    check("opening the popup does not clear",
+      /^\s*await scanCurrentTab\(\);/m.test(popup) &&
+      !/^\s*await scanCurrentTab\(\{\s*fresh/m.test(popup),
+      "the initial scan must not pass fresh");
+    check("changing the language does not clear",
+      /selectLanguage[\s\S]{0,400}scanCurrentTab\(\);/.test(popup) &&
+      !/selectLanguage[\s\S]{0,400}scanCurrentTab\(\{\s*fresh/m.test(popup));
+    check("the clear is only reached through the scan",
+      (popup.match(/clearTabCaptures\(\)/g) || []).length === 2,
+      "expected a definition and exactly one call site");
 
     check("background.js handles clear_network_media",
       /action === "clear_network_media"/.test(background));
     check("background.js scopes the clear to one tab",
       /clearTab\(message\.tabId\)|typeof message\.tabId === "number"/.test(background));
 
-    // The button's label has to exist in every language or it shows the raw key.
+    // The strings the button needed are gone from every language, since nothing
+    // looks them up any more.
     const i18n = read("i18n.js");
     for (const k of ["clear_list_tooltip", "btn_clear", "list_cleared",
                     "list_cleared_hint", "list_cleared_status"]) {
-      const n = (i18n.match(new RegExp(`"${k}":`, "g")) || []).length;
-      check(`i18n defines ${k} in all 13 locales`, n === 13, `found ${n}`);
+      check(`dead key ${k} removed`, !i18n.includes(`"${k}":`));
     }
   }
 
