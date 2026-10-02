@@ -164,6 +164,20 @@
     "update_installed": "Actualizado. Reinicia MPVLauncher para usar la nueva versión.",
     "update_check_failed": "No se pudieron buscar actualizaciones: {0}",
     "update_unavailable": "No se pudo descargar la versión {0}: {1}",
-    "update_install_failed": "No se pudo instalar la actualización: {0}"
+    "update_install_failed": "No se pudo instalar la actualización: {0}",
+    "update_err_rate_limited": "Se alcanzó el límite horario de solicitudes de GitHub: inténtalo más tarde",
+    "update_err_forbidden": "GitHub rechazó la solicitud",
+    "update_err_no_release": "no hay ninguna versión publicada",
+    "update_err_http": "HTTP {0}",
+    "update_err_exception": "{0}",
+    "update_err_no_asset": "la versión no incluye el ejecutable",
+    "update_err_no_checksum": "la versión no tiene suma de comprobación, no se puede verificar",
+    "update_err_checksum_unreadable": "no se pudo leer la suma de comprobación publicada",
+    "update_err_checksum_mismatch": "la descarga no coincide con la suma de comprobación publicada",
+    "update_err_too_large": "la descarga es mayor de lo esperado",
+    "update_err_nothing_staged": "no se ha descargado ninguna actualización",
+    "update_err_not_writable": "la carpeta no se puede escribir: mueve MPVLauncher.exe a una ubicación tuya",
+    "update_err_not_writable_admin": "la carpeta no se puede escribir: mueve MPVLauncher.exe a una ubicación tuya o ejecútalo como administrador",
+    "update_err_install": "{0}"
   }
 }

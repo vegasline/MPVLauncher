@@ -164,6 +164,20 @@
     "update_installed": "更新しました。新しいバージョンを使うには MPVLauncher を再起動してください。",
     "update_check_failed": "アップデートを確認できませんでした: {0}",
     "update_unavailable": "バージョン {0} をダウンロードできませんでした: {1}",
-    "update_install_failed": "アップデートをインストールできませんでした: {0}"
+    "update_install_failed": "アップデートをインストールできませんでした: {0}",
+    "update_err_rate_limited": "GitHub の時間あたりのリクエスト上限に達しました - しばらくしてから試してください",
+    "update_err_forbidden": "GitHub がリクエストを拒否しました",
+    "update_err_no_release": "公開されているリリースがありません",
+    "update_err_http": "HTTP {0}",
+    "update_err_exception": "{0}",
+    "update_err_no_asset": "リリースに実行可能ファイルがありません",
+    "update_err_no_checksum": "リリースにチェックサムがないため検証できません",
+    "update_err_checksum_unreadable": "公開されたチェックサムを読み取れませんでした",
+    "update_err_checksum_mismatch": "ダウンロードしたファイル公開されたチェックサムと一致しません",
+    "update_err_too_large": "ダウンロードサイズが想定より大きすぎます",
+    "update_err_nothing_staged": "ダウンロードされたアップデートがありません",
+    "update_err_not_writable": "フォルダーを書き込めません - MPVLauncher.exe を自分で管理できる場所に移動してください",
+    "update_err_not_writable_admin": "フォルダーを書き込めません - MPVLauncher.exe を自分で管理できる場所に移動するか、管理者権限で実行してください",
+    "update_err_install": "{0}"
   }
 }

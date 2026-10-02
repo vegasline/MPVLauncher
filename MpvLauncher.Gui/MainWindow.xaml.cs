@@ -855,7 +855,12 @@ namespace MpvLauncher.Gui
             ShowUpdateStatus(status);
         }
 
-        /// <summary>Puts the result of a check on screen and offers the swap.</summary>
+        /// <summary>
+        /// Puts the result of a check on screen and offers the swap.
+        ///
+        /// The service returns a key and its arguments rather than a sentence,
+        /// so the detail is translated here with everything else.
+        /// </summary>
         private void ShowUpdateStatus(UpdateStatus status)
         {
             ChkAutoUpdate.IsChecked = _configService.Config.AutoUpdate;
@@ -870,21 +875,37 @@ namespace MpvLauncher.Gui
                     break;
 
                 case UpdateStage.Available:
-                    TxtUpdateVersion.Text = status.Detail is { Length: > 0 } d
-                        ? _locService.Format("update_unavailable",
-                            "Version {0} could not be downloaded: {1}", status.Version, d)
-                        : _locService.Get("update_check_failed", "Update could not be completed.");
+                    TxtUpdateVersion.Text = FormatUpdateDetail(status, "update_unavailable");
                     break;
 
                 default:
-                    TxtUpdateVersion.Text = status.Detail is { Length: > 0 } detail
-                        ? _locService.Format("update_check_failed",
-                            "Could not check for updates: {0}", detail)
+                    TxtUpdateVersion.Text = status.DetailKey is { Length: > 0 }
+                        ? FormatUpdateDetail(status, "update_check_failed")
                         : _locService.Format("update_current",
                             "You are on the latest version ({0}).", UpdateService.CurrentVersion);
                     ResetUpdateButton();
                     break;
             }
+        }
+
+        /// <summary>
+        /// Renders a detail the service described, in the interface language.
+        ///
+        /// The reason is prefixed to the sentence the stage implies - failed to
+        /// check, or failed to download - rather than replacing it, so the
+        /// reader is told both what was being attempted and why it did not work.
+        /// </summary>
+        private string FormatUpdateDetail(UpdateStatus status, string stageKey)
+        {
+            string reason = status.DetailKey is { Length: > 0 } key
+                ? _locService.Format(key, key, status.DetailArgs)
+                : "";
+
+            if (status.Stage == UpdateStage.Available && status.Version.Length > 0)
+                return _locService.Format(stageKey,
+                    "Version {0} could not be downloaded: {1}", status.Version, reason);
+
+            return _locService.Format(stageKey, "Could not check for updates: {0}", reason);
         }
 
         private void ResetUpdateButton()
@@ -910,6 +931,16 @@ namespace MpvLauncher.Gui
             _configService.Config.AutoUpdate = wanted;
             _configService.Save();
         }
+
+        /// <summary>
+        /// The update checkbox is wired in the XAML rather than here.
+        ///
+        /// This method runs again on every language change, and subscribing in
+        /// code would add another handler each time, so a checkbox touched after
+        /// three language switches would write the setting three times. The
+        /// other controls here already work this way - Always on top is read
+        /// when the settings are saved and set when they are loaded.
+        /// </summary>
 
         /// <summary>
         /// Looks for a newer build once the window is up.
@@ -942,10 +973,10 @@ namespace MpvLauncher.Gui
             BtnCheckUpdate.IsEnabled = false;
             TxtUpdateVersion.Text = _locService.Get("update_installing", "Installing...");
 
-            string? error = await _updateService.ApplyAsync();
+            var (key, args) = await _updateService.ApplyAsync();
             BtnCheckUpdate.IsEnabled = true;
 
-            if (error is null)
+            if (key is null)
             {
                 TxtUpdateVersion.Text = _locService.Get("update_installed",
                     "Updated. Restart MPVLauncher to use the new version.");
@@ -954,7 +985,8 @@ namespace MpvLauncher.Gui
             else
             {
                 TxtUpdateVersion.Text = _locService.Format("update_install_failed",
-                    "Could not install the update: {0}", error);
+                    "Could not install the update: {0}",
+                    _locService.Format(key, key, args));
             }
         }
 
@@ -1580,14 +1612,8 @@ namespace MpvLauncher.Gui
             BtnSaveMpvSettings.Content = _locService.Get("btn_save_settings", "Save Settings");
             ChkAutoUpdate.Content = _locService.Get("label_auto_update", "Download new versions automatically");
             ChkAutoUpdate.IsChecked = _configService.Config.AutoUpdate;
-            ChkAutoUpdate.Checked += ChkAutoUpdate_Changed;
-            ChkAutoUpdate.Unchecked += ChkAutoUpdate_Changed;
             TxtUpdateTitle.Text = _locService.Get("label_updates", "Updates");
-            ChkAutoUpdate.Content = _locService.Get("label_auto_update", "Download new versions automatically");
-            ChkAutoUpdate.IsChecked = _configService.Config.AutoUpdate;
-            ChkAutoUpdate.Checked += ChkAutoUpdate_Changed;
-            ChkAutoUpdate.Unchecked += ChkAutoUpdate_Changed;
-            TxtUpdateTitle.Text = _locService.Get("label_updates", "Updates");
+            BtnCheckUpdate.Content = _locService.Get("btn_check_update", "Check now");
 
             TxtDataFolderTitle.Text = _locService.Get("data_folder_title", "Application data folder");
             BtnShowDataFolder.Content = _locService.Get("btn_show_folder", "Show folder");

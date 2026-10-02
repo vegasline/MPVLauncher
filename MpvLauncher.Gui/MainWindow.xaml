@@ -635,7 +635,7 @@
                                 <TextBlock x:Name="TxtUpdateTitle" Text="Updates" FontSize="15" FontWeight="SemiBold" Margin="0,0,0,6"/>
                                 <TextBlock x:Name="TxtUpdateVersion" Text="" FontSize="12" Foreground="#9AA3B2" Margin="0,0,0,12" TextWrapping="Wrap"/>
                                 <StackPanel Orientation="Horizontal">
-                                    <CheckBox x:Name="ChkAutoUpdate" Grid.Column="0" Content="Download new versions automatically" Foreground="#F0F2F5" FontSize="12" VerticalAlignment="Center" Margin="0,0,12,0"/>
+                                    <CheckBox x:Name="ChkAutoUpdate" Grid.Column="0" Content="Download new versions automatically" Foreground="#F0F2F5" FontSize="12" VerticalAlignment="Center" Margin="0,0,12,0" Checked="ChkAutoUpdate_Changed" Unchecked="ChkAutoUpdate_Changed"/>
                                     <Button x:Name="BtnCheckUpdate" Style="{StaticResource ModernButton}" Content="Check now" Click="BtnCheckUpdate_Click" Padding="14,8"/>
                                 </StackPanel>
                             </StackPanel>

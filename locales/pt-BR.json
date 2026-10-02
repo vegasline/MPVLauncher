@@ -164,6 +164,20 @@
     "update_installed": "Atualizado. Reinicie o MPVLauncher para usar a nova versão.",
     "update_check_failed": "Não foi possível procurar atualizações: {0}",
     "update_unavailable": "Não foi possível baixar a versão {0}: {1}",
-    "update_install_failed": "Não foi possível instalar a atualização: {0}"
+    "update_install_failed": "Não foi possível instalar a atualização: {0}",
+    "update_err_rate_limited": "O limite horário de solicitações do GitHub foi atingido - tente mais tarde",
+    "update_err_forbidden": "O GitHub recusou a solicitação",
+    "update_err_no_release": "nenhuma versão publicada",
+    "update_err_http": "HTTP {0}",
+    "update_err_exception": "{0}",
+    "update_err_no_asset": "a versão não traz o executável",
+    "update_err_no_checksum": "a versão não tem checksum, não pode ser verificada",
+    "update_err_checksum_unreadable": "não foi possível ler o checksum publicado",
+    "update_err_checksum_mismatch": "o download não corresponde ao checksum publicado",
+    "update_err_too_large": "o download é maior do que o esperado",
+    "update_err_nothing_staged": "nenhuma atualização foi baixada",
+    "update_err_not_writable": "a pasta não permite gravação - mova o MPVLauncher.exe para um lugar seu",
+    "update_err_not_writable_admin": "a pasta não permite gravação - mova o MPVLauncher.exe para um lugar seu ou execute como administrador",
+    "update_err_install": "{0}"
   }
 }

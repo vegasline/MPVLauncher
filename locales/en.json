@@ -164,6 +164,20 @@
     "update_installed": "Updated. Restart MPVLauncher to use the new version.",
     "update_check_failed": "Could not check for updates: {0}",
     "update_unavailable": "Version {0} could not be downloaded: {1}",
-    "update_install_failed": "Could not install the update: {0}"
+    "update_install_failed": "Could not install the update: {0}",
+    "update_err_rate_limited": "GitHub's hourly request limit was reached - try again later",
+    "update_err_forbidden": "GitHub refused the request",
+    "update_err_no_release": "no published release",
+    "update_err_http": "HTTP {0}",
+    "update_err_exception": "{0}",
+    "update_err_no_asset": "the release has no executable",
+    "update_err_no_checksum": "the release has no checksum, so it cannot be verified",
+    "update_err_checksum_unreadable": "the published checksum could not be read",
+    "update_err_checksum_mismatch": "the download does not match the published checksum",
+    "update_err_too_large": "the download is larger than expected",
+    "update_err_nothing_staged": "no update has been downloaded",
+    "update_err_not_writable": "the folder is not writable - move MPVLauncher.exe somewhere you own",
+    "update_err_not_writable_admin": "the folder is not writable - move MPVLauncher.exe somewhere you own, or run as administrator",
+    "update_err_install": "{0}"
   }
 }

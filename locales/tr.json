@@ -164,6 +164,20 @@
     "update_installed": "Güncellendi. Yeni sürümü kullanmak için MPVLauncher'ı yeniden başlatın.",
     "update_check_failed": "Güncellemeler denetlenemedi: {0}",
     "update_unavailable": "{0} sürümü indirilemedi: {1}",
-    "update_install_failed": "Güncelleme kurulamadı: {0}"
+    "update_install_failed": "Güncelleme kurulamadı: {0}",
+    "update_err_rate_limited": "GitHub'ın saatlik istek sınırına ulaşıldı - biraz sonra tekrar deneyin",
+    "update_err_forbidden": "GitHub isteği reddetti",
+    "update_err_no_release": "yayınlanmış sürüm yok",
+    "update_err_http": "HTTP {0}",
+    "update_err_exception": "{0}",
+    "update_err_no_asset": "sürümde çalıştırılabilir dosya yok",
+    "update_err_no_checksum": "sürümde checksum yok, doğrulanamıyor",
+    "update_err_checksum_unreadable": "yayınlanan checksum okunamadı",
+    "update_err_checksum_mismatch": "indirilen dosya yayınlanan checksum ile eşleşmiyor",
+    "update_err_too_large": "indirilecek dosya beklenenden büyük",
+    "update_err_nothing_staged": "indirilmiş bir güncelleme yok",
+    "update_err_not_writable": "klasör yazılabilir değil - MPVLauncher.exe dosyasını sahibi olduğunuz bir yere taşıyın",
+    "update_err_not_writable_admin": "klasör yazılabilir değil - MPVLauncher.exe dosyasını sahibi olduğunuz bir yere taşıyın ya da yönetici olarak çalıştırın",
+    "update_err_install": "{0}"
   }
 }

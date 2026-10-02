@@ -164,6 +164,20 @@
     "update_installed": "Zaktualizowano. Uruchom ponownie MPVLauncher, aby użyć nowej wersji.",
     "update_check_failed": "Nie można sprawdzić aktualizacji: {0}",
     "update_unavailable": "Nie można pobrać wersji {0}: {1}",
-    "update_install_failed": "Nie można zainstalować aktualizacji: {0}"
+    "update_install_failed": "Nie można zainstalować aktualizacji: {0}",
+    "update_err_rate_limited": "Osiągnięto godzinny limit żądań GitHuba - spróbuj później",
+    "update_err_forbidden": "GitHub odrzucił żądanie",
+    "update_err_no_release": "brak opublikowanej wersji",
+    "update_err_http": "HTTP {0}",
+    "update_err_exception": "{0}",
+    "update_err_no_asset": "wersja nie zawiera pliku wykonywalnego",
+    "update_err_no_checksum": "wersja nie ma sumy kontrolnej, nie można jej zweryfikować",
+    "update_err_checksum_unreadable": "nie można odczytać opublikowanej sumy kontrolnej",
+    "update_err_checksum_mismatch": "pobrane pliki nie odpowiadają opublikowanej sumie kontrolnej",
+    "update_err_too_large": "plik do pobrania jest większy niż oczekiwano",
+    "update_err_nothing_staged": "nie pobrano żadnej aktualizacji",
+    "update_err_not_writable": "folder nie jest zapisywalny - przenieś MPVLauncher.exe w miejsce, które należy do ciebie",
+    "update_err_not_writable_admin": "folder nie jest zapisywalny - przenieś MPVLauncher.exe w miejsce, które należy do ciebie, lub uruchom jako administrator",
+    "update_err_install": "{0}"
   }
 }

@@ -164,6 +164,20 @@
     "update_installed": "업데이트되었습니다. 새 버전을 사용하려면 MPVLauncher를 다시 시작하세요.",
     "update_check_failed": "업데이트를 확인하지 못했습니다: {0}",
     "update_unavailable": "{0} 버전을 다운로드하지 못했습니다: {1}",
-    "update_install_failed": "업데이트를 설치하지 못했습니다: {0}"
+    "update_install_failed": "업데이트를 설치하지 못했습니다: {0}",
+    "update_err_rate_limited": "GitHub의 시간당 요청 한도에 도달했습니다 - 나중에 다시 시도하세요",
+    "update_err_forbidden": "GitHub가 요청을 거부했습니다",
+    "update_err_no_release": "게시된 릴리스가 없습니다",
+    "update_err_http": "HTTP {0}",
+    "update_err_exception": "{0}",
+    "update_err_no_asset": "릴리스에 실행 파일이 없습니다",
+    "update_err_no_checksum": "릴리스에 체크섬이 없어 확인할 수 없습니다",
+    "update_err_checksum_unreadable": "게시된 체크섬을 읽을 수 없습니다",
+    "update_err_checksum_mismatch": "다운로드한 파일이 게시된 체크섬과 일치하지 않습니다",
+    "update_err_too_large": "다운로드 크기가 예상보다 큽니다",
+    "update_err_nothing_staged": "다운로드된 업데이트가 없습니다",
+    "update_err_not_writable": "폴더에 쓸 수 없습니다 - MPVLauncher.exe를 직접 관리하는 위치로 옮기세요",
+    "update_err_not_writable_admin": "폴더에 쓸 수 없습니다 - MPVLauncher.exe를 직접 관리하는 위치로 옮기거나 관리자 권한으로 실행하세요",
+    "update_err_install": "{0}"
   }
 }

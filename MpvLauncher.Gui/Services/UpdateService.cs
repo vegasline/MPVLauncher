@@ -27,8 +27,15 @@ namespace MpvLauncher.Gui.Services
         Ready
     }
 
-    /// <summary>Where an update check ended up, for the status line and the menu.</summary>
-    public sealed record UpdateStatus(UpdateStage Stage, string Version, string? Detail)
+    /// <summary>
+    /// Where an update check ended up.
+    ///
+    /// Detail is a localization key plus its arguments rather than a finished
+    /// sentence, because this text ends up in the status line in twelve
+    /// languages. The service decides what happened; the window decides how to
+    /// say it. This is the same split the install and uninstall results use.
+    /// </summary>
+    public sealed record UpdateStatus(UpdateStage Stage, string Version, string? DetailKey, params string[] DetailArgs)
     {
         public static UpdateStatus UpToDate { get; } =
             new(UpdateStage.UpToDate, "", null);
@@ -181,7 +188,7 @@ namespace MpvLauncher.Gui.Services
 
                 using var resp = await Http.SendAsync(req, ct);
                 if (!resp.IsSuccessStatusCode)
-                    return new UpdateStatus(UpdateStage.UpToDate, "", DescribeHttpFailure(resp));
+                    return DescribeHttpFailure(resp);
 
                 await using var stream = await resp.Content.ReadAsStreamAsync(ct);
                 using var doc = await JsonDocument.ParseAsync(stream, cancellationToken: ct);
@@ -195,9 +202,9 @@ namespace MpvLauncher.Gui.Services
                     return UpdateStatus.UpToDate;
 
                 if (!TryFindAsset(doc.RootElement, ExeName, out string exeUrl, out long size))
-                    return new UpdateStatus(UpdateStage.UpToDate, "", "no executable asset");
+                    return new UpdateStatus(UpdateStage.UpToDate, "", "update_err_no_asset");
                 if (!TryFindAsset(doc.RootElement, ChecksumName, out string sumUrl, out _))
-                    return new UpdateStatus(UpdateStage.Available, version, "no checksum published");
+                    return new UpdateStatus(UpdateStage.Available, version, "update_err_no_checksum");
 
                 // Something is already downloaded and verified.
                 if (File.Exists(StagedPath))
@@ -212,33 +219,36 @@ namespace MpvLauncher.Gui.Services
             }
             catch (Exception ex)
             {
-                return new UpdateStatus(UpdateStage.UpToDate, "", ex.Message);
+                // The exception text is whatever the network stack said, and is
+                // not ours to translate; it is passed as an argument to a
+                // sentence that is.
+                return new UpdateStatus(UpdateStage.UpToDate, "", "update_err_exception", ex.Message);
             }
         }
 
         /// <summary>
-        /// Turns an HTTP failure into something the user can act on.
+        /// Turns an HTTP failure into a key the window can translate.
         ///
         /// 403 from this endpoint is almost always the unauthenticated rate
         /// limit - sixty requests an hour, per address - and it is worth saying
         /// so rather than showing a number that means nothing. 404 means there
         /// is no release at all, which on a fresh repository is not a fault.
         /// </summary>
-        private static string DescribeHttpFailure(HttpResponseMessage resp)
+        private static UpdateStatus DescribeHttpFailure(HttpResponseMessage resp)
         {
             int code = (int)resp.StatusCode;
 
             if (resp.Headers.TryGetValues("X-RateLimit-Remaining", out var left) &&
                 left.FirstOrDefault() == "0")
             {
-                return "GitHub's hourly request limit was reached - try again later";
+                return new UpdateStatus(UpdateStage.UpToDate, "", "update_err_rate_limited");
             }
 
             return code switch
             {
-                403 => "GitHub refused the request (hourly limit reached)",
-                404 => "no published release",
-                _ => $"HTTP {code}"
+                403 => new UpdateStatus(UpdateStage.UpToDate, "", "update_err_forbidden"),
+                404 => new UpdateStatus(UpdateStage.UpToDate, "", "update_err_no_release"),
+                _ => new UpdateStatus(UpdateStage.UpToDate, "", "update_err_http", code.ToString())
             };
         }
 
@@ -277,10 +287,10 @@ namespace MpvLauncher.Gui.Services
 
             string expected = await DownloadChecksumAsync(sumUrl, ct);
             if (expected.Length != 64)
-                return new UpdateStatus(UpdateStage.Available, version, "checksum unreadable");
+                return new UpdateStatus(UpdateStage.Available, version, "update_err_checksum_unreadable");
 
             if (expectedSize > MaxDownloadBytes)
-                return new UpdateStatus(UpdateStage.Available, version, "release too large");
+                return new UpdateStatus(UpdateStage.Available, version, "update_err_too_large");
 
             string partial = StagedPath + ".part";
             try
@@ -288,11 +298,11 @@ namespace MpvLauncher.Gui.Services
                 using (var resp = await Http.GetAsync(exeUrl, HttpCompletionOption.ResponseHeadersRead, ct))
                 {
                     if (!resp.IsSuccessStatusCode)
-                        return new UpdateStatus(UpdateStage.Available, version, $"HTTP {(int)resp.StatusCode}");
+                        return new UpdateStatus(UpdateStage.Available, version, "update_err_http", ((int)resp.StatusCode).ToString());
 
                     long? declared = resp.Content.Headers.ContentLength;
                     if (declared is > MaxDownloadBytes)
-                        return new UpdateStatus(UpdateStage.Available, version, "release too large");
+                        return new UpdateStatus(UpdateStage.Available, version, "update_err_too_large");
 
                     await using var src = await resp.Content.ReadAsStreamAsync(ct);
                     await using var dst = new FileStream(
@@ -307,7 +317,7 @@ namespace MpvLauncher.Gui.Services
                         // The declared length can be absent or wrong, so the cap is
                         // enforced while streaming rather than trusted up front.
                         if (total > MaxDownloadBytes)
-                            return new UpdateStatus(UpdateStage.Available, version, "release too large");
+                            return new UpdateStatus(UpdateStage.Available, version, "update_err_too_large");
                         await dst.WriteAsync(buf.AsMemory(0, read), ct);
                     }
                 }
@@ -316,7 +326,7 @@ namespace MpvLauncher.Gui.Services
                 if (!string.Equals(actual, expected, StringComparison.OrdinalIgnoreCase))
                 {
                     TryDelete(partial);
-                    return new UpdateStatus(UpdateStage.Available, version, "checksum mismatch");
+                    return new UpdateStatus(UpdateStage.Available, version, "update_err_checksum_mismatch");
                 }
 
                 File.Move(partial, StagedPath, overwrite: true);
@@ -373,11 +383,11 @@ namespace MpvLauncher.Gui.Services
         /// temp directory between the download and this click, and it is about
         /// to become the running program.
         ///
-        /// Returns null on success, or a reason the user can act on.
+        /// Returns null on success, or a localization key with its arguments.
         /// </summary>
-        public async Task<string?> ApplyAsync(CancellationToken ct = default)
+        public async Task<(string? Key, string[] Args)> ApplyAsync(CancellationToken ct = default)
         {
-            if (!File.Exists(StagedPath)) return "no update has been downloaded";
+            if (!File.Exists(StagedPath)) return ("update_err_nothing_staged", Array.Empty<string>());
 
             string exe = CurrentExePath;
             string dir = Path.GetDirectoryName(exe) ?? "";
@@ -394,11 +404,11 @@ namespace MpvLauncher.Gui.Services
             }
             catch (UnauthorizedAccessException)
             {
-                return "the folder is not writable - move MPVLauncher.exe somewhere you own, or run as administrator";
+                return ("update_err_not_writable_admin", Array.Empty<string>());
             }
             catch (IOException)
             {
-                return "the folder is not writable - move MPVLauncher.exe somewhere you own";
+                return ("update_err_not_writable", Array.Empty<string>());
             }
 
             try
@@ -421,11 +431,11 @@ namespace MpvLauncher.Gui.Services
                     throw;
                 }
 
-                return null;
+                return (null, Array.Empty<string>());
             }
             catch (Exception ex)
             {
-                return ex.Message;
+                return ("update_err_install", new[] { ex.Message });
             }
         }
 

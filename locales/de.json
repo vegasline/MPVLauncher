@@ -164,6 +164,20 @@
     "update_installed": "Aktualisiert. Starten Sie MPVLauncher neu, um die neue Version zu verwenden.",
     "update_check_failed": "Aktualisierungen konnten nicht geprüft werden: {0}",
     "update_unavailable": "Version {0} konnte nicht heruntergeladen werden: {1}",
-    "update_install_failed": "Das Update konnte nicht installiert werden: {0}"
+    "update_install_failed": "Das Update konnte nicht installiert werden: {0}",
+    "update_err_rate_limited": "Das stündliche Anfragelimit von GitHub ist erreicht - später erneut versuchen",
+    "update_err_forbidden": "GitHub hat die Anfrage abgelehnt",
+    "update_err_no_release": "keine veröffentlichte Version",
+    "update_err_http": "HTTP {0}",
+    "update_err_exception": "{0}",
+    "update_err_no_asset": "die Version enthält keine ausführbare Datei",
+    "update_err_no_checksum": "die Version hat keine Prüfsumme und kann nicht verifiziert werden",
+    "update_err_checksum_unreadable": "die veröffentlichte Prüfsumme war nicht lesbar",
+    "update_err_checksum_mismatch": "der Download entspricht nicht der veröffentlichten Prüfsumme",
+    "update_err_too_large": "der Download ist größer als erwartet",
+    "update_err_nothing_staged": "es wurde kein Update heruntergeladen",
+    "update_err_not_writable": "der Ordner ist nicht beschreibbar - verschieben Sie MPVLauncher.exe an einen Ort, der Ihnen gehört",
+    "update_err_not_writable_admin": "der Ordner ist nicht beschreibbar - verschieben Sie MPVLauncher.exe an einen Ort, der Ihnen gehört, oder starten Sie als Administrator",
+    "update_err_install": "{0}"
   }
 }

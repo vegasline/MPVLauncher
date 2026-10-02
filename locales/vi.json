@@ -164,6 +164,20 @@
     "update_installed": "Đã cập nhật. Khởi động lại MPVLauncher để dùng phiên bản mới.",
     "update_check_failed": "Không thể kiểm tra cập nhật: {0}",
     "update_unavailable": "Không thể tải phiên bản {0}: {1}",
-    "update_install_failed": "Không thể cài đặt bản cập nhật: {0}"
+    "update_install_failed": "Không thể cài đặt bản cập nhật: {0}",
+    "update_err_rate_limited": "Đã đạt giới hạn yêu cầu theo giờ của GitHub - hãy thử lại sau",
+    "update_err_forbidden": "GitHub đã từ chối yêu cầu",
+    "update_err_no_release": "chưa có bản phát hành nào",
+    "update_err_http": "HTTP {0}",
+    "update_err_exception": "{0}",
+    "update_err_no_asset": "bản phát hành không có tệp thực thi",
+    "update_err_no_checksum": "bản phát hành không có checksum, không thể xác minh",
+    "update_err_checksum_unreadable": "không đọc được checksum đã phát hành",
+    "update_err_checksum_mismatch": "tệp tải về không khớp với checksum đã phát hành",
+    "update_err_too_large": "tệp tải về lớn hơn dự kiến",
+    "update_err_nothing_staged": "chưa tải bản cập nhật nào",
+    "update_err_not_writable": "không ghi được vào thư mục - hãy chuyển MPVLauncher.exe sang nơi bạn sở hữu",
+    "update_err_not_writable_admin": "không ghi được vào thư mục - hãy chuyển MPVLauncher.exe sang nơi bạn sở hữu, hoặc chạy với quyền quản trị",
+    "update_err_install": "{0}"
   }
 }

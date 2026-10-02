@@ -164,6 +164,20 @@
     "update_installed": "已更新。请重启 MPVLauncher 以使用新版本。",
     "update_check_failed": "无法检查更新：{0}",
     "update_unavailable": "无法下载版本 {0}：{1}",
-    "update_install_failed": "无法安装更新：{0}"
+    "update_install_failed": "无法安装更新：{0}",
+    "update_err_rate_limited": "已达到 GitHub 每小时请求上限 - 请稍后再试",
+    "update_err_forbidden": "GitHub 拒绝了该请求",
+    "update_err_no_release": "没有已发布的版本",
+    "update_err_http": "HTTP {0}",
+    "update_err_exception": "{0}",
+    "update_err_no_asset": "该版本没有可执行文件",
+    "update_err_no_checksum": "该版本没有校验和，无法验证",
+    "update_err_checksum_unreadable": "无法读取已发布的校验和",
+    "update_err_checksum_mismatch": "下载的文件与已发布的校验和不匹配",
+    "update_err_too_large": "下载文件比预期大",
+    "update_err_nothing_staged": "尚未下载任何更新",
+    "update_err_not_writable": "文件夹不可写 - 请将 MPVLauncher.exe 移到您拥有的位置",
+    "update_err_not_writable_admin": "文件夹不可写 - 请将 MPVLauncher.exe 移到您拥有的位置，或以管理员身份运行",
+    "update_err_install": "{0}"
   }
 }

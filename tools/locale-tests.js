@@ -132,6 +132,12 @@ section("no key is referenced by the code but missing from a locale");
   // UninstallItem.Key at runtime rather than as literals, so they are added
   // explicitly.
   for (const m of cs.matchAll(/Key\s*=\s*"((?:install|uninstall)_item_[a-z0-9_]+)"/g)) referenced.push(m[1]);
+  // UpdateService returns a DetailKey that the window then formats, so its
+  // keys never appear inside a Get or Format call and the pattern above cannot
+  // see them. They are found by name instead: anything shaped like
+  // update_err_* is a key by construction, in a service that returns keys
+  // precisely so the text can be translated.
+  for (const m of cs.matchAll(/"(update_err_[a-z0-9_]+)"/g)) referenced.push(m[1]);
 
   const ref = langs.find(l => data[l]);
   const known = new Set(Object.keys(data[ref].translations));
