@@ -1028,6 +1028,45 @@ function runContentScript({ url, videos = [], widgets = [], innerText = "", hasM
     check("referer is forwarded", /referrer/.test(body));
   }
 
+  section("the clear-list button is wired end to end");
+  {
+    // background.js has handled "clear_network_media" since it was written,
+    // and nothing ever sent it. A handler nobody calls is indistinguishable
+    // from no feature at all, so the whole path is checked here rather than
+    // only the parts that are new.
+    const html = fs.readFileSync(path.join(EXT, "popup.html"), "utf8");
+
+    check("popup.html has a clear button", /id="btn-clear"/.test(html));
+    check("clear button sits beside the rescan button",
+      /id="btn-clear"[\s\S]{0,200}id="btn-rescan"|id="btn-rescan"[\s\S]{0,200}id="btn-clear"/.test(html));
+    check("clear button is icon-only, matching rescan",
+      /id="btn-clear"[^>]*class="[^"]*btn-icon-only/.test(html));
+    check("clear button has a title for the tooltip", /id="btn-clear"[^>]*title=/.test(html));
+
+    const popup = fs.readFileSync(path.join(EXT, "popup.js"), "utf8");
+    check("popup.js looks the button up", /getElementById\("btn-clear"\)/.test(popup));
+    check("popup.js wires a click handler", /btnClear\.onclick/.test(popup));
+    check("popup.js sends clear_network_media",
+      /action:\s*"clear_network_media"/.test(popup));
+    check("popup.js passes the tab id, so other tabs are untouched",
+      /clear_network_media[\s\S]{0,200}tabId/.test(popup));
+    check("popup.js empties its own copy of the results",
+      /clearCurrentTab[\s\S]{0,600}domItems = \[\]/.test(popup) &&
+      /clearCurrentTab[\s\S]{0,600}networkItems = \[\]/.test(popup));
+
+    check("background.js handles clear_network_media",
+      /action === "clear_network_media"/.test(background));
+    check("background.js scopes the clear to one tab",
+      /clearTab\(message\.tabId\)|typeof message\.tabId === "number"/.test(background));
+
+    // The button's label has to exist in every language or it shows the raw key.
+    const i18n = read("i18n.js");
+    for (const k of ["clear_list_tooltip", "list_cleared", "list_cleared_hint", "list_cleared_status"]) {
+      const n = (i18n.match(new RegExp(`"${k}":`, "g")) || []).length;
+      check(`i18n defines ${k} in all 13 locales`, n === 13, `found ${n}`);
+    }
+  }
+
   console.log(`\nRESULT: ${pass} passed, ${fail} failed`);
   process.exit(fail === 0 ? 0 : 1);
 })();

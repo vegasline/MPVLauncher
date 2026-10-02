@@ -30,6 +30,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   const btnPlayPage = document.getElementById("btn-play-page");
   const btnPlayPageText = document.getElementById("btn-play-page-text");
   const btnRescan = document.getElementById("btn-rescan");
+  const btnClear = document.getElementById("btn-clear");
   const mediaListEl = document.getElementById("media-list");
   const mediaCountBadge = document.getElementById("media-count-badge");
   const loadingSpinner = document.getElementById("loading-spinner");
@@ -109,6 +110,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     btnPlayPage.title = t("open_page_tooltip");
     lblDetectedMedia.textContent = t("detected_media");
     btnRescan.title = t("scan_again");
+    btnClear.title = t("clear_list_tooltip");
     lblScanning.textContent = t("scanning");
     lblEmptyMain.textContent = t("no_media");
     lblEmptySub.textContent = t("no_media_hint");
@@ -475,10 +477,68 @@ document.addEventListener("DOMContentLoaded", async () => {
    * so a URL or title taken from a hostile page cannot inject markup into the
    * extension's own popup. innerHTML is used only to empty the list first.
    */
+  /**
+   * Greys the clear button out when there is nothing to clear.
+   *
+   * The button keeps its position either way: appearing and disappearing as a
+   * list fills and empties would move the rescan button around.
+   */
+  function updateClearButton(count) {
+    if (btnClear) btnClear.disabled = !count;
+  }
+
+  /**
+   * Empties the detected list for this tab.
+   *
+   * Only the network captures are dropped. The DOM scan is re-run every time
+   * the popup opens, so it cannot accumulate and there is nothing to clear -
+   * but it is also what produces the list on reopen, so after clearing, a list
+   * can legitimately come back for media the page is still showing.
+   *
+   * The capture side is what actually grows: captures live in the background,
+   * keyed by tab id, and a single-page app keeps the same tab across
+   * navigations, so watching several videos on one site leaves every earlier
+   * stream in the list.
+   */
+  async function clearCurrentTab() {
+    if (!activeTab || !activeTab.id) return;
+
+    loadingSpinner.classList.remove("hidden");
+    emptyState.classList.add("hidden");
+    mediaListEl.innerHTML = "";
+    updateClearButton(0);
+
+    try {
+      await browserApi.runtime.sendMessage({
+        action: "clear_network_media",
+        tabId: activeTab.id
+      });
+    } catch (e) {
+      // The background being unreachable is not worth reporting: the visible
+      // list is cleared regardless, and a rescan will repopulate it.
+      console.warn("clear_network_media failed", e);
+    }
+
+    domItems = [];
+    networkItems = [];
+    networkAvailable = null;
+
+    loadingSpinner.classList.add("hidden");
+    emptyState.classList.remove("hidden");
+    const lblMain = document.getElementById("lbl-empty-main");
+    const lblSub = document.getElementById("lbl-empty-sub");
+    lblMain.textContent = t("list_cleared");
+    lblSub.textContent = t("list_cleared_hint");
+    mediaCountBadge.textContent = `0 ${t("found_badge")}`;
+    currentFoundCount = 0;
+    setStatus(t("list_cleared_status"));
+  }
+
   function renderMediaList(mediaItems, challenged) {
     mediaListEl.innerHTML = "";
     currentFoundCount = mediaItems.length;
     mediaCountBadge.textContent = `${currentFoundCount} ${t("found_badge")}`;
+    updateClearButton(mediaItems.length);
 
     if (mediaItems.length === 0) {
       emptyState.classList.remove("hidden");
@@ -703,6 +763,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     pageTitleEl.textContent = activeTab.title || activeTab.url;
     btnPlayPage.onclick = () => sendToMpv(activeTab.url);
     btnRescan.onclick = () => scanCurrentTab();
+    if (btnClear) btnClear.onclick = () => clearCurrentTab();
     await scanCurrentTab();
   } else {
     pageTitleEl.textContent = t("no_tab_found");

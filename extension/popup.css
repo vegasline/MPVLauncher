@@ -275,6 +275,27 @@ body {
   letter-spacing: 0.5px;
 }
 
+/* The two header buttons sit side by side at the right edge. The section header
+   is itself a flex row with space-between, so they need their own container
+   rather than becoming two separate flex children. */
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.btn-icon-only:hover {
+  color: var(--text-primary);
+}
+
+/* Nothing to clear: the button is inert rather than missing, so its position
+   does not move when a list happens to be empty. */
+.btn-icon-only[disabled] {
+  opacity: 0.35;
+  cursor: default;
+  transform: none;
+}
+
 .media-list {
   list-style: none;
   display: flex;
