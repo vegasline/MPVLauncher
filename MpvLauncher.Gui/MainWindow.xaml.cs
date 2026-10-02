@@ -652,22 +652,24 @@ namespace MpvLauncher.Gui
         /// on a fresh install.
         /// </summary>
         /// <summary>
-        /// Opens a folder in Explorer without blocking the window.
+        /// Opens a folder in Explorer, and makes the path usable immediately.
         ///
-        /// Explorer's own start-up is what takes time - it can be tens of
-        /// seconds when the shell is busy or an extension handler is slow - and
-        /// that wait belongs to Explorer, not to us. Process.Start itself
-        /// returns in well under a tenth of a second, but running it on the UI
-        /// thread still risked freezing the window for as long as the shell
-        /// took to answer, and with no status message the click looked like it
-        /// had done nothing at all.
+        /// There is no way to show a browsable folder without Explorer, so no
+        /// launch method avoids whatever a shell extension does to it. Measured
+        /// here: every variant returns in well under a tenth of a second, while
+        /// the window itself can take thirty seconds or more when a third-party
+        /// extension blocks the shell.
         ///
-        /// So the work goes to a worker, the status line says what is happening
-        /// straight away, and the caller is not left waiting on the shell.
+        /// So the path goes to the clipboard and on screen before Explorer is
+        /// even asked. If the window never appears - or the user would rather
+        /// paste it into a window they opened themselves - the button has still
+        /// done something useful. Everything before the launch is on the UI
+        /// thread and is instant.
         /// </summary>
         private async Task OpenFolderInExplorer(string path, string labelKey, string labelFallback)
         {
-            TxtStatus.Text = _locService.Get(labelKey, labelFallback);
+            TrySetClipboard(path);
+            TxtStatus.Text = _locService.Get(labelKey, labelFallback) + "  " + path;
 
             try
             {
@@ -687,6 +689,20 @@ namespace MpvLauncher.Gui
                     _locService.Get("open_folder_failed", "Could not open folder:") + " " + ex.Message,
                     "MPV Launcher", MessageBoxButton.OK, MessageBoxImage.Warning);
             }
+        }
+
+        /// <summary>
+        /// Puts text on the clipboard, giving up quietly if another process is
+        /// holding it. A clipboard that will not open must not stop the folder
+        /// from opening, so nothing here is reported.
+        /// </summary>
+        private void TrySetClipboard(string text)
+        {
+            try
+            {
+                Clipboard.SetText(text);
+            }
+            catch { }
         }
 
         private async void BtnOpenExtensionFolder_Click(object sender, RoutedEventArgs e)

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net;
@@ -398,11 +399,19 @@ namespace MpvLauncher.Gui.Services
         }
 
         /**
-         * Finds the executable inside the extracted tree and copies its whole
-         * directory into the tools folder.
+         * Finds the executable inside the extracted tree and copies the files
+         * needed to run it into the tools folder.
          *
-         * The whole directory is needed because mpv and ffmpeg share their folder
-         * with their shared libraries and data files.
+         * Only the executable and the libraries beside it are copied. Copying
+         * the directory wholesale also brought mpv's doc\ (a PDF manual and an
+         * image), installer\ (its own installer and uninstaller batch files, an
+         * icon, a PowerShell updater) and mpv\ (a fonts.conf), none of which
+         * anything here reads or runs. The batch files are worth naming: one of
+         * them is a system-wide COM registration installer, and shipping that
+         * inside a folder the user is invited to open is not a good idea.
+         *
+         * Only the top level is walked. mpv keeps everything it loads next to
+         * the executable, so a subdirectory cannot be a runtime dependency.
          */
         private static string PlaceTree(string extractDir, string exeName)
         {
@@ -414,23 +423,69 @@ namespace MpvLauncher.Gui.Services
 
             string srcDir = Path.GetDirectoryName(found)!;
             Directory.CreateDirectory(BinDir);
-            CopyDirectoryContents(srcDir, BinDir);
+
+            // .exe is the tool, .dll is what it loads beside itself, and .com is
+            // mpv's console wrapper for people driving it from a terminal.
+            string[] wanted = { ".exe", ".dll", ".com" };
+            foreach (string file in Directory.EnumerateFiles(srcDir))
+            {
+                if (!wanted.Contains(Path.GetExtension(file), StringComparer.OrdinalIgnoreCase))
+                    continue;
+
+                File.Copy(file, Path.Combine(BinDir, Path.GetFileName(file)), overwrite: true);
+            }
+
+            PruneToolsFolder();
             return Path.Combine(BinDir, exeName);
         }
 
-        private static void CopyDirectoryContents(string sourceDir, string destDir)
+        /// <summary>
+        /// Removes what earlier versions installed and no longer want.
+        ///
+        /// The install path stops copying these, but an installation made before
+        /// it keeps them, and a tools folder nobody prunes only ever grows. Runs
+        /// after the copy, so a failure above cannot leave the player unusable.
+        /// </summary>
+        private static void PruneToolsFolder()
         {
-            Directory.CreateDirectory(destDir);
-            foreach (string file in Directory.EnumerateFiles(sourceDir))
+            // Documentation, mpv's own installer scripts, and its config snippet.
+            foreach (string dir in new[] { "doc", "installer", "mpv" })
             {
-                File.Copy(file, Path.Combine(destDir, Path.GetFileName(file)), overwrite: true);
+                TryDeletePath(Path.Combine(BinDir, dir));
             }
 
-            foreach (string dir in Directory.EnumerateDirectories(sourceDir))
+            // FFmpeg's player, which nothing here invokes: mpv is the player.
+            TryDeletePath(Path.Combine(BinDir, "ffplay.exe"));
+
+            // Batch files: mpv's COM registration and its self-updater. Neither is
+            // used, and a registration script has no business being installed.
+            foreach (string bat in SafeEnumerate(BinDir, "*.bat"))
             {
-                string name = Path.GetFileName(dir);
-                CopyDirectoryContents(dir, Path.Combine(destDir, name));
+                TryDeletePath(bat);
             }
+        }
+
+        private static void TryDeletePath(string path)
+        {
+            try
+            {
+                if (Directory.Exists(path))
+                {
+                    Directory.Delete(path, recursive: true);
+                }
+                else if (File.Exists(path))
+                {
+                    File.Delete(path);
+                }
+            }
+            catch { /* locked, or in use; never worth failing an install over */ }
+        }
+
+        /// <summary>Lists matching files, yielding nothing rather than throwing.</summary>
+        private static IEnumerable<string> SafeEnumerate(string dir, string pattern)
+        {
+            try { return Directory.EnumerateFiles(dir, pattern); }
+            catch { return Array.Empty<string>(); }
         }
 
         /// <summary>
@@ -463,29 +518,11 @@ namespace MpvLauncher.Gui.Services
             }
 
             // An installation from before this stopped copying ffplay still has
-            // it on disk. Removing it here keeps the tools folder the size it is
-            // documented to be, instead of waiting for a manual deletion that
-            // nobody will do.
-            TryDeleteUnusedFfmpegBinaries(srcBin);
+            // it on disk; PruneToolsFolder removes it along with everything else
+            // an older layout left behind.
+            PruneToolsFolder();
 
             return Path.Combine(BinDir, "ffmpeg.exe");
-        }
-
-        /// <summary>
-        /// Deletes files we used to install but no longer want, once the copy
-        /// has run so a failure above cannot leave the tools unusable.
-        /// </summary>
-        private static void TryDeleteUnusedFfmpegBinaries(string srcBin)
-        {
-            foreach (string name in new[] { "ffplay.exe" })
-            {
-                try
-                {
-                    string dest = Path.Combine(BinDir, name);
-                    if (File.Exists(dest)) File.Delete(dest);
-                }
-                catch { /* in use, or locked; not worth failing an install over */ }
-            }
         }
 
         private static string FormatBytes(long bytes)
