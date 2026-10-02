@@ -151,6 +151,19 @@
     "play_mpv_broken": "không thể khởi chạy mpv ({0}).",
     "play_mpv_loader_fix": "Đây là vấn đề đã biết và chúng tôi đang tìm cách khắc phục.",
     "opening_folder": "Đang mở thư mục...",
-    "open_folder_failed": "Không thể mở thư mục:"
+    "open_folder_failed": "Không thể mở thư mục:",
+    "btn_check_update": "Kiểm tra ngay",
+    "label_updates": "Cập nhật",
+    "label_auto_update": "Tự động tải phiên bản mới",
+    "update_current_label": "Phiên bản {0}",
+    "update_checking": "Đang kiểm tra cập nhật...",
+    "update_current": "Bạn đang dùng bản mới nhất ({0}).",
+    "update_ready": "Phiên bản {0} đã sẵn sàng cài đặt.",
+    "update_install_now": "Khởi động lại và cài",
+    "update_installing": "Đang cài đặt...",
+    "update_installed": "Đã cập nhật. Khởi động lại MPVLauncher để dùng phiên bản mới.",
+    "update_check_failed": "Không thể kiểm tra cập nhật: {0}",
+    "update_unavailable": "Không thể tải phiên bản {0}: {1}",
+    "update_install_failed": "Không thể cài đặt bản cập nhật: {0}"
   }
 }

@@ -151,6 +151,19 @@
     "play_mpv_broken": "无法启动 mpv（{0}）。",
     "play_mpv_loader_fix": "这是一个已知问题，我们正在处理中。",
     "opening_folder": "正在打开文件夹...",
-    "open_folder_failed": "无法打开文件夹："
+    "open_folder_failed": "无法打开文件夹：",
+    "btn_check_update": "立即检查",
+    "label_updates": "更新",
+    "label_auto_update": "自动下载新版本",
+    "update_current_label": "版本 {0}",
+    "update_checking": "正在检查更新...",
+    "update_current": "您已是最新版本（{0}）。",
+    "update_ready": "版本 {0} 已准备好安装。",
+    "update_install_now": "重启并安装",
+    "update_installing": "正在安装...",
+    "update_installed": "已更新。请重启 MPVLauncher 以使用新版本。",
+    "update_check_failed": "无法检查更新：{0}",
+    "update_unavailable": "无法下载版本 {0}：{1}",
+    "update_install_failed": "无法安装更新：{0}"
   }
 }

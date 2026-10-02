@@ -77,6 +77,21 @@ jobs:
         name: MPVLauncher-Executable
         path: ./publish/MPVLauncher.exe
 
+    # The app checks for updates and verifies what it downloads against this
+    # file, so it is built here rather than produced by the updater's own
+    # download: a checksum written by whoever supplied the binary proves
+    # nothing. Get-FileHash is SHA-256, which is what the app reads back.
+    - name: Write checksum
+      run: |
+        $hash = (Get-FileHash ./publish/MPVLauncher.exe -Algorithm SHA256).Hash.ToLower()
+        "$hash  MPVLauncher.exe" | Out-File -FilePath ./publish/MPVLauncher.exe.sha256 -Encoding ascii -NoNewline
+
+    - name: Upload checksum artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: MPVLauncher-Checksum
+        path: ./publish/MPVLauncher.exe.sha256
+
   release:
     name: Create GitHub release
     # Tags only: a plain push to main builds and tests but publishes nothing.
@@ -93,8 +108,18 @@ jobs:
         name: MPVLauncher-Executable
         path: ./dist
 
+    - name: Download checksum artifact
+      uses: actions/download-artifact@v4
+      with:
+        name: MPVLauncher-Checksum
+        path: ./dist
+
+    # Both assets travel together. An update that finds the executable but not
+    # the checksum is refused rather than applied unverified.
     - name: Create release
       uses: softprops/action-gh-release@v2
       with:
-        files: ./dist/MPVLauncher.exe
+        files: |
+          ./dist/MPVLauncher.exe
+          ./dist/MPVLauncher.exe.sha256
         generate_release_notes: true

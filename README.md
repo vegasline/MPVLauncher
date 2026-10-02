@@ -4,7 +4,7 @@
 
 <p align="center">
 <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="MIT License"></a>
-<a href="https://github.com/vegasline/MPVLauncher/releases/latest"><img src="https://img.shields.io/badge/app-1.9.6-blue.svg" alt="App version 1.9.4"></a>
+<a href="https://github.com/vegasline/MPVLauncher/releases/latest"><img src="https://img.shields.io/badge/app-1.9.7-blue.svg" alt="App version 1.9.4"></a>
 <a href="https://addons.mozilla.org/firefox/addon/mpv-launcher/"><img src="https://img.shields.io/badge/Firefox_Add--on-FF7139FF?logo=firefox-browser&logoColor=white" alt="Firefox add-on"></a>
 </p>
 
@@ -145,6 +145,11 @@ stating plainly:
   properly, so a URL cannot smuggle in extra mpv options.
 - 📦 **Archive extraction is contained**, downloads are size-capped, and signed
   media URLs keep their access token out of the log.
+- 🔄 **Updates are verified.** A newer build is fetched from this repository's
+  releases over HTTPS and accepted only if it matches the SHA-256 published
+  beside it. The download is staged and installed only when you click, and your
+  settings, history and installed tools are never touched by an update. You can
+  turn the check off under **Settings → Updates**.
 
 Full details in [`MpvLauncher.Gui/Services/NativeHostService.cs`](MpvLauncher.Gui/Services/NativeHostService.cs).
 

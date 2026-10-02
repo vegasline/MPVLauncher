@@ -31,6 +31,7 @@ namespace MpvLauncher.Gui
         // One instance of each service for the lifetime of the window. They are
         // stateless apart from ConfigService, which caches the live AppConfig.
         private readonly ConfigService _configService;
+        private readonly UpdateService _updateService;
         private readonly LocalizationService _locService;
         private readonly ThemeService _themeService;
         private readonly ProcessService _procService;
@@ -63,6 +64,11 @@ namespace MpvLauncher.Gui
             _locService = new LocalizationService(AppPaths.LanguagesDir, _configService.Config.Language);
             _themeService = new ThemeService(AppPaths.ThemesDir, _configService.Config.Theme);
             _procService = new ProcessService(_configService);
+            _updateService = new UpdateService(_configService);
+
+            // Anything the previous update renamed out of the way can go now:
+            // the old image was locked while it was still running.
+            UpdateService.CleanUpPreviousUpdate();
             _depService = new DependencyService(_procService);
             _browserService = new BrowserIntegrationService();
             _downloadService = new DownloadInstallService(_configService);
@@ -140,6 +146,10 @@ namespace MpvLauncher.Gui
 
             _ = RefreshDependenciesAsync();
             _ = InitializeBrowserIntegrationAsync();
+            _ = CheckForUpdatesInBackgroundAsync();
+
+            TxtUpdateVersion.Text = _locService.Format(
+                "update_current_label", "Version {0}", UpdateService.CurrentVersion);
         }
 
         #region Window
@@ -816,6 +826,138 @@ namespace MpvLauncher.Gui
             await OpenFolderInExplorer(AppPaths.Root, "opening_folder", "Opening folder...");
         }
 
+        /// <summary>
+        /// Looks for a newer build, downloads it if there is one, and says so.
+        ///
+        /// Nothing is applied here. The download is verified and staged; the swap
+        /// is a separate click, because it only takes effect after a restart and
+        /// doing it silently would mean the program changes between one launch
+        /// and the next with nothing having said so.
+        ///
+        /// The button carries its own next action in Tag, so a staged update can
+        /// turn the same control into the install button rather than adding a
+        /// second one that is usually hidden.
+        /// </summary>
+        private async void BtnCheckUpdate_Click(object sender, RoutedEventArgs e)
+        {
+            if (BtnCheckUpdate.Tag as string == "install")
+            {
+                await InstallStagedUpdateAsync();
+                return;
+            }
+
+            BtnCheckUpdate.IsEnabled = false;
+            TxtUpdateVersion.Text = _locService.Get("update_checking", "Checking for updates...");
+
+            var status = await _updateService.CheckAsync();
+
+            BtnCheckUpdate.IsEnabled = true;
+            ShowUpdateStatus(status);
+        }
+
+        /// <summary>Puts the result of a check on screen and offers the swap.</summary>
+        private void ShowUpdateStatus(UpdateStatus status)
+        {
+            ChkAutoUpdate.IsChecked = _configService.Config.AutoUpdate;
+
+            switch (status.Stage)
+            {
+                case UpdateStage.Ready:
+                    TxtUpdateVersion.Text = _locService.Format(
+                        "update_ready", "Version {0} is ready to install.", status.Version);
+                    BtnCheckUpdate.Content = _locService.Get("update_install_now", "Restart & install");
+                    BtnCheckUpdate.Tag = "install";
+                    break;
+
+                case UpdateStage.Available:
+                    TxtUpdateVersion.Text = status.Detail is { Length: > 0 } d
+                        ? _locService.Format("update_unavailable",
+                            "Version {0} could not be downloaded: {1}", status.Version, d)
+                        : _locService.Get("update_check_failed", "Update could not be completed.");
+                    break;
+
+                default:
+                    TxtUpdateVersion.Text = status.Detail is { Length: > 0 } detail
+                        ? _locService.Format("update_check_failed",
+                            "Could not check for updates: {0}", detail)
+                        : _locService.Format("update_current",
+                            "You are on the latest version ({0}).", UpdateService.CurrentVersion);
+                    ResetUpdateButton();
+                    break;
+            }
+        }
+
+        private void ResetUpdateButton()
+        {
+            BtnCheckUpdate.Content = _locService.Get("btn_check_update", "Check now");
+            BtnCheckUpdate.Tag = null;
+        }
+
+        /// <summary>
+        /// Records the update preference.
+        ///
+        /// Only the check is switched. Download and install are unchanged, so
+        /// turning this off does not leave a user unable to update on purpose -
+        /// the button in the same card still works.
+        /// </summary>
+        private void ChkAutoUpdate_Changed(object sender, RoutedEventArgs e)
+        {
+            if (_configService == null || ChkAutoUpdate == null) return;
+
+            bool wanted = ChkAutoUpdate.IsChecked == true;
+            if (_configService.Config.AutoUpdate == wanted) return;
+
+            _configService.Config.AutoUpdate = wanted;
+            _configService.Save();
+        }
+
+        /// <summary>
+        /// Looks for a newer build once the window is up.
+        ///
+        /// Deliberately not awaited by the startup path: it is a network call
+        /// that can take seconds or fail entirely, and none of that should
+        /// delay the window appearing. It also runs once per launch at most,
+        /// and only when the preference is on.
+        /// </summary>
+        private async Task CheckForUpdatesInBackgroundAsync()
+        {
+            if (_updateService == null || !_configService.Config.AutoUpdate) return;
+
+            try
+            {
+                var status = await _updateService.CheckAsync();
+                if (status.Stage == UpdateStage.Ready || status.Stage == UpdateStage.Available)
+                    ShowUpdateStatus(status);
+            }
+            catch (Exception ex)
+            {
+                // Silent by design. A user who never asked about updates should
+                // not be told that the check they did not request failed.
+                System.Diagnostics.Debug.WriteLine($"update check: {ex.Message}");
+            }
+        }
+
+        private async Task InstallStagedUpdateAsync()
+        {
+            BtnCheckUpdate.IsEnabled = false;
+            TxtUpdateVersion.Text = _locService.Get("update_installing", "Installing...");
+
+            string? error = await _updateService.ApplyAsync();
+            BtnCheckUpdate.IsEnabled = true;
+
+            if (error is null)
+            {
+                TxtUpdateVersion.Text = _locService.Get("update_installed",
+                    "Updated. Restart MPVLauncher to use the new version.");
+                ResetUpdateButton();
+            }
+            else
+            {
+                TxtUpdateVersion.Text = _locService.Format("update_install_failed",
+                    "Could not install the update: {0}", error);
+            }
+        }
+
         private void BtnBrowseMpv_Click(object sender, RoutedEventArgs e)
         {
             var dlg = new OpenFileDialog
@@ -1436,6 +1578,16 @@ namespace MpvLauncher.Gui
             TxtMpvProfileLabel.Text = _locService.Get("label_mpv_profile", "MPV Profile (--profile):");
             TxtMpvExtraArgsLabel.Text = _locService.Get("label_mpv_extra_args", "Extra MPV Parameters (e.g. --hwdec=auto):");
             BtnSaveMpvSettings.Content = _locService.Get("btn_save_settings", "Save Settings");
+            ChkAutoUpdate.Content = _locService.Get("label_auto_update", "Download new versions automatically");
+            ChkAutoUpdate.IsChecked = _configService.Config.AutoUpdate;
+            ChkAutoUpdate.Checked += ChkAutoUpdate_Changed;
+            ChkAutoUpdate.Unchecked += ChkAutoUpdate_Changed;
+            TxtUpdateTitle.Text = _locService.Get("label_updates", "Updates");
+            ChkAutoUpdate.Content = _locService.Get("label_auto_update", "Download new versions automatically");
+            ChkAutoUpdate.IsChecked = _configService.Config.AutoUpdate;
+            ChkAutoUpdate.Checked += ChkAutoUpdate_Changed;
+            ChkAutoUpdate.Unchecked += ChkAutoUpdate_Changed;
+            TxtUpdateTitle.Text = _locService.Get("label_updates", "Updates");
 
             TxtDataFolderTitle.Text = _locService.Get("data_folder_title", "Application data folder");
             BtnShowDataFolder.Content = _locService.Get("btn_show_folder", "Show folder");

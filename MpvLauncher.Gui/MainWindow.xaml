@@ -630,7 +630,18 @@
                             </Grid>
                         </Border>
 
-                        <Border x:Name="CardDataFolder" Background="#CC1E222D" CornerRadius="12" BorderBrush="#1FFFFFFF" BorderThickness="1" Padding="20">
+                        <Border x:Name="CardUpdates" Background="#CC1E222D" CornerRadius="12" BorderBrush="#1FFFFFFF" BorderThickness="1" Padding="20" Margin="0,16,0,0">
+                            <StackPanel>
+                                <TextBlock x:Name="TxtUpdateTitle" Text="Updates" FontSize="15" FontWeight="SemiBold" Margin="0,0,0,6"/>
+                                <TextBlock x:Name="TxtUpdateVersion" Text="" FontSize="12" Foreground="#9AA3B2" Margin="0,0,0,12" TextWrapping="Wrap"/>
+                                <StackPanel Orientation="Horizontal">
+                                    <CheckBox x:Name="ChkAutoUpdate" Grid.Column="0" Content="Download new versions automatically" Foreground="#F0F2F5" FontSize="12" VerticalAlignment="Center" Margin="0,0,12,0"/>
+                                    <Button x:Name="BtnCheckUpdate" Style="{StaticResource ModernButton}" Content="Check now" Click="BtnCheckUpdate_Click" Padding="14,8"/>
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <Border x:Name="CardDataFolder" Background="#CC1E222D" CornerRadius="12" BorderBrush="#1FFFFFFF" BorderThickness="1" Padding="20" Margin="0,16,0,0">
                             <StackPanel>
                                 <TextBlock x:Name="TxtDataFolderTitle" Text="Application data folder" FontSize="15" FontWeight="SemiBold" Margin="0,0,0,8"/>
                                 <TextBlock x:Name="TxtDataFolderPath" Text="" FontSize="12" Foreground="#9AA3B2" Margin="0,0,0,12" TextWrapping="Wrap"/>

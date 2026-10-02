@@ -151,6 +151,19 @@
     "play_mpv_broken": "mpv を起動できません ({0})。",
     "play_mpv_loader_fix": "これは既知の問題であり、現在対応を進めています。",
     "opening_folder": "フォルダを開いています...",
-    "open_folder_failed": "フォルダを開けませんでした:"
+    "open_folder_failed": "フォルダを開けませんでした:",
+    "btn_check_update": "今すぐ確認",
+    "label_updates": "アップデート",
+    "label_auto_update": "新しいバージョンを自動でダウンロード",
+    "update_current_label": "バージョン {0}",
+    "update_checking": "アップデートを確認しています...",
+    "update_current": "最新版を使用しています ({0})。",
+    "update_ready": "バージョン {0} をインストールできます。",
+    "update_install_now": "再起動してインストール",
+    "update_installing": "インストール中...",
+    "update_installed": "更新しました。新しいバージョンを使うには MPVLauncher を再起動してください。",
+    "update_check_failed": "アップデートを確認できませんでした: {0}",
+    "update_unavailable": "バージョン {0} をダウンロードできませんでした: {1}",
+    "update_install_failed": "アップデートをインストールできませんでした: {0}"
   }
 }

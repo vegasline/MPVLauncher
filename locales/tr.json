@@ -151,6 +151,19 @@
     "play_mpv_broken": "mpv başlatılamıyor ({0}).",
     "play_mpv_loader_fix": "Bu bilinen bir sorundur ve üzerine çalışıyoruz.",
     "opening_folder": "Klasör açılıyor...",
-    "open_folder_failed": "Klasör açılamadı:"
+    "open_folder_failed": "Klasör açılamadı:",
+    "btn_check_update": "Şimdi denetle",
+    "label_updates": "Güncellemeler",
+    "label_auto_update": "Yeni sürümleri otomatik indir",
+    "update_current_label": "Sürüm {0}",
+    "update_checking": "Güncelleme denetleniyor...",
+    "update_current": "En son sürümü kullanıyorsunuz ({0}).",
+    "update_ready": "{0} sürümü kurulmaya hazır.",
+    "update_install_now": "Yeniden başlat ve kur",
+    "update_installing": "Kuruluyor...",
+    "update_installed": "Güncellendi. Yeni sürümü kullanmak için MPVLauncher'ı yeniden başlatın.",
+    "update_check_failed": "Güncellemeler denetlenemedi: {0}",
+    "update_unavailable": "{0} sürümü indirilemedi: {1}",
+    "update_install_failed": "Güncelleme kurulamadı: {0}"
   }
 }

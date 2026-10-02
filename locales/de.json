@@ -151,6 +151,19 @@
     "play_mpv_broken": "mpv kann nicht starten ({0}).",
     "play_mpv_loader_fix": "Dies ist ein bekanntes Problem und wir arbeiten an einer Lösung.",
     "opening_folder": "Ordner wird geöffnet...",
-    "open_folder_failed": "Ordner konnte nicht geöffnet werden:"
+    "open_folder_failed": "Ordner konnte nicht geöffnet werden:",
+    "btn_check_update": "Jetzt prüfen",
+    "label_updates": "Aktualisierungen",
+    "label_auto_update": "Neue Versionen automatisch herunterladen",
+    "update_current_label": "Version {0}",
+    "update_checking": "Suche nach Aktualisierungen...",
+    "update_current": "Sie verwenden bereits die neueste Version ({0}).",
+    "update_ready": "Version {0} ist bereit zur Installation.",
+    "update_install_now": "Neu starten & installieren",
+    "update_installing": "Wird installiert...",
+    "update_installed": "Aktualisiert. Starten Sie MPVLauncher neu, um die neue Version zu verwenden.",
+    "update_check_failed": "Aktualisierungen konnten nicht geprüft werden: {0}",
+    "update_unavailable": "Version {0} konnte nicht heruntergeladen werden: {1}",
+    "update_install_failed": "Das Update konnte nicht installiert werden: {0}"
   }
 }

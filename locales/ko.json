@@ -151,6 +151,19 @@
     "play_mpv_broken": "mpv를 시작할 수 없습니다 ({0}).",
     "play_mpv_loader_fix": "알려진 문제이며 현재 해결책을 검토하고 있습니다.",
     "opening_folder": "폴더를 여는 중...",
-    "open_folder_failed": "폴더를 열 수 없습니다:"
+    "open_folder_failed": "폴더를 열 수 없습니다:",
+    "btn_check_update": "지금 확인",
+    "label_updates": "업데이트",
+    "label_auto_update": "새 버전을 자동으로 다운로드",
+    "update_current_label": "버전 {0}",
+    "update_checking": "업데이트를 확인하는 중...",
+    "update_current": "최신 버전을 사용 중입니다 ({0}).",
+    "update_ready": "{0} 버전을 설치할 수 있습니다.",
+    "update_install_now": "다시 시작하고 설치",
+    "update_installing": "설치 중...",
+    "update_installed": "업데이트되었습니다. 새 버전을 사용하려면 MPVLauncher를 다시 시작하세요.",
+    "update_check_failed": "업데이트를 확인하지 못했습니다: {0}",
+    "update_unavailable": "{0} 버전을 다운로드하지 못했습니다: {1}",
+    "update_install_failed": "업데이트를 설치하지 못했습니다: {0}"
   }
 }

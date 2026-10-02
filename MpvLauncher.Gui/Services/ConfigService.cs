@@ -91,6 +91,14 @@ namespace MpvLauncher.Gui.Services
         /// </summary>
         public bool FirstRun { get; set; } = true;
 
+        /// <summary>
+        /// Whether to look for a newer build on startup. On by default, because
+        /// the alternative is people running a year-old copy and reporting bugs
+        /// that were fixed months ago. Downloading still never happens without
+        /// the user being told, and applying is always a separate click.
+        /// </summary>
+        public bool AutoUpdate { get; set; } = true;
+
         /// <summary>Recent URLs, newest first, capped at 50 by AddHistory.</summary>
         public List<HistoryItem> PlaybackHistory { get; set; } = new();
 

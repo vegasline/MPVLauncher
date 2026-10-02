@@ -151,6 +151,19 @@
     "play_mpv_broken": "mpv tidak dapat dimulai ({0}).",
     "play_mpv_loader_fix": "Ini adalah masalah yang diketahui dan kami sedang mengerjakannya.",
     "opening_folder": "Membuka folder...",
-    "open_folder_failed": "Folder tidak dapat dibuka:"
+    "open_folder_failed": "Folder tidak dapat dibuka:",
+    "btn_check_update": "Periksa sekarang",
+    "label_updates": "Pembaruan",
+    "label_auto_update": "Unduh versi baru secara otomatis",
+    "update_current_label": "Versi {0}",
+    "update_checking": "Memeriksa pembaruan...",
+    "update_current": "Anda sudah menggunakan versi terbaru ({0}).",
+    "update_ready": "Versi {0} siap dipasang.",
+    "update_install_now": "Mulai ulang & pasang",
+    "update_installing": "Memasang...",
+    "update_installed": "Diperbarui. Mulai ulang MPVLauncher untuk memakai versi baru.",
+    "update_check_failed": "Tidak dapat memeriksa pembaruan: {0}",
+    "update_unavailable": "Versi {0} tidak dapat diunduh: {1}",
+    "update_install_failed": "Pembaruan tidak dapat dipasang: {0}"
   }
 }

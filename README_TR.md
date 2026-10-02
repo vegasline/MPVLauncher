@@ -4,7 +4,7 @@
 
 <p align="center">
 <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="MIT Lisansı"></a>
-<a href="https://github.com/vegasline/MPVLauncher/releases/latest"><img src="https://img.shields.io/badge/app-1.9.6-blue.svg" alt="Uygulama sürümü 1.9.4"></a>
+<a href="https://github.com/vegasline/MPVLauncher/releases/latest"><img src="https://img.shields.io/badge/app-1.9.7-blue.svg" alt="Uygulama sürümü 1.9.4"></a>
 <a href="https://addons.mozilla.org/firefox/addon/mpv-launcher/"><img src="https://img.shields.io/badge/Firefox_Eklentisi-FF7139FF?logo=firefox-browser&logoColor=white" alt="Firefox eklentisi"></a>
 </p>
 
@@ -146,6 +146,11 @@ belirtmek gerekir:
   alıntılanır; böylece bir adres ek mpv seçeneği sıkıştıramaz.
 - 📦 **Arşiv çıkarma sınırlıdır**, indirmeler boyut sınırına tabidir ve imzalı
   medya adreslerinin erişim anahtarı günlüğe yazılmaz.
+- 🔄 **Güncellemeler doğrulanır.** Yeni sürüm bu deponun yayınlarından HTTPS ile
+  alınır ve yanındaki SHA-256 ile eşleşmesi durumunda kabul edilir. İndirilen
+  dosya hazırlanır, yalnızca siz tıkladığınızda kurulur; ayarlarınıza, geçmişinize
+  ve kurulu araçlarınıza dokunulmaz. Denetlemeyi **Ayarlar → Güncellemeler**
+  altından kapatabilirsiniz.
 
 Ayrıntılar:
 [`MpvLauncher.Gui/Services/NativeHostService.cs`](MpvLauncher.Gui/Services/NativeHostService.cs)
