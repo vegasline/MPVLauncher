@@ -149,6 +149,8 @@
     "status_error": "エラーが発生しました。",
     "play_mpv_loader": "mpv を起動できません - Windows が読み込めませんでした ({0})。",
     "play_mpv_broken": "mpv を起動できません ({0})。",
-    "play_mpv_loader_fix": "これは既知の問題であり、現在対応を進めています。"
+    "play_mpv_loader_fix": "これは既知の問題であり、現在対応を進めています。",
+    "opening_folder": "フォルダを開いています...",
+    "open_folder_failed": "フォルダを開けませんでした:"
   }
 }

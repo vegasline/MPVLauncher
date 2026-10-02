@@ -149,6 +149,8 @@
     "status_error": "An error occurred.",
     "play_mpv_loader": "mpv cannot start - Windows refused to load it ({0}).",
     "play_mpv_broken": "mpv cannot start ({0}).",
-    "play_mpv_loader_fix": "This is a known issue and we are working on a fix."
+    "play_mpv_loader_fix": "This is a known issue and we are working on a fix.",
+    "opening_folder": "Opening folder...",
+    "open_folder_failed": "Could not open folder:"
   }
 }

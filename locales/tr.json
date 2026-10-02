@@ -149,6 +149,8 @@
     "status_error": "Hata oluştu.",
     "play_mpv_loader": "mpv başlatılamıyor - Windows dosyayı yükleyemedi ({0}).",
     "play_mpv_broken": "mpv başlatılamıyor ({0}).",
-    "play_mpv_loader_fix": "Bu bilinen bir sorundur ve üzerine çalışıyoruz."
+    "play_mpv_loader_fix": "Bu bilinen bir sorundur ve üzerine çalışıyoruz.",
+    "opening_folder": "Klasör açılıyor...",
+    "open_folder_failed": "Klasör açılamadı:"
   }
 }

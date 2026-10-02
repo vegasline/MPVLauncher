@@ -149,6 +149,8 @@
     "status_error": "发生错误。",
     "play_mpv_loader": "无法启动 mpv — Windows 无法加载它（{0}）。",
     "play_mpv_broken": "无法启动 mpv（{0}）。",
-    "play_mpv_loader_fix": "这是一个已知问题，我们正在处理中。"
+    "play_mpv_loader_fix": "这是一个已知问题，我们正在处理中。",
+    "opening_folder": "正在打开文件夹...",
+    "open_folder_failed": "无法打开文件夹："
   }
 }

@@ -149,6 +149,8 @@
     "status_error": "오류가 발생했습니다.",
     "play_mpv_loader": "mpv를 시작할 수 없습니다 - Windows가 불러오지 못했습니다 ({0}).",
     "play_mpv_broken": "mpv를 시작할 수 없습니다 ({0}).",
-    "play_mpv_loader_fix": "알려진 문제이며 현재 해결책을 검토하고 있습니다."
+    "play_mpv_loader_fix": "알려진 문제이며 현재 해결책을 검토하고 있습니다.",
+    "opening_folder": "폴더를 여는 중...",
+    "open_folder_failed": "폴더를 열 수 없습니다:"
   }
 }

@@ -651,25 +651,49 @@ namespace MpvLauncher.Gui
         /// folder is created if absent so the button never appears to do nothing
         /// on a fresh install.
         /// </summary>
-        private void BtnOpenExtensionFolder_Click(object sender, RoutedEventArgs e)
+        /// <summary>
+        /// Opens a folder in Explorer without blocking the window.
+        ///
+        /// Explorer's own start-up is what takes time - it can be tens of
+        /// seconds when the shell is busy or an extension handler is slow - and
+        /// that wait belongs to Explorer, not to us. Process.Start itself
+        /// returns in well under a tenth of a second, but running it on the UI
+        /// thread still risked freezing the window for as long as the shell
+        /// took to answer, and with no status message the click looked like it
+        /// had done nothing at all.
+        ///
+        /// So the work goes to a worker, the status line says what is happening
+        /// straight away, and the caller is not left waiting on the shell.
+        /// </summary>
+        private async Task OpenFolderInExplorer(string path, string labelKey, string labelFallback)
         {
+            TxtStatus.Text = _locService.Get(labelKey, labelFallback);
+
             try
             {
-                AppPaths.EnsureLayout();
-                string extDir = AppPaths.ChromiumExtensionDir;
-                Directory.CreateDirectory(extDir);
-
-                Process.Start(new ProcessStartInfo
+                await Task.Run(() =>
                 {
-                    FileName = "explorer.exe",
-                    Arguments = $"\"{extDir}\"",
-                    UseShellExecute = true
+                    Process.Start(new ProcessStartInfo
+                    {
+                        FileName = "explorer.exe",
+                        Arguments = $"\"{path}\"",
+                        UseShellExecute = true
+                    });
                 });
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Could not open folder: " + ex.Message, "MPV Launcher", MessageBoxButton.OK, MessageBoxImage.Warning);
+                MessageBox.Show(
+                    _locService.Get("open_folder_failed", "Could not open folder:") + " " + ex.Message,
+                    "MPV Launcher", MessageBoxButton.OK, MessageBoxImage.Warning);
             }
+        }
+
+        private async void BtnOpenExtensionFolder_Click(object sender, RoutedEventArgs e)
+        {
+            string extDir = AppPaths.ChromiumExtensionDir;
+            try { Directory.CreateDirectory(extDir); } catch { /* Explorer will report it */ }
+            await OpenFolderInExplorer(extDir, "opening_folder", "Opening folder...");
         }
 
         private void BtnOpenChromeExtensions_Click(object sender, RoutedEventArgs e)
@@ -771,22 +795,9 @@ namespace MpvLauncher.Gui
         }
 
         /// <summary>Opens the application data folder in Explorer.</summary>
-        private void BtnShowDataFolder_Click(object sender, RoutedEventArgs e)
+        private async void BtnShowDataFolder_Click(object sender, RoutedEventArgs e)
         {
-            try
-            {
-                AppPaths.EnsureLayout();
-                Process.Start(new ProcessStartInfo
-                {
-                    FileName = "explorer.exe",
-                    Arguments = $"\"{AppPaths.Root}\"",
-                    UseShellExecute = true
-                });
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show(ex.Message, "MPV Launcher", MessageBoxButton.OK, MessageBoxImage.Error);
-            }
+            await OpenFolderInExplorer(AppPaths.Root, "opening_folder", "Opening folder...");
         }
 
         private void BtnBrowseMpv_Click(object sender, RoutedEventArgs e)

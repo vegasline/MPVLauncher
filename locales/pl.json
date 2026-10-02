@@ -149,6 +149,8 @@
     "status_error": "Wystąpił błąd.",
     "play_mpv_loader": "mpv nie może się uruchomić - Windows nie mógł go wczytać ({0}).",
     "play_mpv_broken": "mpv nie może się uruchomić ({0}).",
-    "play_mpv_loader_fix": "To znany problem i pracujemy nad rozwiązaniem."
+    "play_mpv_loader_fix": "To znany problem i pracujemy nad rozwiązaniem.",
+    "opening_folder": "Otwieranie folderu...",
+    "open_folder_failed": "Nie można otworzyć folderu:"
   }
 }

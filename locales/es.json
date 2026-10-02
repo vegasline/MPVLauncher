@@ -149,6 +149,8 @@
     "status_error": "Ocurrió un error.",
     "play_mpv_loader": "mpv no puede iniciarse: Windows no pudo cargarlo ({0}).",
     "play_mpv_broken": "mpv no puede iniciarse ({0}).",
-    "play_mpv_loader_fix": "Este es un problema conocido y estamos trabajando en una solución."
+    "play_mpv_loader_fix": "Este es un problema conocido y estamos trabajando en una solución.",
+    "opening_folder": "Abriendo la carpeta...",
+    "open_folder_failed": "No se pudo abrir la carpeta:"
   }
 }

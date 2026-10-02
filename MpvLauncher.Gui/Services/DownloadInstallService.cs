@@ -434,8 +434,16 @@ namespace MpvLauncher.Gui.Services
         }
 
         /// <summary>
-        /// FFmpeg's archive is a single flat bin\ folder, so only the three
-        /// executables are copied rather than the whole tree.
+        /// FFmpeg's archive is a single flat bin\ folder, so two executables are
+        /// copied rather than the whole tree.
+        ///
+        /// ffprobe is kept because yt-dlp shells out to it for several
+        /// operations. ffplay is not copied: it is a video player, mpv is the
+        /// player here, and the copy is 102 MB that nothing ever opens. That
+        /// matters beyond disk space - the Show folder button opens the tools
+        /// directory, and Explorer reads the version resource of every binary
+        /// there, so a folder holding half a gigabyte of executables takes tens
+        /// of seconds to appear.
         /// </summary>
         private static string PlaceFfmpeg(string extractDir)
         {
@@ -447,14 +455,37 @@ namespace MpvLauncher.Gui.Services
             string srcBin = Path.GetDirectoryName(ffmpeg)!;
             Directory.CreateDirectory(BinDir);
 
-            foreach (string name in new[] { "ffmpeg.exe", "ffprobe.exe", "ffplay.exe" })
+            foreach (string name in new[] { "ffmpeg.exe", "ffprobe.exe" })
             {
                 string src = Path.Combine(srcBin, name);
                 if (File.Exists(src))
                     File.Copy(src, Path.Combine(BinDir, name), overwrite: true);
             }
 
+            // An installation from before this stopped copying ffplay still has
+            // it on disk. Removing it here keeps the tools folder the size it is
+            // documented to be, instead of waiting for a manual deletion that
+            // nobody will do.
+            TryDeleteUnusedFfmpegBinaries(srcBin);
+
             return Path.Combine(BinDir, "ffmpeg.exe");
+        }
+
+        /// <summary>
+        /// Deletes files we used to install but no longer want, once the copy
+        /// has run so a failure above cannot leave the tools unusable.
+        /// </summary>
+        private static void TryDeleteUnusedFfmpegBinaries(string srcBin)
+        {
+            foreach (string name in new[] { "ffplay.exe" })
+            {
+                try
+                {
+                    string dest = Path.Combine(BinDir, name);
+                    if (File.Exists(dest)) File.Delete(dest);
+                }
+                catch { /* in use, or locked; not worth failing an install over */ }
+            }
         }
 
         private static string FormatBytes(long bytes)
