@@ -122,12 +122,87 @@ namespace MpvLauncher.Gui.Services
             typeof(UpdateService).Assembly.GetName().Version?.ToString(3) ?? "0.0.0";
 
         /// <summary>
+        /// Deletes the executable an update replaced.
+        ///
+        /// The swap renames the running image to .old rather than deleting it,
+        /// because Windows refuses to delete a file that is currently mapped into
+        /// a process - which the running one is. That leaves .old on disk until
+        /// something runs after this process exits, so it cannot be removed from
+        /// here: the file is still locked at the moment the window closes, and
+        /// verified here, since a running image throws rather than deleting.
+        ///
+        /// A short-lived copy of this executable is started with
+        /// <see cref="PurgeArgument"/>, which waits for this process to go and
+        /// then deletes the file. That is the only way to get the removal to
+        /// happen at shutdown rather than at the next launch, and it is why the
+        /// purge argument is handled before anything else at startup.
+        ///
+        /// The startup call remains as a backstop, for the case where the machine
+        /// lost power between the swap and the shutdown.
+        /// </summary>
+        public static void ScheduleOldExecutableRemoval()
+        {
+            string old = CurrentExePath + ".old";
+            if (!File.Exists(old)) return;
+
+            try
+            {
+                var psi = new ProcessStartInfo
+                {
+                    FileName = CurrentExePath,
+                    UseShellExecute = false,
+                    CreateNoWindow = true,
+                    WindowStyle = ProcessWindowStyle.Hidden,
+                };
+                psi.ArgumentList.Add(PurgeArgument);
+                psi.ArgumentList.Add(Environment.ProcessId.ToString());
+
+                Process.Start(psi);
+            }
+            catch
+            {
+                // Nothing to do: the next launch still cleans it up.
+            }
+        }
+
+        /// <summary>Argument that puts a fresh copy of this executable into purge mode.</summary>
+        internal const string PurgeArgument = "--purge-old-exe";
+
+        /// <summary>
+        /// Runs in the helper process: waits for the named process to exit, then
+        /// deletes the .old file beside it.
+        ///
+        /// Takes the parent as a process id rather than a path so it cannot be
+        /// pointed at an arbitrary file, and gives up after a bounded wait so a
+        /// helper that somehow never sees its parent exit does not linger.
+        /// </summary>
+        internal static void PurgeOldExecutable(int parentPid)
+        {
+            try
+            {
+                using var parent = Process.GetProcessById(parentPid);
+                parent.WaitForExit((int)TimeSpan.FromMinutes(2).TotalMilliseconds);
+            }
+            catch (ArgumentException)
+            {
+                // Already gone, which is the case being waited for.
+            }
+            catch { }
+
+            try
+            {
+                string old = CurrentExePath + ".old";
+                if (File.Exists(old)) File.Delete(old);
+            }
+            catch { }
+        }
+
+        /// <summary>
         /// Deletes leftovers from a previous install.
         ///
-        /// The replaced executable is renamed rather than deleted at update time,
-        /// because Windows will not let a running image be deleted. It is still
-        /// locked at that moment and can only go once the process has exited, so
-        /// the removal happens on the next launch instead.
+        /// Still done at startup as a backstop, but no longer the only chance:
+        /// see <see cref="ScheduleOldExecutableRemoval"/> for why the normal path
+        /// is at shutdown.
         /// </summary>
         public static void CleanUpPreviousUpdate()
         {

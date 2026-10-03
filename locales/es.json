@@ -178,6 +178,10 @@
     "update_err_nothing_staged": "no se ha descargado ninguna actualización",
     "update_err_not_writable": "la carpeta no se puede escribir: mueve MPVLauncher.exe a una ubicación tuya",
     "update_err_not_writable_admin": "la carpeta no se puede escribir: mueve MPVLauncher.exe a una ubicación tuya o ejecútalo como administrador",
-    "update_err_install": "{0}"
+    "update_err_install": "{0}",
+    "update_dialog_heading": "Actualización lista",
+    "update_dialog_body": "La versión {0} se ha descargado y verificado. Reinicia MPVLauncher para completar la instalación.",
+    "update_dialog_later": "Más tarde",
+    "update_ready_notice": "La versión {0} está lista para instalar."
   }
 }

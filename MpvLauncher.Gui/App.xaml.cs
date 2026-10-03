@@ -15,6 +15,17 @@ namespace MpvLauncher.Gui
     {
         protected override void OnStartup(StartupEventArgs e)
         {
+            // Checked before anything else, and before base.OnStartup, because
+            // StartupUri would otherwise build the whole window for a process
+            // whose only job is to delete a file.
+            if (e.Args.Length == 2 &&
+                e.Args[0] == Services.UpdateService.PurgeArgument &&
+                int.TryParse(e.Args[1], out int parentPid))
+            {
+                Services.UpdateService.PurgeOldExecutable(parentPid);
+                Shutdown(0);
+                return;
+            }
             // Fires on any thread and cannot be recovered from, so it only
             // reports. The process will terminate straight afterwards.
             AppDomain.CurrentDomain.UnhandledException += (_, args) =>

@@ -178,6 +178,10 @@
     "update_err_nothing_staged": "nenhuma atualização foi baixada",
     "update_err_not_writable": "a pasta não permite gravação - mova o MPVLauncher.exe para um lugar seu",
     "update_err_not_writable_admin": "a pasta não permite gravação - mova o MPVLauncher.exe para um lugar seu ou execute como administrador",
-    "update_err_install": "{0}"
+    "update_err_install": "{0}",
+    "update_dialog_heading": "Atualização pronta",
+    "update_dialog_body": "A versão {0} foi baixada e verificada. Reinicie o MPVLauncher para concluir a instalação.",
+    "update_dialog_later": "Mais tarde",
+    "update_ready_notice": "A versão {0} está pronta para instalar."
   }
 }

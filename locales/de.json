@@ -178,6 +178,10 @@
     "update_err_nothing_staged": "es wurde kein Update heruntergeladen",
     "update_err_not_writable": "der Ordner ist nicht beschreibbar - verschieben Sie MPVLauncher.exe an einen Ort, der Ihnen gehört",
     "update_err_not_writable_admin": "der Ordner ist nicht beschreibbar - verschieben Sie MPVLauncher.exe an einen Ort, der Ihnen gehört, oder starten Sie als Administrator",
-    "update_err_install": "{0}"
+    "update_err_install": "{0}",
+    "update_dialog_heading": "Update bereit",
+    "update_dialog_body": "Version {0} wurde heruntergeladen und überprüft. Starten Sie MPVLauncher neu, um die Installation abzuschließen.",
+    "update_dialog_later": "Später",
+    "update_ready_notice": "Version {0} ist bereit zur Installation."
   }
 }

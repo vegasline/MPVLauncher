@@ -178,6 +178,10 @@
     "update_err_nothing_staged": "다운로드된 업데이트가 없습니다",
     "update_err_not_writable": "폴더에 쓸 수 없습니다 - MPVLauncher.exe를 직접 관리하는 위치로 옮기세요",
     "update_err_not_writable_admin": "폴더에 쓸 수 없습니다 - MPVLauncher.exe를 직접 관리하는 위치로 옮기거나 관리자 권한으로 실행하세요",
-    "update_err_install": "{0}"
+    "update_err_install": "{0}",
+    "update_dialog_heading": "업데이트 준비 완료",
+    "update_dialog_body": "{0} 버전이 다운로드되고 확인되었습니다. 설치를 마치려면 MPVLauncher를 다시 시작하세요.",
+    "update_dialog_later": "나중에",
+    "update_ready_notice": "{0} 버전을 설치할 수 있습니다."
   }
 }

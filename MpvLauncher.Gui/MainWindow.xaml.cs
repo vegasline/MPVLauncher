@@ -65,6 +65,11 @@ namespace MpvLauncher.Gui
         /// the progress line survives a language change.
         /// </summary>
         private string? _updateBusyKey;
+
+        /// <summary>
+        /// Whether this launch has already put the offer in the status line.
+        /// </summary>
+        private bool _updateAnnounced;
         private readonly LocalizationService _locService;
         private readonly ThemeService _themeService;
         private readonly ProcessService _procService;
@@ -120,6 +125,11 @@ namespace MpvLauncher.Gui
             catch { }
 
             Loaded += MainWindow_Loaded;
+
+            // Closing rather than Closed, because the purge helper has to be
+            // started while this process is still the locked one it is waiting
+            // on - Closed is too late, the process is already going.
+            Closing += (_, _) => UpdateService.ScheduleOldExecutableRemoval();
         }
 
         /// <summary>
@@ -1057,8 +1067,24 @@ namespace MpvLauncher.Gui
             try
             {
                 var status = await _updateService.CheckAsync();
-                if (status.Stage == UpdateStage.Ready || status.Stage == UpdateStage.Available)
-                    ShowUpdateStatus(status);
+                if (status.Stage != UpdateStage.Ready && status.Stage != UpdateStage.Available)
+                    return;
+
+                ShowUpdateStatus(status);
+
+                // The card lives on the Settings tab and the window opens on the
+                // Player tab, so writing the result there alone means a user who
+                // never visits Settings is never told. This check is only made
+                // when the preference is on and nobody has asked about updates,
+                // so it is put in front of them once, at launch, where it cannot
+                // be missed.
+                if (_updateAnnounced) return;
+                _updateAnnounced = true;
+
+                TxtStatus.Text = _locService.Format("update_ready_notice",
+                    "Version {0} is ready to install.", status.Version);
+
+                await PromptForUpdateAsync(status);
             }
             catch (Exception ex)
             {
@@ -1066,6 +1092,38 @@ namespace MpvLauncher.Gui
                 // not be told that the check they did not request failed.
                 System.Diagnostics.Debug.WriteLine($"update check: {ex.Message}");
             }
+        }
+
+        /// <summary>
+        /// Offers the downloaded update at launch, and installs it if accepted.
+        ///
+        /// Only a staged update is offered. A version that exists but failed to
+        /// download has nothing to install, and telling the user to press a
+        /// button that then reports the same failure again would be worse than
+        /// saying nothing - the card on the Settings tab carries that detail
+        /// already.
+        /// </summary>
+        private async Task PromptForUpdateAsync(UpdateStatus status)
+        {
+            if (status.Stage != UpdateStage.Ready) return;
+
+            var dlg = new UpdateDialog();
+            dlg.SetText(
+                _locService.Get("update_dialog_heading", "Update ready"),
+                _locService.Format("update_dialog_body",
+                    "Version {0} has been downloaded and verified. Restart MPVLauncher to finish installing it.",
+                    status.Version),
+                _locService.Get("update_install_now", "Restart & install"),
+                _locService.Get("update_dialog_later", "Later"));
+
+            try { dlg.Owner = this; } catch { }
+
+            bool install;
+            try { install = dlg.ShowDialog() == true && dlg.InstallNow; }
+            catch { return; }
+
+            if (install)
+                await InstallStagedUpdateAsync();
         }
 
         private async Task InstallStagedUpdateAsync()
