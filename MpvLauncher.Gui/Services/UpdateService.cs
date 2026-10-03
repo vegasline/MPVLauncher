@@ -122,6 +122,38 @@ namespace MpvLauncher.Gui.Services
             typeof(UpdateService).Assembly.GetName().Version?.ToString(3) ?? "0.0.0";
 
         /// <summary>
+        /// The file the running image actually occupies.
+        ///
+        /// Environment.ProcessPath is not enough here. After the swap renames the
+        /// running image to .old, ProcessPath still reports MPVLauncher.exe - the
+        /// path the image was loaded from - but no file is there any more, only
+        /// the .old beside it. A helper started from that path fails to launch at
+        /// exactly the moment it is needed, which is how the .old survived:
+        /// nothing was wrong with the purge, it simply never ran.
+        ///
+        /// So the path is taken from the operating system by handle, which
+        /// reports the file the image occupies and after a rename is the .old.
+        /// The helper is therefore started from a file that exists, and its own
+        /// view of itself is the .old it has been asked to delete.
+        ///
+        /// Read by handle rather than by string so the value names a file rather
+        /// than a spelling that could be replaced between the read and the use.
+        /// </summary>
+        private static string RunningImagePath()
+        {
+            try
+            {
+                using var proc = Process.GetCurrentProcess();
+                using var module = proc.MainModule;
+                return module?.FileName ?? CurrentExePath;
+            }
+            catch
+            {
+                return CurrentExePath;
+            }
+        }
+
+        /// <summary>
         /// Deletes the executable an update replaced.
         ///
         /// The swap renames the running image to .old rather than deleting it,
@@ -149,7 +181,11 @@ namespace MpvLauncher.Gui.Services
             {
                 var psi = new ProcessStartInfo
                 {
-                    FileName = CurrentExePath,
+                    // The file the running image occupies, which after a swap is
+                    // the .old itself. Starting the helper from CurrentExePath
+                    // would name a path that no longer exists, since the image
+                    // was renamed out from under it.
+                    FileName = RunningImagePath(),
                     UseShellExecute = false,
                     CreateNoWindow = true,
                     WindowStyle = ProcessWindowStyle.Hidden,
@@ -165,7 +201,14 @@ namespace MpvLauncher.Gui.Services
             }
         }
 
-        /// <summary>Argument that puts a fresh copy of this executable into purge mode.</summary>
+        /// <summary>
+        /// Argument that puts a fresh copy of this executable into purge mode.
+        ///
+        /// The helper is launched from the .old file, so it is a full copy of the
+        /// previous version rather than the current one. That is deliberate: it is
+        /// the only executable guaranteed to exist at the moment of the swap, and
+        /// all it does is wait and delete a file.
+        /// </summary>
         internal const string PurgeArgument = "--purge-old-exe";
 
         /// <summary>
@@ -189,12 +232,17 @@ namespace MpvLauncher.Gui.Services
             }
             catch { }
 
-            try
+            // This process is the old executable, started from its .old path, so
+            // the file to delete is the one it is running from - not a .old
+            // appended to that name, which would be a file that never existed.
+            foreach (string candidate in new[] { RunningImagePath(), CurrentExePath + ".old" })
             {
-                string old = CurrentExePath + ".old";
-                if (File.Exists(old)) File.Delete(old);
+                try
+                {
+                    if (File.Exists(candidate)) File.Delete(candidate);
+                }
+                catch { }
             }
-            catch { }
         }
 
         /// <summary>

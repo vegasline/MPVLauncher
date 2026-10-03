@@ -1070,6 +1070,13 @@ namespace MpvLauncher.Gui
                 if (status.Stage != UpdateStage.Ready && status.Stage != UpdateStage.Available)
                     return;
 
+                // This runs from the constructor, so the window is not on screen
+                // yet. Showing a dialog before then blocks against an owner that
+                // has no size to centre on, and the result is a dialog that opens
+                // nowhere. Waiting for the window to be rendered first is what
+                // makes the offer visible at all.
+                await WaitForWindowAsync();
+
                 ShowUpdateStatus(status);
 
                 // The card lives on the Settings tab and the window opens on the
@@ -1095,6 +1102,41 @@ namespace MpvLauncher.Gui
         }
 
         /// <summary>
+        /// Waits until this window has actually been drawn.
+        ///
+        /// The startup check is started from the constructor, which runs before the
+        /// window is on screen, so anything modal it tries to open would have no
+        /// owner to sit against. Waiting for the first render also means the user
+        /// is already looking at the app when the notice appears, rather than
+        /// finding a dialog waiting for a window that has not arrived.
+        ///
+        /// Completed on the first ContentRendered, and also once Loaded has been
+        /// seen, because a window can report Loaded and then be told not to render
+        /// (an off-screen start, a hidden start) - waiting on both means this
+        /// cannot wait forever, and a bounded wait means it cannot hang the app if
+        /// neither ever comes.
+        /// </summary>
+        private Task WaitForWindowAsync()
+        {
+            var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            void Done()
+            {
+                if (!tcs.Task.IsCompleted) tcs.TrySetResult(true);
+            }
+
+            ContentRendered += (_, _) => Done();
+            Loaded += (_, _) => Done();
+
+            // A window that is never rendered must not stall the check: the
+            // notice is worth showing whenever it can be, but never at the cost
+            // of the app appearing to hang.
+            _ = Task.Delay(TimeSpan.FromSeconds(10)).ContinueWith(_ => Done());
+
+            return tcs.Task;
+        }
+
+        /// <summary>
         /// Offers the downloaded update at launch, and installs it if accepted.
         ///
         /// Only a staged update is offered. A version that exists but failed to
@@ -1108,25 +1150,58 @@ namespace MpvLauncher.Gui
             if (status.Stage != UpdateStage.Ready) return;
 
             var dlg = new UpdateDialog();
-            dlg.SetText(
-                _locService.Get("update_dialog_heading", "Update ready"),
-                _locService.Format("update_dialog_body",
-                    "Version {0} has been downloaded and verified. Restart MPVLauncher to finish installing it.",
-                    status.Version),
-                _locService.Get("update_install_now", "Restart & install"),
-                _locService.Get("update_dialog_later", "Later"));
+
+            // Assigning the text can still fail if the XAML did not load, and the
+            // caller swallows its exceptions, so this says so in the status line
+            // rather than leaving a notice that silently never appeared.
+            try
+            {
+                dlg.SetText(
+                    _locService.Get("update_dialog_heading", "Update ready"),
+                    _locService.Format("update_dialog_body",
+                        "Version {0} has been downloaded and verified. Restart MPVLauncher to finish installing it.",
+                        status.Version),
+                    _locService.Get("update_install_now", "Restart & install"),
+                    _locService.Get("update_dialog_later", "Later"));
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"update dialog: {ex}");
+                TxtStatus.Text = _locService.Format("update_ready_notice",
+                    "Version {0} is ready to install.", status.Version);
+                return;
+            }
 
             try { dlg.Owner = this; } catch { }
 
             bool install;
-            try { install = dlg.ShowDialog() == true && dlg.InstallNow; }
-            catch { return; }
+            try
+            {
+                install = dlg.ShowDialog() == true && dlg.InstallNow;
+            }
+            catch (Exception ex)
+            {
+                // Reported rather than swallowed: a notice that silently fails is
+                // exactly what went wrong before, and it is invisible from here.
+                System.Diagnostics.Debug.WriteLine($"update dialog: {ex.Message}");
+                TxtStatus.Text = _locService.Format("update_ready_notice",
+                    "Version {0} is ready to install.", status.Version);
+                return;
+            }
 
             if (install)
                 await InstallStagedUpdateAsync();
         }
 
-        private async Task InstallStagedUpdateAsync()
+        /// <summary>
+        /// Installs the staged update and, if asked, restarts into it.
+        ///
+        /// The restart is the point of the button: the new executable cannot be
+        /// running from inside the process that is about to be replaced, so the
+        /// swap is only ever half an update until the app has been relaunched.
+        /// Leaving that as a manual step is what made the feature feel unfinished.
+        /// </summary>
+        private async Task InstallStagedUpdateAsync(bool restart = true)
         {
             BtnCheckUpdate.IsEnabled = false;
             SetUpdateBusy("update_installing");
@@ -1140,12 +1215,58 @@ namespace MpvLauncher.Gui
                 _updateInstalled = true;
                 _updateFailure = null;
                 RenderUpdateCard();
+
+                if (restart && RelaunchAfterUpdate())
+                    return;
             }
             else
             {
                 _updateInstalled = false;
                 _updateFailure = new UpdateFailure(key, args);
                 RenderUpdateCard();
+            }
+        }
+
+        /// <summary>
+        /// Starts the freshly installed executable and closes this one.
+        ///
+        /// Returns false when the new copy could not be started, so the caller
+        /// leaves the "restart to finish" message on screen rather than shutting
+        /// down and leaving the user with nothing running.
+        ///
+        /// The new process is started before this one closes, because once the
+        /// swap has happened the file at CurrentExePath is the new build and that
+        /// is the only path worth launching. Startup is not suppressed in the new
+        /// copy: it opens on the Player tab like any launch, and the update
+        /// dialog will not reappear because the version it offered is now current.
+        /// </summary>
+        private bool RelaunchAfterUpdate()
+        {
+            try
+            {
+                var psi = new System.Diagnostics.ProcessStartInfo
+                {
+                    FileName = System.Environment.ProcessPath
+                               ?? System.AppContext.BaseDirectory + "MPVLauncher.exe",
+                    UseShellExecute = false,
+                };
+
+                System.Diagnostics.Process.Start(psi);
+
+                // A short delay so the replacement is running before the old image
+                // is released, which also keeps the purge helper's view of the
+                // running process sensible.
+                Dispatcher.BeginInvoke(new Action(() => Close()),
+                    System.Windows.Threading.DispatcherPriority.ApplicationIdle);
+
+                return true;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"relaunch after update: {ex.Message}");
+                TxtStatus.Text = _locService.Get("update_installed",
+                    "Updated. Restart MPVLauncher to use the new version.");
+                return false;
             }
         }
 

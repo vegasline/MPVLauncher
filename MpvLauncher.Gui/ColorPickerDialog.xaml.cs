@@ -9,6 +9,12 @@ namespace MpvLauncher.Gui
     /// <summary>
     /// Modal colour picker used by the appearance editor.
     ///
+    /// The window has a fixed Height rather than SizeToContent, and that is not
+    /// a style preference. A transparent WPF window sized to its content
+    /// measures itself only after it has already arranged, so it opens with no
+    /// height and draws nothing at all - the two attributes cannot be combined,
+    /// and transparency is what the rounded card is made of.
+    ///
     /// Offers a fixed palette of swatches plus a hex field, which covers
     /// everything the settings page can set without pulling in a colour-picker
     /// dependency. It is shown with ShowDialog and the chosen value is read
