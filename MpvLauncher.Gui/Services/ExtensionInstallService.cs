@@ -858,7 +858,7 @@ namespace MpvLauncher.Gui.Services
             return "";
         }
 
-        private static void WriteChromiumManifest(string dir, string publicKey)
+        internal static void WriteChromiumManifest(string dir, string publicKey)
         {
             var icons = new Dictionary<string, string>
             {
@@ -876,11 +876,15 @@ namespace MpvLauncher.Gui.Services
                 // distributed separately (addons.mozilla.org), so bumping this
                 // for an app-only change would make the app install a version
                 // the store does not have, and the two copies would collide.
-                ["version"] = "1.9.4",
+                // A test holds the two to the same values.
+                ["version"] = "1.9.5",
                 ["description"] = "Open page videos, iframes and streams directly in MPV.",
                 ["key"] = publicKey,
                 ["icons"] = icons,
-                ["permissions"] = new[] { "nativeMessaging", "activeTab", "scripting", "webRequest", "tabs", "webNavigation", "storage" },
+                // webNavigation was here and nothing ever called it. A
+                // permission the code does not use is one the user is asked to
+                // grant and the store reviewer has to justify.
+                ["permissions"] = new[] { "nativeMessaging", "activeTab", "scripting", "webRequest", "tabs", "storage" },
                 ["host_permissions"] = new[] { "<all_urls>" },
                 ["action"] = new Dictionary<string, object>
                 {
@@ -899,14 +903,14 @@ namespace MpvLauncher.Gui.Services
                         ["matches"] = new[] { "<all_urls>" },
                         ["js"] = new[] { "content_script.js" },
                         ["all_frames"] = true,
-                        ["run_at"] = "document_end"
+                        ["run_at"] = "document_idle"
                     }
                 }
             };
             WriteJson(Path.Combine(dir, "manifest.json"), manifest);
         }
 
-        private static void WriteFirefoxManifest(string dir)
+        internal static void WriteFirefoxManifest(string dir)
         {
             var icons = new Dictionary<string, string>
             {
@@ -924,10 +928,11 @@ namespace MpvLauncher.Gui.Services
                 // distributed separately (addons.mozilla.org), so bumping this
                 // for an app-only change would make the app install a version
                 // the store does not have, and the two copies would collide.
-                ["version"] = "1.9.4",
-                ["description"] = "Network stream detector (HLS, DASH, MP4, iframes) and one-click media player for MPV.",
+                // A test holds the two to the same values.
+                ["version"] = "1.9.5",
+                ["description"] = "Open page videos, iframes and streams directly in MPV.",
                 ["icons"] = icons,
-                ["permissions"] = new[] { "nativeMessaging", "activeTab", "scripting", "webRequest", "tabs", "webNavigation", "storage" },
+                ["permissions"] = new[] { "nativeMessaging", "activeTab", "scripting", "webRequest", "tabs", "storage" },
                 ["host_permissions"] = new[] { "<all_urls>" },
                 ["action"] = new Dictionary<string, object>
                 {
@@ -935,6 +940,10 @@ namespace MpvLauncher.Gui.Services
                     ["default_title"] = "MPV Launcher",
                     ["default_icon"] = icons
                 },
+                // Firefox does not implement service workers in MV3 and refuses
+                // to load the add-on when one is declared. The sidecars are
+                // listed ahead of background.js so it finds them already
+                // defined, rather than relying on importScripts.
                 ["background"] = new Dictionary<string, object>
                 {
                     ["scripts"] = new[]
@@ -949,7 +958,7 @@ namespace MpvLauncher.Gui.Services
                         ["matches"] = new[] { "<all_urls>" },
                         ["js"] = new[] { "content_script.js" },
                         ["all_frames"] = true,
-                        ["run_at"] = "document_end"
+                        ["run_at"] = "document_idle"
                     }
                 },
                 ["browser_specific_settings"] = new Dictionary<string, object>
@@ -957,7 +966,10 @@ namespace MpvLauncher.Gui.Services
                     ["gecko"] = new Dictionary<string, object>
                     {
                         ["id"] = AppPaths.FirefoxAddonId,
-                        ["strict_min_version"] = "128.0",
+                        // data_collection_permissions only exists from 140.
+                        // Promising 128 asked the browser for a key it could
+                        // not read, and the store rejected it.
+                        ["strict_min_version"] = "140.0",
                         ["data_collection_permissions"] = new Dictionary<string, object>
                         {
                             ["required"] = new[] { "none" }

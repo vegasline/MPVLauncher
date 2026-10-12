@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "MPV Launcher",
-  "version": "1.9.4",
+  "version": "1.9.5",
   "description": "Open page videos, iframes and streams directly in MPV.",
   "permissions": [
     "nativeMessaging",
@@ -43,12 +43,16 @@
     }
   ],
   "background": {
-    "service_worker": "background.js"
+    "scripts": [
+      "media_types.js",
+      "network_capture.js",
+      "background.js"
+    ]
   },
   "browser_specific_settings": {
     "gecko": {
       "id": "{264eb39b-fe04-417b-940e-81df026edbc3}",
-      "strict_min_version": "128.0",
+      "strict_min_version": "140.0",
       "data_collection_permissions": {
         "required": [
           "none"
