@@ -150,47 +150,6 @@ namespace MpvLauncher.Gui.Services
             return list;
         }
 
-        public async Task<(bool Success, string Message)> ImportFromUrlAsync(string rawUrl)
-        {
-            try
-            {
-                // Only https: an http source can be rewritten in transit, and the
-                // response is written to disk verbatim.
-                if (!Uri.TryCreate(rawUrl, UriKind.Absolute, out var uri) ||
-                    uri.Scheme != Uri.UriSchemeHttps)
-                {
-                    return (false, "Language packs must be fetched over https.");
-                }
-
-                using var client = new HttpClient();
-                client.DefaultRequestHeaders.Add("User-Agent", "MPVLauncher/1.0");
-                string json = await client.GetStringAsync(rawUrl);
-
-                if (json.Length > MaxPackBytes)
-                    return (false, $"Language file is too large (limit {MaxPackBytes / 1024} KB).");
-
-                using var doc = JsonDocument.Parse(json);
-                string? code = doc.RootElement.GetProperty("language_code").GetString();
-                if (string.IsNullOrEmpty(code) || !IsSafeLanguageCode(code))
-                {
-                    // The code becomes a file name. Without this check a server
-                    // could answer with "../../Startup/run" and have the app
-                    // write an arbitrary file outside the language folder.
-                    return (false, "Invalid language file: 'language_code' is not a valid language code.");
-                }
-
-                string targetFile = Path.Combine(_localesDir, $"{code}.json");
-                await File.WriteAllTextAsync(targetFile, json);
-
-                LoadLanguage(code);
-                return (true, $"Language pack '{code}' loaded.");
-            }
-            catch (Exception ex)
-            {
-                return (false, "Language download failed: " + ex.Message);
-            }
-        }
-
         /// <summary>
         /// A language code has to be usable as a file name on every platform the
         /// app runs on, so only letters, digits, dash and underscore are allowed
@@ -208,8 +167,5 @@ namespace MpvLauncher.Gui.Services
             // Belt and braces: the resolved path must stay inside the folder.
             return !code.Contains("..") && !code.Contains(Path.DirectorySeparatorChar);
         }
-
-        /// <summary>Upper bound for a language pack, to cap memory use.</summary>
-        private const int MaxPackBytes = 2 * 1024 * 1024;
     }
 }
