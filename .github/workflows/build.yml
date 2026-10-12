@@ -18,7 +18,7 @@ jobs:
     # The extension and locale suites are pure Node and need no SDK, so they run
     # as their own job: they fail in seconds and say exactly which file broke,
     # rather than being discovered at the end of a publish.
-    name: Extension and locale tests
+    name: Tests
     runs-on: windows-latest
 
     steps:
@@ -30,16 +30,38 @@ jobs:
       with:
         node-version: '20'
 
-    # 147 checks: media classification, the native message payload, the
+    - name: Install .NET 10
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: 10.0.x
+
+    # 166 checks: media classification, the native message payload, the
     # Firefox event-page restart, and the rule that no extension file evaluates
     # page-supplied code.
     - name: Extension tests
       run: node tools/extension-tests.js
 
-    # 29 checks: every locale parses, all twelve share one key set, and no key
+    # 40 checks: every locale parses, all twelve share one key set, and no key
     # the C# looks up is missing from a translation.
     - name: Locale tests
       run: node tools/locale-tests.js
+
+    # The C# suite pins the on-disk layout and the modules that already accept
+    # their directories. It exists because the layout used to be static, which
+    # meant nothing in the app could be pointed at a scratch folder - so nothing
+    # in it could be tested at all.
+    - name: C# tests
+      run: dotnet test MpvLauncher.Gui.Tests/MpvLauncher.Gui.Tests.csproj -c Release --nologo
+
+    # extension/manifest.json is what gets zipped and submitted to
+    # addons.mozilla.org, so it has to load in Firefox. It declared a
+    # background service worker, which Firefox refuses outright - the add-on
+    # simply does not load - and web-ext lint is Mozilla's own answer to
+    # whether a manifest is shippable. The one remaining warning is about
+    # Firefox for Android, a platform this extension does not target: it
+    # launches a Windows executable.
+    - name: web-ext lint
+      run: npx --yes web-ext@latest lint --source-dir extension
 
   build:
     name: Build desktop app
@@ -114,6 +136,19 @@ jobs:
         name: MPVLauncher-Checksum
         path: ./dist
 
+    # The release body is written by hand and committed, because a generated
+    # list of commit subjects does not tell a reader which of the fixes change
+    # what they see. The file is release-notes/<tag>.md, so cutting a release
+    # means writing its notes before pushing its tag - checked below rather than
+    # left to fail with an unhelpful "file not found" from the action.
+    - name: Release notes must exist for this tag
+      run: |
+        $notes = "release-notes/${{ github.ref_name }}.md"
+        if (-not (Test-Path $notes)) {
+          Write-Error "Missing $notes. Write the release notes before pushing the tag."
+        }
+        Get-Content $notes -TotalCount 1
+
     # Both assets travel together. An update that finds the executable but not
     # the checksum is refused rather than applied unverified.
     - name: Create release
@@ -122,4 +157,4 @@ jobs:
         files: |
           ./dist/MPVLauncher.exe
           ./dist/MPVLauncher.exe.sha256
-        generate_release_notes: true
+        body_path: release-notes/${{ github.ref_name }}.md

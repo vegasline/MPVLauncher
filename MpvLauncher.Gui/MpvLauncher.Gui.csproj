@@ -16,7 +16,7 @@
     <!-- App version. Deliberately separate from extension/manifest.json: the
          extension ships through addons.mozilla.org on its own schedule, and
          the two must not be bumped together. Keep this in step with the git tag. -->
-    <Version>1.9.11</Version>
+    <Version>1.10.0</Version>
   </PropertyGroup>
 
   <ItemGroup>
@@ -44,6 +44,13 @@
 
   <ItemGroup>
     <Resource Include="app.ico" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- The manifest builders are internal so a test can write one and read it
+         back. Three files used to keep three copies of the extension manifest
+         and none of them parsed any of them, so they drifted apart silently. -->
+    <InternalsVisibleTo Include="MpvLauncher.Gui.Tests" />
   </ItemGroup>
 
 </Project>
