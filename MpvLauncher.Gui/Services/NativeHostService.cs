@@ -285,31 +285,6 @@ namespace MpvLauncher.Gui.Services
         }
 
         /// <summary>
-        /// Splits a user-supplied option string (config "ExtraArgs") into tokens,
-        /// honouring double quotes so a value containing spaces stays one token.
-        /// </summary>
-        private static List<string> SplitArgs(string commandLine)
-        {
-            var result = new List<string>();
-            var current = new StringBuilder();
-            bool inQuotes = false, any = false;
-
-            foreach (char c in commandLine)
-            {
-                if (c == '"') { inQuotes = !inQuotes; any = true; continue; }
-                if (!inQuotes && char.IsWhiteSpace(c))
-                {
-                    if (any) { result.Add(current.ToString()); current.Clear(); any = false; }
-                    continue;
-                }
-                current.Append(c);
-                any = true;
-            }
-            if (any) result.Add(current.ToString());
-            return result;
-        }
-
-        /// <summary>
         /// Builds the Referer options, or nothing at all.
         ///
         /// <paramref name="referrer"/> is used verbatim and only when it is
@@ -408,7 +383,7 @@ namespace MpvLauncher.Gui.Services
             if (!string.IsNullOrWhiteSpace(ontopArg)) args.Add(ontopArg);
             if (!string.IsNullOrWhiteSpace(geometry)) args.Add($"--geometry={geometry.Trim()}");
             if (!string.IsNullOrWhiteSpace(profileArg)) args.Add(profileArg.Trim());
-            if (!string.IsNullOrWhiteSpace(extraArgs)) args.AddRange(SplitArgs(extraArgs));
+            if (!string.IsNullOrWhiteSpace(extraArgs)) args.AddRange(CommandLineTokenize.Split(extraArgs));
             if (!string.IsNullOrWhiteSpace(audioUrl)) args.Add($"--audio-file={audioUrl.Trim()}");
             if (!string.IsNullOrWhiteSpace(subUrl)) args.Add($"--sub-file={subUrl.Trim()}");
 
@@ -512,6 +487,11 @@ namespace MpvLauncher.Gui.Services
             return arg;
         }
 
+        /// <summary>
+        /// The mpv to launch. Same list, same order as the window uses: the
+        /// two used to disagree, and a user with mpv in C:\mpv was served by
+        /// the extension and told "not found" by the app.
+        /// </summary>
         private static string? FindMpvPath()
         {
             try
@@ -528,36 +508,10 @@ namespace MpvLauncher.Gui.Services
             }
             catch { }
 
-            var commonPaths = new[]
-            {
-                AppPaths.MpvExe,
-                @"D:\Prog\mpv\mpv.exe",
-                @"C:\mpv\mpv.exe",
-                @"D:\mpv\mpv.exe",
-                @"C:\Program Files\mpv\mpv.exe",
-                @"C:\Program Files (x86)\mpv\mpv.exe"
-            };
-
-            foreach (var p in commonPaths)
-            {
-                if (File.Exists(p)) return p;
-            }
-
-            string? pathEnv = Environment.GetEnvironmentVariable("PATH");
-            if (!string.IsNullOrEmpty(pathEnv))
-            {
-                foreach (var dir in pathEnv.Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries))
-                {
-                    try
-                    {
-                        string candidate = Path.Combine(dir.Trim(), "mpv.exe");
-                        if (File.Exists(candidate)) return candidate;
-                    }
-                    catch { }
-                }
-            }
-
-            return null;
+            return MpvLocator.Resolve(
+                configuredPath: null,
+                layout: new AppLayout(AppPaths.Root),
+                exists: File.Exists);
         }
 
         private static string? GetParentProcessName()

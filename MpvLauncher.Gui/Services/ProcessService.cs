@@ -79,6 +79,35 @@ namespace MpvLauncher.Gui.Services
     }
 
     /// <summary>
+    /// What came of asking mpv to play something.
+    ///
+    /// <see cref="MessageKey"/> is a localization key and <see cref="Args"/>
+    /// its arguments, never a finished sentence. This is the interface the
+    /// update and extension-install modules already use, and the reason it says
+    /// so: "MPV started." is the most frequently displayed string in the
+    /// application, and returning it as finished text meant it reached twelve
+    /// languages untranslated.
+    /// </summary>
+    public sealed record LaunchResult(
+        bool Success,
+        string MessageKey,
+        string[] Args,
+        MpvProbe Probe)
+    {
+        public const string Started = "play_mpv_started";
+        public const string NotFound = "play_mpv_not_found";
+        public const string EmptyInput = "play_invalid_url";
+        public const string NotRunnable = "play_mpv_broken";
+        public const string LaunchFailed = "play_launch_failed";
+
+        public static LaunchResult Ok(MpvProbe probe) =>
+            new(true, Started, Array.Empty<string>(), probe);
+
+        public static LaunchResult Fail(string key, MpvProbe probe, params string[] args) =>
+            new(false, key, args, probe);
+    }
+
+    /// <summary>
     /// Locates mpv and starts it on something the user typed.
     ///
     /// This is the GUI's own path, as opposed to the browser extension's: the
@@ -174,38 +203,37 @@ namespace MpvLauncher.Gui.Services
 
         /// <summary>
         /// The mpv executable to use: the configured path if it still exists,
-        /// then a few well-known install locations. Falling back to the bare name
-        /// lets the shell resolve it from PATH, which is why a stale setting does
-        /// not produce a hard failure.
+        /// then the locations <see cref="MpvLocator"/> knows, then PATH.
+        /// Falling back to the bare name lets the shell resolve it, which is
+        /// why a stale setting does not produce a hard failure.
+        ///
+        /// A discovered path is written back to the settings, so the next launch
+        /// does not repeat the search. Nothing here decides what to do when
+        /// nothing is found - that is the caller's answer to give.
         /// </summary>
         public string FindMpvPath()
         {
             string saved = _configService.Config.MpvPath;
-            if (File.Exists(saved)) return saved;
 
-            string[] common = new[]
-            {
-                AppPaths.MpvExe,
-                @"D:\Prog\mpv\mpv.exe",
-                @"C:\Program Files\mpv\mpv.exe",
-                @"C:\Program Files (x86)\mpv\mpv.exe"
-            };
+            // Resolving the bare name first would report "not found" for a
+            // perfectly working install, so the bare name is only the last
+            // resort, after the search has actually run.
+            string? found = MpvLocator.Resolve(
+                saved, new AppLayout(AppPaths.Root), File.Exists);
 
-            foreach (var p in common)
+            if (found == null) return "mpv.exe";
+
+            if (!string.Equals(found, saved, StringComparison.OrdinalIgnoreCase))
             {
-                if (File.Exists(p))
-                {
-                    _configService.Config.MpvPath = p;
-                    _configService.Save();
-                    return p;
-                }
+                _configService.Config.MpvPath = found;
+                _configService.Save();
             }
 
-            return "mpv.exe";
+            return found;
         }
 
         /// <summary>
-        /// Launches mpv on a URL or local path typed by the user.
+        /// Locates mpv and starts it on something the user typed.
         ///
         /// Arguments are collected as separate items rather than pasted into one
         /// string: the URL may contain quotes, spaces or trailing backslashes, and
@@ -215,65 +243,65 @@ namespace MpvLauncher.Gui.Services
         /// Unlike the extension path this accepts local paths and other schemes,
         /// because the value came from the user rather than from a web page.
         /// </summary>
-        public (bool Success, string Message, MpvProbe Probe) PlayMedia(string urlOrPath)
+        public LaunchResult PlayMedia(string urlOrPath)
+    {
+        if (string.IsNullOrWhiteSpace(urlOrPath))
+            return LaunchResult.Fail(LaunchResult.EmptyInput,
+                new MpvProbe(MpvHealth.NotInstalled, "", "empty input", null));
+
+        string url = urlOrPath.Trim();
+
+        // Ask the binary to identify itself before handing it a URL. When
+        // the loader refuses the image, launching it anyway raises a modal
+        // "Entry Point Not Found" dialog that the user cannot connect to
+        // anything, and Process.Start with UseShellExecute does not reliably
+        // report the refusal as an exception.
+        var probe = ProbeMpv();
+        if (probe.Health == MpvHealth.NotInstalled)
+            return LaunchResult.Fail(LaunchResult.NotFound, probe);
+        if (probe.Health == MpvHealth.NotRunnable)
+            return LaunchResult.Fail(LaunchResult.NotRunnable, probe, probe.Describe());
+
+        string mpvBinary = FindMpvPath();
+        var cfg = _configService.Config;
+
+        var argsList = new List<string>();
+        string fw = cfg.ForceWindow ?? "immediate";
+        if (fw.Equals("no", StringComparison.OrdinalIgnoreCase))
+            argsList.Add("--force-window=no");
+        else if (fw.Equals("yes", StringComparison.OrdinalIgnoreCase))
+            argsList.Add("--force-window=yes");
+        else
+            argsList.Add("--force-window=immediate");
+
+        if (cfg.AlwaysOnTop)
+            argsList.Add("--ontop");
+        if (!string.IsNullOrWhiteSpace(cfg.Geometry))
+            argsList.Add($"--geometry={cfg.Geometry.Trim()}");
+        if (!string.IsNullOrWhiteSpace(cfg.MpvProfile))
+            argsList.Add($"--profile={cfg.MpvProfile.Trim()}");
+        if (!string.IsNullOrWhiteSpace(cfg.ExtraArgs))
+            argsList.AddRange(CommandLineTokenize.Split(cfg.ExtraArgs.Trim()));
+        argsList.Add(url);
+
+        try
         {
-            if (string.IsNullOrWhiteSpace(urlOrPath))
-                return (false, "Invalid or empty URL.",
-                        new MpvProbe(MpvHealth.NotInstalled, "", "empty input", null));
-
-            string url = urlOrPath.Trim();
-
-            // Ask the binary to identify itself before handing it a URL. When
-            // the loader refuses the image, launching it anyway raises a modal
-            // "Entry Point Not Found" dialog that the user cannot connect to
-            // anything, and Process.Start with UseShellExecute does not reliably
-            // report the refusal as an exception.
-            var probe = ProbeMpv();
-            if (probe.Health == MpvHealth.NotInstalled)
-                return (false, "mpv was not found.", probe);
-            if (probe.Health == MpvHealth.NotRunnable)
-                return (false, probe.Fault, probe);
-
-            string mpvBinary = FindMpvPath();
-            var cfg = _configService.Config;
-
-            var argsList = new List<string>();
-            string fw = cfg.ForceWindow ?? "immediate";
-            if (fw.Equals("no", StringComparison.OrdinalIgnoreCase))
-                argsList.Add("--force-window=no");
-            else if (fw.Equals("yes", StringComparison.OrdinalIgnoreCase))
-                argsList.Add("--force-window=yes");
-            else
-                argsList.Add("--force-window=immediate");
-
-            if (cfg.AlwaysOnTop)
-                argsList.Add("--ontop");
-            if (!string.IsNullOrWhiteSpace(cfg.Geometry))
-                argsList.Add($"--geometry={cfg.Geometry.Trim()}");
-            if (!string.IsNullOrWhiteSpace(cfg.MpvProfile))
-                argsList.Add($"--profile={cfg.MpvProfile.Trim()}");
-            if (!string.IsNullOrWhiteSpace(cfg.ExtraArgs))
-                argsList.AddRange(cfg.ExtraArgs.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries));
-            argsList.Add(url);
-
-            try
+            var psi = new ProcessStartInfo
             {
-                var psi = new ProcessStartInfo
-                {
-                    FileName = mpvBinary,
-                    UseShellExecute = true,
-                    WorkingDirectory = Path.GetDirectoryName(mpvBinary) ?? ""
-                };
-                foreach (string a in argsList) psi.ArgumentList.Add(a);
+                FileName = mpvBinary,
+                UseShellExecute = true,
+                WorkingDirectory = Path.GetDirectoryName(mpvBinary) ?? ""
+            };
+            foreach (string a in argsList) psi.ArgumentList.Add(a);
 
-                Process.Start(psi);
-                _configService.AddHistory(url);
-                return (true, "MPV started.", probe);
-            }
-            catch (Exception ex)
-            {
-                return (false, "Launch failed: " + ex.Message, probe);
-            }
+            Process.Start(psi);
+            _configService.AddHistory(url);
+            return LaunchResult.Ok(probe);
+        }
+        catch (Exception ex)
+        {
+            return LaunchResult.Fail(LaunchResult.LaunchFailed, probe, ex.Message);
         }
     }
+}
 }
