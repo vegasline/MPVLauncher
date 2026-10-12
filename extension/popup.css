@@ -330,6 +330,26 @@ body {
 .tag-dash { background-color: rgba(168, 85, 247, 0.2); color: #c084fc; }
 .tag-audio { background-color: rgba(14, 165, 233, 0.2); color: #38bdf8; }
 
+/* Every id in MPV_MEDIA_TYPES needs a rule, because the badge class is derived
+   from the id. Twelve ids, six colours: the rest are deliberately given the
+   colour of their kind rather than a new one, so a stream still reads warm, a
+   file still reads violet and audio still reads blue. A missing rule is not a
+   cosmetic gap - it renders the badge with no background at all. */
+.tag-media { background-color: rgba(148, 163, 184, 0.2); color: #cbd5e1; }
+
+.tag-hds { background-color: rgba(245, 158, 11, 0.2); color: #fbbf24; }
+.tag-mss { background-color: rgba(245, 158, 11, 0.2); color: #fbbf24; }
+.tag-apple { background-color: rgba(245, 158, 11, 0.2); color: #fbbf24; }
+
+.tag-mp4 { background-color: rgba(99, 102, 241, 0.2); color: #818cf8; }
+.tag-webm { background-color: rgba(99, 102, 241, 0.2); color: #818cf8; }
+.tag-flv { background-color: rgba(99, 102, 241, 0.2); color: #818cf8; }
+.tag-ts { background-color: rgba(99, 102, 241, 0.2); color: #818cf8; }
+
+.tag-mp3 { background-color: rgba(14, 165, 233, 0.2); color: #38bdf8; }
+.tag-aac { background-color: rgba(14, 165, 233, 0.2); color: #38bdf8; }
+.tag-ogg { background-color: rgba(14, 165, 233, 0.2); color: #38bdf8; }
+
 /* detected by the network listener rather than the DOM */
 .media-item.from-network {
   border-left: 2px solid rgba(245, 158, 11, 0.5);

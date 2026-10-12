@@ -114,6 +114,76 @@ function mpvNormalizeContentType(value) {
 }
 
 /**
+ * The declared type with this id, or null when there is none.
+ *
+ * A miss returns null rather than a synthesised entry: an invented entry is a
+ * second, quietly wrong answer to a question that already has one.
+ */
+function mpvTypeById(id) {
+  if (!id) return null;
+  var key = String(id).toLowerCase();
+  for (var i = 0; i < MPV_MEDIA_TYPES.length; i++) {
+    if (MPV_MEDIA_TYPES[i].id === key) return MPV_MEDIA_TYPES[i];
+  }
+  return null;
+}
+
+/**
+ * Which of the three filter chips this type belongs to.
+ *
+ * The popup used to answer this from its own short list, which named four
+ * stream types and nothing else - so mp4, webm, flv, ts, aac, mp3 and ogg all
+ * came back "stream". Turning the Streams chip off therefore hid captured
+ * video files along with the streams, which is the opposite of what the chip
+ * says.
+ *
+ * An unrecognised id is a stream: showing a row the user can ignore is a
+ * smaller failure than hiding one they wanted.
+ */
+function mpvTypeCategory(id) {
+  var entry = mpvTypeById(id);
+  if (!entry) return "stream";
+  if (entry.category === "files" || entry.category === "stream" || entry.category === "iframe") {
+    return entry.category;
+  }
+  return "stream";
+}
+
+/**
+ * Everything the popup needs to draw a type badge: the class to use and the
+ * text to show.
+ *
+ * The badge used to be written as `t("type_" + id) || item.typeLabel`, which
+ * cannot work: the translation lookup returns the key itself when it misses,
+ * and a key is a non-empty string, so || kept it and the badge read
+ * "type_mp4" in every language. The comparison against the key is the whole
+ * fix - a translation is used when one exists and not otherwise.
+ *
+ * Order matters: a real translation beats the label the capture layer carried,
+ * which beats this file's own label, which beats the bare id. The format names
+ * are acronyms and do not translate, so the vocabulary's label is usually the
+ * right answer.
+ */
+function mpvTypeBadge(typeId, typeLabel, translate) {
+  var id = (typeId ? String(typeId) : "media").toLowerCase();
+  var entry = mpvTypeById(id);
+  var text = "";
+
+  if (typeof translate === "function") {
+    var key = "type_" + id;
+    var candidate = translate(key);
+    // A lookup that echoes the key back is telling us it missed.
+    if (candidate && candidate !== key) text = candidate;
+  }
+
+  if (!text) text = typeLabel || "";
+  if (!text && entry) text = entry.label || "";
+  if (!text) text = id.toUpperCase();
+
+  return { id: id, className: "tag-" + id, text: text };
+}
+
+/**
  * Resolves a response to a media type.
  * Content-Type wins because it survives extension-less and signed URLs.
  * Returns null when the response is not media.
@@ -145,30 +215,45 @@ function mpvClassifyResponse(url, contentType) {
 
 /**
  * Whether a captured item passes the user's filters.
- * blacklistedBy lets a match on the request referrer hide child requests.
+ *
+ * The popup used to keep its own copy of this, and the two disagreed: an
+ * unrecognised category was hidden here and shown there. The copy that
+ * actually ran was the popup's, and the popup is something the test suite
+ * cannot execute - so twenty-odd checks were pinning a function no user
+ * reached, and the behaviour that shipped was the untested one.
+ *
+ * There is now one answer, asked from the module that owns the vocabulary.
+ * The category comes from the type id when the item does not carry one, which
+ * is what makes mp4 and webm behave as files rather than as streams.
+ *
+ * An unrecognised category is shown. Hiding a stream the user wanted to play
+ * is a worse failure than showing a row they can ignore.
  */
 function mpvPassesFilter(item, filters) {
   if (!item) return false;
-  if (filters.blacklist && filters.blacklist.length) {
+  var f = filters || {};
+
+  if (f.blacklist && f.blacklist.length) {
     var haystacks = [item.url || "", item.referer || "", item.typeLabel || ""];
-    for (var i = 0; i < filters.blacklist.length; i++) {
-      var entry = String(filters.blacklist[i] || "").toLowerCase();
+    for (var i = 0; i < f.blacklist.length; i++) {
+      var entry = String(f.blacklist[i] || "").toLowerCase();
       if (!entry) continue;
       for (var j = 0; j < haystacks.length; j++) {
-        if (haystacks[j].toLowerCase().indexOf(entry) !== -1) return false;
+        var h = String(haystacks[j] || "").toLowerCase();
+        if (h && h.indexOf(entry) !== -1) return false;
       }
     }
   }
 
-  var category = item.category;
-  if (category === "stream") return filters.showStreams !== false;
-  if (category === "iframe") return filters.showIframes !== false;
+  var category = item.category || mpvTypeCategory(item.typeId || item.type);
+  if (category === "stream") return f.showStreams !== false;
+  if (category === "iframe") return f.showIframes !== false;
   if (category === "files") {
-    if (filters.showFiles === false) return false;
-    // A size gate only makes sense for real files, not for manifests.
-    var minKb = Number(filters.minSizeKb) || 0;
+    if (f.showFiles === false) return false;
+    // A size gate only makes sense for a real file, not for a manifest.
+    var minKb = Number(f.minSizeKb) || 0;
     if (minKb > 0 && item.sizeBytes && item.sizeBytes < minKb * 1024) return false;
     return true;
   }
-  return false;
+  return true;
 }

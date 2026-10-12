@@ -208,41 +208,16 @@ document.addEventListener("DOMContentLoaded", async () => {
       .filter((s) => s.length > 0);
   }
 
-  /** Mirrors mpvPassesFilter in media_types.js so the popup can filter locally. */
-  function passesFilter(item) {
-    if (filters.blacklist.length) {
-      const haystacks = [item.url || "", item.referer || "", item.typeLabel || ""];
-      for (const entry of filters.blacklist) {
-        const needle = entry.toLowerCase();
-        for (const h of haystacks) {
-          if (h && h.toLowerCase().indexOf(needle) !== -1) return false;
-        }
-      }
-    }
-
-    const category = item.category || categoryForType(item.typeId || item.type);
-    if (category === "stream") return filters.showStreams;
-    if (category === "iframe") return filters.showIframes;
-    if (category === "files") {
-      if (!filters.showFiles) return false;
-      if (filters.minSizeKb > 0 && item.sizeBytes && item.sizeBytes < filters.minSizeKb * 1024) return false;
-      return true;
-    }
-    return true;
-  }
-
   /**
-   * Maps a media type onto one of the three things the filter chips switch.
+   * Whether a row survives the user's filter chips.
    *
-   * Anything not recognised is treated as a stream: that is the safer default,
-   * because hiding a stream the user wanted to play is worse than showing an
-   * extra row they can ignore.
+   * This was a second copy of mpvPassesFilter in media_types.js, and the two
+   * disagreed about an unrecognised category. media_types.js now owns the
+   * answer, which also means the popup's copy is the one the test suite can
+   * actually reach.
    */
-  function categoryForType(type) {
-    if (type === "hls" || type === "dash" || type === "hds" || type === "mss") return "stream";
-    if (type === "iframe") return "iframe";
-    if (type === "video" || type === "audio") return "files";
-    return "stream";
+  function passesFilter(item) {
+    return mpvPassesFilter(item, filters);
   }
 
   /**
@@ -538,10 +513,15 @@ document.addEventListener("DOMContentLoaded", async () => {
       header.className = "media-header";
 
       const rawType = item.typeId || item.type || "media";
-      const typeKey = `type_${rawType}`;
+      // The badge is derived from the id by the module that declares the ids,
+      // so a new type cannot arrive without a label, a colour rule and a
+      // category. Building it here meant asking for "type_" + id, and the
+      // translation lookup answers a miss with the key itself - a truthy
+      // string - so the badge read "type_mp4" in all thirteen languages.
+      const badge = mpvTypeBadge(rawType, item.typeLabel, t);
       const tag = document.createElement("span");
-      tag.className = `media-type-tag tag-${rawType}`;
-      tag.textContent = t(typeKey) || (item.typeLabel || rawType.toUpperCase());
+      tag.className = `media-type-tag ${badge.className}`;
+      tag.textContent = badge.text;
 
       const label = document.createElement("span");
       label.className = "media-label";

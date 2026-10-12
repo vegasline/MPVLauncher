@@ -90,6 +90,10 @@
     <div id="status-message" class="status-message">Ready</div>
   </footer>
 
+  <!-- media_types.js first: it declares the type ids, and popup.js asks it for
+       a type's label, colour and filter category rather than keeping its own
+       copy of that list. -->
+  <script src="media_types.js"></script>
   <script src="i18n.js"></script>
   <script src="popup.js"></script>
 </body>

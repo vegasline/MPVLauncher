@@ -1086,6 +1086,236 @@ function runContentScript({ url, videos = [], widgets = [], innerText = "", hasM
     }
   }
 
+  /* --------------------------------------------------- the media type vocabulary
+
+     Three files each held part of the same list and none could see the others:
+     media_types.js owns the ids, i18n.js has seven translated names, popup.css
+     has six colour rules. The popup rendered its badge by asking for
+     "type_<id>" and falling back with || - but the translation lookup returns
+     the key itself when it misses, which is truthy, so the fallback never ran
+     and the badge read "type_mp4" in every language.
+
+     The same split misfiled seven of the twelve ids: the popup's own category
+     table knew about hls, dash, hds and mss, so mp4, webm, aac, mp3, ogg, ts
+     and flv counted as streams. Turning off the "Streams" chip therefore hid
+     captured video files along with the streams.
+
+     media_types.js now owns the projection and the popup asks it, so one list
+     answers for all three files and these checks hold it to that. */
+
+  section("media type vocabulary");
+
+  {
+    const ctx = typesCtx();
+    const ids = ctx.MPV_MEDIA_TYPES.map((t) => t.id);
+    const css = read("popup.css");
+    const popupSource = read("popup.js");
+    const popupHtml = read("popup.html");
+
+    check("media_types.js can look a type up by id", typeof ctx.mpvTypeById === "function");
+    check("media_types.js can project a badge", typeof ctx.mpvTypeBadge === "function");
+    check("media_types.js can resolve a category", typeof ctx.mpvTypeCategory === "function");
+
+    // A lookup that misses must say so rather than inventing an entry, or the
+    // projection silently grows a second, wrong source of truth.
+    check("mpvTypeById returns null for an unknown id",
+      ctx.mpvTypeById("definitely-not-a-type") === null);
+    check("mpvTypeById finds every declared type",
+      ids.every((id) => ctx.mpvTypeById(id) && ctx.mpvTypeById(id).id === id));
+
+    // The bug: a translator that misses returns the key, which is truthy, so a
+    // naive || keeps the key and the badge reads type_mp4.
+    const echoesKeys = (key) => key;
+    for (const id of ids) {
+      const badge = ctx.mpvTypeBadge(id, null, echoesKeys);
+      check(`badge for ${id} never reads as a key`, badge.text !== `type_${id}`,
+        `got "${badge.text}"`);
+      check(`badge for ${id} is not blank`, !!badge.text);
+    }
+
+    // ...and it must actually use a translation when one exists.
+    const translated = ctx.mpvTypeBadge("hls", null, () => "HLS akisi");
+    check("badge uses a real translation when there is one",
+      translated.text === "HLS akisi", `got "${translated.text}"`);
+
+    // The label the capture layer already carries beats the bare id.
+    const fromLabel = ctx.mpvTypeBadge("mp4", "MP4 dosyasi", echoesKeys);
+    check("badge prefers the captured label over the id",
+      fromLabel.text === "MP4 dosyasi", `got "${fromLabel.text}"`);
+    const fromEntry = ctx.mpvTypeBadge("webm", null, echoesKeys);
+    check("badge falls back to the vocabulary's own label",
+      fromEntry.text === "WEBM", `got "${fromEntry.text}"`);
+
+    // Every id needs a colour rule, or the badge renders unstyled.
+    for (const id of ids) {
+      check(`popup.css has a rule for .tag-${id}`, css.includes(`.tag-${id} {`));
+    }
+
+    // Every id needs a category, or the filter chips cannot place it.
+    for (const id of ids) {
+      const cat = ctx.mpvTypeCategory(id);
+      check(`${id} resolves to a category the filters know`,
+        cat === "stream" || cat === "files" || cat === "iframe", `got "${cat}"`);
+    }
+
+    // The concrete regression: a video file is a file, not a stream.
+    for (const id of ["mp4", "webm", "flv", "ts"]) {
+      check(`${id} is a file, not a stream`, ctx.mpvTypeCategory(id) === "files");
+    }
+    for (const id of ["hls", "dash", "hds", "mss"]) {
+      check(`${id} is a stream`, ctx.mpvTypeCategory(id) === "stream");
+    }
+
+    // The popup must ask the vocabulary rather than keep its own copy.
+    check("popup.js delegates the badge to media_types.js",
+      /mpvTypeBadge\(/.test(popupSource));
+    check("popup.js delegates filtering to media_types.js",
+      /mpvPassesFilter\(/.test(popupSource));
+    check("popup.js keeps no second category table",
+      !/categoryForType\(/.test(popupSource));
+    check("popup.html loads media_types.js", /media_types\.js/.test(popupHtml));
+  }
+
+  /* ------------------------------------------------------------- the manifest
+
+     This file is what gets zipped and submitted to addons.mozilla.org, so it
+     is the Firefox manifest and nothing else - the application writes its own
+     per-browser manifest and deliberately excludes this one when it copies the
+     bundle (ExtensionInstallService.cs:787,810).
+
+     It declared background.service_worker. Firefox does not implement
+     service workers in MV3 and refuses to load such an add-on at all; Mozilla's
+     own linter reports it as an error, so this file could not be submitted.
+     The application's Firefox manifest already used background.scripts.
+
+     A manifest is only worth a check if it parses. Three files used to keep
+     three copies and none of them parsed any of them. */
+
+  section("manifest");
+
+  {
+    const manifest = JSON.parse(read("manifest.json"));
+
+    check("manifest.json parses as JSON", !!manifest);
+    check("manifest is version 3", manifest.manifest_version === 3);
+
+    // Firefox refuses a service worker, and an add-on that will not load is
+    // worse than one missing a convenience.
+    check("manifest does not declare background.service_worker",
+      !manifest.background || !manifest.background.service_worker,
+      "Firefox MV3 rejects service workers; the add-on will not load");
+    check("manifest declares background.scripts for Firefox",
+      !!(manifest.background && Array.isArray(manifest.background.scripts)),
+      "Firefox needs background.scripts");
+
+    // background.js pulls the sidecars in itself when they are not loaded as
+    // background scripts, so a scripts entry that omits them is a broken list.
+    if (manifest.background && Array.isArray(manifest.background.scripts)) {
+      const scripts = manifest.background.scripts;
+      check("background scripts load the sidecars before background.js",
+        scripts.includes("media_types.js") && scripts.includes("network_capture.js"),
+        `got ${JSON.stringify(scripts)}`);
+      check("background.js is last in the list",
+        scripts[scripts.length - 1] === "background.js",
+        "the sidecars must already be defined when background.js runs");
+    }
+
+    // A permission nothing uses is a permission the reviewer sees and the user
+    // is asked to grant. webNavigation was requested by both application
+    // manifests and read by no file.
+    const declared = manifest.permissions || [];
+    const source = read("background.js") + read("popup.js") + read("content_script.js") +
+                   read("network_capture.js") + read("network_probe.js") + read("media_types.js");
+    check("manifest does not request the unused webNavigation permission",
+      !declared.includes("webNavigation"));
+    check("every declared permission is one the code actually reaches for",
+      ["nativeMessaging", "activeTab", "scripting", "webRequest", "tabs", "storage"]
+        .every((p) => declared.includes(p)),
+      `declared: ${JSON.stringify(declared)}`);
+
+    // gecko.data_collection_permissions only exists from Firefox 140, so
+    // promising support from 128 asks the browser for a key it cannot read.
+    const gecko = manifest.browser_specific_settings &&
+                  manifest.browser_specific_settings.gecko;
+    check("manifest carries the gecko block", !!gecko);
+    if (gecko && gecko.data_collection_permissions) {
+      const min = parseFloat(gecko.strict_min_version || "0");
+      check("strict_min_version covers data_collection_permissions",
+        min >= 140, `strict_min_version is ${gecko.strict_min_version}, needs 140`);
+    }
+
+    check("the addon id matches the one the application installs",
+      gecko && gecko.id === "{264eb39b-fe04-417b-940e-81df026edbc3}",
+      `got ${gecko && gecko.id}`);
+  }
+
+  /* ------------------------------------------------- handlers nobody calls
+
+     background.js answers a named message and two of those names were never
+     sent by anything: get_filter_defaults and apply_filter. apply_filter was
+     the only caller of mpvPassesFilter in media_types.js, so a duplicate of it
+     also existed in popup.js with the opposite behaviour on unknown types -
+     media_types hid them, the popup showed them - and the copy that actually
+     ran was the one under test.
+
+     The suite already wrote the lesson down at line 1034 after the same thing
+     happened with clear_network_media: "A handler nobody calls is
+     indistinguishable from no feature at all." This checks it for every
+     handler, so the next one fails a test instead of waiting to be noticed. */
+
+  section("message handlers have senders");
+
+  {
+    const sources = ["background.js", "popup.js", "content_script.js",
+                     "network_capture.js", "network_probe.js", "media_types.js"]
+      .map(read).join("\n");
+
+    const handlers = [...background.matchAll(/message\.action\s*===\s*"([a-z_]+)"/g)]
+      .map((m) => m[1]);
+
+    check("background.js has handlers to check", handlers.length > 0);
+
+    // A handler with no sender is a product decision, not a refactor, so it is
+    // named here rather than quietly tolerated. Naming them means deleting the
+    // feature later is a deliberate edit to this list instead of a silent
+    // removal of working code.
+    //
+    // The permission pair is that case: network_capture.js can probe for and
+    // request host permissions and twenty-five checks cover it, but the popup
+    // never offers the button - it tells the user to reload the extension
+    // instead. That is unfinished, not unwanted, and it is the only known gap.
+    const KNOWN_GAPS = {
+      get_permission_status: "popup offers no permission button yet",
+      request_permission: "popup offers no permission button yet"
+    };
+
+    const unexpected = handlers.filter(
+      (a) => !(a in KNOWN_GAPS) && !new RegExp(`action:\\s*"${a}"`).test(sources)
+    );
+
+    check("every message handler has a sender, apart from the declared gaps",
+      unexpected.length === 0,
+      `no sender for: ${unexpected.join(", ")}`);
+
+    // A gap that quietly grows is how the original two got there.
+    check("the declared gaps are still exactly the permission pair",
+      Object.keys(KNOWN_GAPS).every((a) => handlers.includes(a)) &&
+      KNOWN_GAPS.get_permission_status.includes("permission") &&
+      KNOWN_GAPS.request_permission.includes("permission"),
+      "update the list and its reason together when this changes");
+
+    // One implementation, not two that disagree. A thin alias in the popup is
+    // fine - it is the delegating half - but only one function may actually
+    // decide, or the behaviour that ships is whichever copy nothing tests.
+    const implementations = sources.match(
+      /function\s+mpvPassesFilter\s*\([^)]*\)\s*\{[\s\S]*?\n\}/g) || [];
+    check("only one filter implementation exists",
+      implementations.length === 1,
+      `found ${implementations.length}`);
+    check("the popup's filter is a delegation, not a second decision",
+      /function\s+passesFilter\s*\([^)]*\)\s*\{\s*return\s+mpvPassesFilter\([^)]*\);\s*\}/.test(read("popup.js")));
+  }
+
   console.log(`\nRESULT: ${pass} passed, ${fail} failed`);
   process.exit(fail === 0 ? 0 : 1);
 })();
