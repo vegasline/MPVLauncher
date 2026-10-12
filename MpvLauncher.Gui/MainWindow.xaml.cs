@@ -321,10 +321,12 @@ namespace MpvLauncher.Gui
             TxtStatus.Text = _locService.Get("status_playing", "Launching MPV...");
             var res = _procService.PlayMedia(target);
 
-            // A loader failure is the one case where the raw reason is not
-            // enough on its own. The user has a dialog on screen with a
-            // procedure name in it and no way to know it is not an mpv setting
-            // to change, so the message names the actual remedy.
+            // The launcher answers in keys, never sentences, so this line is the
+            // only place a launch message becomes words. A loader failure is
+            // the one case where the raw reason is not enough on its own: the
+            // user has a dialog on screen with a procedure name in it and no
+            // way to know it is not an mpv setting to change, so the message
+            // names the actual remedy.
             TxtStatus.Text = res.Probe.Health == MpvHealth.NotRunnable
                 ? (res.Probe.IsLoaderProblem
                     ? _locService.Format("play_mpv_loader", "", res.Probe.Describe()) +
@@ -332,8 +334,10 @@ namespace MpvLauncher.Gui
                           "This is almost always an out-of-date graphics driver or Vulkan runtime " +
                           "- mpv needs Vulkan 1.1 or newer. Update the driver. No option in " +
                           "MPVLauncher can work around this.")
-                    : _locService.Format("play_mpv_broken", "mpv cannot start ({0}).", res.Probe.Describe()))
-                : res.Message;
+                    : _locService.Format(res.MessageKey, "mpv cannot start ({0}).", res.Args))
+                : (res.Args.Length > 0
+                    ? _locService.Format(res.MessageKey, "", res.Args)
+                    : _locService.Get(res.MessageKey));
 
             LoadHistory();
         }
@@ -1582,6 +1586,7 @@ namespace MpvLauncher.Gui
                     "TxtColorBorder" => TxtColorBorder,
                     "TxtColorTextPrimary" => TxtColorTextPrimary,
                     "TxtColorTextSecondary" => TxtColorTextSecondary,
+                    "TxtColorLogo" => TxtColorLogo,
                     _ => null
                 };
 
@@ -1893,12 +1898,6 @@ namespace MpvLauncher.Gui
             ChkAutoUpdate.Content = _locService.Get("label_auto_update", "Download new versions automatically");
             TxtUpdateTitle.Text = _locService.Get("label_updates", "Updates");
 
-            // Redrawn from the state it is holding rather than given a fixed
-            // label, so a staged update keeps its install button across a
-            // language change and the status line stops being the one place on
-            // the window that still speaks the previous language.
-            RenderUpdateCard();
-
             TxtDataFolderTitle.Text = _locService.Get("data_folder_title", "Application data folder");
             BtnShowDataFolder.Content = _locService.Get("btn_show_folder", "Show folder");
             TxtLangTitle.Text = _locService.Get("lang_title", "Application Language");
@@ -1958,7 +1957,19 @@ namespace MpvLauncher.Gui
             TxtGuideCustomSub.Text = _locService.Get("guide_custom_sub", "Customize every visual aspect of the launcher in the 'Themes' tab:");
             TxtGuideCustomBody.Text = _locService.Get("guide_custom_body", "• Corner Radii: Adjust window and card corners between 0px and 24px.\n• Independent Opacity: Fine-tune transparency for cards, sidebar, inputs, and buttons.\n• Frosted Glass & Shadow: Adjust blur strength and shadow intensity in real time.\n• Reset to Defaults: Restore default theme and styling anytime with the red 'Reset to Defaults' button.");
 
-            TxtStatus.Text = _locService.Get("status_ready", "Ready");
+            // The status line is deliberately not touched here. It is transient
+            // state, not a label: whoever has something to say sets it, and
+            // rewriting it to "Ready" on every language change erased whatever
+            // was there - a staged update, a download failure, a relaunch
+            // error. The initial value is set where the window loads.
+            //
+            // State work lives here, at the end, and not among the labels
+            // above: the updates card is redrawn from the state it is holding
+            // rather than given a fixed label, so a staged update keeps its
+            // install button across a language change. It used to sit in the
+            // middle of the label table, where anyone changing the card's text
+            // had to know to look for a re-render buried between two strings.
+            RenderUpdateCard();
         }
         #endregion
     }
