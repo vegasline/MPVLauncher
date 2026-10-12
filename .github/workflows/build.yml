@@ -124,12 +124,6 @@ jobs:
       contents: write
 
     steps:
-    # The release body is a file in the repository, and so is the checksum
-    # path the notes refer to, so this job needs the tree even though every
-    # binary it publishes arrives as an artifact.
-    - name: Checkout repository
-      uses: actions/checkout@v4
-
     - name: Download build artifact
       uses: actions/download-artifact@v4
       with:
@@ -142,19 +136,6 @@ jobs:
         name: MPVLauncher-Checksum
         path: ./dist
 
-    # The release body is written by hand and committed, because a generated
-    # list of commit subjects does not tell a reader which of the fixes change
-    # what they see. The file is release-notes/<tag>.md, so cutting a release
-    # means writing its notes before pushing its tag - checked below rather than
-    # left to fail with an unhelpful "file not found" from the action.
-    - name: Release notes must exist for this tag
-      run: |
-        $notes = "release-notes/${{ github.ref_name }}.md"
-        if (-not (Test-Path $notes)) {
-          Write-Error "Missing $notes. Write the release notes before pushing the tag."
-        }
-        Get-Content $notes -TotalCount 1
-
     # Both assets travel together. An update that finds the executable but not
     # the checksum is refused rather than applied unverified.
     - name: Create release
@@ -163,4 +144,4 @@ jobs:
         files: |
           ./dist/MPVLauncher.exe
           ./dist/MPVLauncher.exe.sha256
-        body_path: release-notes/${{ github.ref_name }}.md
+        generate_release_notes: true
