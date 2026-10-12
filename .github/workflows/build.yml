@@ -124,6 +124,12 @@ jobs:
       contents: write
 
     steps:
+    # The release body is a file in the repository, and so is the checksum
+    # path the notes refer to, so this job needs the tree even though every
+    # binary it publishes arrives as an artifact.
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
     - name: Download build artifact
       uses: actions/download-artifact@v4
       with:
