@@ -198,28 +198,5 @@ api.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
-  if (message.action === "get_filter_defaults") {
-    sendResponse({
-      success: true,
-      defaults: typeof MPV_FILTER_DEFAULTS !== "undefined" ? MPV_FILTER_DEFAULTS : {}
-    });
-    return false;
-  }
-
-  if (message.action === "apply_filter") {
-    if (typeof MPV_Network === "undefined") {
-      sendResponse({ success: false, items: [] });
-      return false;
-    }
-    const filters = message.filters || {};
-    MPV_Network.getItems(message.tabId).then((raw) => {
-      const kept = raw.filter((item) => mpvPassesFilter(item, filters));
-      sendResponse({ success: true, items: kept, total: raw.length });
-    }).catch(() => {
-      sendResponse({ success: true, items: [], total: 0 });
-    });
-    return true;
-  }
-
   return false;
 });

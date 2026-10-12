@@ -235,35 +235,5 @@ namespace MpvLauncher.Gui.Services
 
         /// <summary>Upper bound for a theme file; real themes are a few KB.</summary>
         private const int MaxThemeBytes = 4 * 1024 * 1024;
-
-        /// <summary>Writes the current theme back out so it survives a restart.</summary>
-        public (bool Success, string Message) SaveTheme(ThemeModel theme)
-        {
-            try
-            {
-                if (string.IsNullOrWhiteSpace(theme.Id))
-                    theme.Id = "custom_" + DateTime.Now.Ticks;
-
-                Directory.CreateDirectory(_themesDir);
-                string targetFile = Path.Combine(_themesDir, $"{theme.Id}.json");
-                File.WriteAllText(targetFile, JsonSerializer.Serialize(theme, new JsonSerializerOptions { WriteIndented = true }));
-                LoadTheme(theme.Id);
-                return (true, $"Theme '{theme.Name}' saved.");
-            }
-            catch (Exception ex)
-            {
-                return (false, "Theme save failed: " + ex.Message);
-            }
-        }
-
-        /// <summary>
-        /// Sets the in-memory theme without touching the disk. The UI uses this
-        /// for the live editor, where the user saves explicitly.
-        /// </summary>
-        public void ApplyTheme(ThemeModel theme)
-        {
-            CurrentTheme = theme;
-            ThemeChanged?.Invoke();
-        }
     }
 }

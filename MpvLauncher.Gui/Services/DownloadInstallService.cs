@@ -48,7 +48,9 @@ namespace MpvLauncher.Gui.Services
     /// </summary>
     public class DownloadInstallService
     {
-        public static string InstallRoot => AppPaths.Root;
+        // Shorthand for the two folders this module writes to. Named because
+        // the download and the extract are far apart in the file and reading
+        // AppPaths.BinDir at both would say the same thing twice.
         public static string BinDir => AppPaths.BinDir;
         public static string CacheDir => AppPaths.CacheDir;
 
@@ -90,14 +92,6 @@ namespace MpvLauncher.Gui.Services
             client.DefaultRequestHeaders.UserAgent.ParseAdd("MPVLauncher/1.0");
             return client;
         }
-
-        public string GetExpectedExePath(ToolKind kind) => kind switch
-        {
-            ToolKind.Mpv => AppPaths.MpvExe,
-            ToolKind.YtDlp => AppPaths.YtDlpExe,
-            ToolKind.Ffmpeg => AppPaths.FfmpegExe,
-            _ => throw new ArgumentOutOfRangeException(nameof(kind))
-        };
 
         /// <summary>
         /// Full install for one tool: resolve the asset, download it, and place

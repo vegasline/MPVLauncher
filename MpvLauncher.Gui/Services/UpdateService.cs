@@ -566,14 +566,5 @@ namespace MpvLauncher.Gui.Services
         {
             try { if (File.Exists(path)) File.Delete(path); } catch { }
         }
-
-        /// <summary>
-        /// Reads the staged version without applying it, for the status line.
-        /// </summary>
-        public bool IsStaged()
-        {
-            try { return File.Exists(StagedPath); }
-            catch { return false; }
-        }
     }
 }
