@@ -1,0 +1,65 @@
+name: mpvtorrent release
+
+on:
+  push:
+    tags:
+      - 'mpvtorrent-v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag (must start with mpvtorrent-v)'
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: tools/mpvtorrent
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: tools/mpvtorrent/package-lock.json
+
+      - name: Install
+        run: npm ci
+
+      - name: Unit tests
+        run: npm test
+
+      - name: Licence audit
+        run: npm run licenses
+
+      - name: Build single executable
+        run: npm run build
+
+      - name: Verify checksum file
+        shell: pwsh
+        run: |
+          $expected = (Get-Content dist/mpvtorrent.exe.sha256).Split(' ')[0]
+          $actual = (Get-FileHash dist/mpvtorrent.exe -Algorithm SHA256).Hash.ToLower()
+          if ($expected -ne $actual) { throw "checksum mismatch" }
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+          name: mpvtorrent ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+          body: |
+            Standalone torrent streaming helper for MPVLauncher.
+
+            - Contract version: 2
+            - Embed the `.sha256` value in the launcher when bumping the helper.
+            - Licence texts: see THIRD_PARTY_NOTICES.md.
+          files: |
+            tools/mpvtorrent/dist/mpvtorrent.exe
+            tools/mpvtorrent/dist/mpvtorrent.exe.sha256
+            tools/mpvtorrent/THIRD_PARTY_NOTICES.md
+          fail_on_unmatched_files: true

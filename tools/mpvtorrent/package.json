@@ -1,0 +1,34 @@
+{
+  "name": "mpvtorrent",
+  "version": "1.0.1",
+  "description": "Headless torrent-to-HTTP streamer used by MPVLauncher",
+  "license": "MIT",
+  "type": "module",
+  "main": "src/index.js",
+  "bin": {
+    "mpvtorrent": "src/index.js"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "start": "node src/index.js",
+    "test": "node --test test/*.test.js",
+    "bundle": "node scripts/build.js",
+    "build": "node scripts/build-sea.mjs",
+    "licenses": "node scripts/collect-licenses.mjs",
+    "e2e": "node scripts/e2e.js"
+  },
+  "dependencies": {
+    "webtorrent": "3.0.21"
+  },
+  "devDependencies": {
+    "esbuild": "0.28.2",
+    "postject": "1.0.0-alpha.6"
+  },
+  "overrides": {
+    "webrtc-polyfill": "file:./vendor/webrtc-polyfill",
+    "compact2string": "file:./vendor/compact2string",
+    "utp-native": "file:./vendor/utp-native"
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "name": "utp-native",
+  "version": "2.5.3-mpvtorrent.0",
+  "description": "Deliberate no-op stand-in for utp-native. mpvtorrent uses TCP only; WebRTC and uTP native modules are not shipped.",
+  "main": "index.js",
+  "license": "MIT",
+  "private": true
+}

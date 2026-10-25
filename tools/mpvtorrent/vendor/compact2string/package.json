@@ -1,0 +1,8 @@
+{
+  "name": "compact2string",
+  "version": "1.4.1-mpvtorrent.0",
+  "description": "Clean-room MIT implementation of the compact peer address format used by trackers and PEX.",
+  "main": "index.js",
+  "license": "MIT",
+  "private": true
+}

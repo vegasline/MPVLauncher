@@ -1,0 +1,9 @@
+{
+  "name": "webrtc-polyfill",
+  "version": "1.2.2-mpvtorrent.0",
+  "description": "Deliberate no-WebRTC stand-in for webrtc-polyfill. WebRTC is disabled in mpvtorrent; TCP, UDP, DHT, trackers and PEX are used instead.",
+  "type": "module",
+  "main": "index.js",
+  "license": "MIT",
+  "private": true
+}
