@@ -94,6 +94,13 @@ namespace MpvLauncher.Gui
         /// <summary>File list from the last metadata event, used by the picker.</summary>
         private IReadOnlyList<TorrentFileEntry> _torrentFiles = Array.Empty<TorrentFileEntry>();
 
+        /// <summary>
+        /// Torrent name from the metadata event. Kept separately from the card
+        /// title because localization re-applies labels to that title, and the
+        /// picker header must still name the torrent the files belong to.
+        /// </summary>
+        private string _torrentName = "";
+
         /// <summary>True between the click and the helper's first state event.</summary>
         private bool _torrentStarting;
 
@@ -1622,6 +1629,7 @@ namespace MpvLauncher.Gui
             _torrentSource = source;
             _torrentInfoHash = source.InfoHash;
             _torrentFiles = Array.Empty<TorrentFileEntry>();
+            _torrentName = "";
 
             TxtTorrentTitle.Text = _locService.Get("torrent_card_title", "Torrent stream");
             TxtTorrentStatus.Text = _locService.Get("torrent_status_starting", "Starting the torrent helper...");
@@ -1669,7 +1677,11 @@ namespace MpvLauncher.Gui
                     break;
 
                 case "metadata":
-                    if (!string.IsNullOrEmpty(e.Name)) TxtTorrentTitle.Text = e.Name;
+                    if (!string.IsNullOrEmpty(e.Name))
+                    {
+                        _torrentName = e.Name!;
+                        TxtTorrentTitle.Text = e.Name;
+                    }
                     if (e.Files != null) _torrentFiles = e.Files;
                     break;
 
@@ -1732,7 +1744,10 @@ namespace MpvLauncher.Gui
         {
             if (_torrentFiles.Count == 0) return;
 
-            var dlg = new TorrentFilePickerDialog(_torrentFiles, TxtTorrentTitle.Text) { Owner = this };
+            var dlg = new TorrentFilePickerDialog(
+                _torrentFiles,
+                string.IsNullOrWhiteSpace(_torrentName) ? TxtTorrentTitle.Text : _torrentName,
+                _locService.Get) { Owner = this };
             if (dlg.ShowDialog() == true)
             {
                 await _torrentSession.SendSelectAsync(dlg.SelectedIndex);
@@ -1755,8 +1770,14 @@ namespace MpvLauncher.Gui
             string title = string.IsNullOrWhiteSpace(e.DisplayName)
                 ? (e.FileName ?? "")
                 : e.DisplayName!;
-            if (!string.IsNullOrWhiteSpace(e.Name) && !title.StartsWith(e.Name, StringComparison.Ordinal))
-                title = e.Name + " - " + title;
+
+            // The card, the picker and mpv should read the same. The ready event
+            // does not carry the torrent name, so the remembered one is used.
+            if (!string.IsNullOrWhiteSpace(_torrentName)
+                && !title.StartsWith(_torrentName, StringComparison.Ordinal))
+            {
+                title = _torrentName + " - " + title;
+            }
 
             var res = _procService.PlayMedia(e.Url, mpvArgs, title, addHistory: false);
             if (!res.Success || res.Process == null)
@@ -1830,6 +1851,7 @@ namespace MpvLauncher.Gui
                 await _torrentSession.StopAsync();
                 CardTorrent.Visibility = Visibility.Collapsed;
                 _torrentFiles = Array.Empty<TorrentFileEntry>();
+                _torrentName = "";
                 _torrentSource = null;
                 _torrentInfoHash = "";
             }
@@ -2426,7 +2448,9 @@ namespace MpvLauncher.Gui
             TxtSettingsTitle.Text = _locService.Get("settings_title", "Application & MPV Settings");
 
             // ---- Torrent streaming ----
-            TxtTorrentTitle.Text = _locService.Get("torrent_card_title", "Torrent stream");
+            TxtTorrentTitle.Text = string.IsNullOrWhiteSpace(_torrentName)
+                ? _locService.Get("torrent_card_title", "Torrent stream")
+                : _torrentName;
             BtnTorrentCancel.Content = _locService.Get("torrent_btn_cancel", "Cancel");
             BtnTorrentOpenSettings.Content = _locService.Get("torrent_open_settings", "Open torrent settings");
             TxtTorrentSettingsTitle.Text = _locService.Get("torrent_settings_title", "Torrent streaming (optional)");

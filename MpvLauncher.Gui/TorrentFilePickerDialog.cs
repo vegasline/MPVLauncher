@@ -23,9 +23,14 @@ namespace MpvLauncher.Gui
 
         private sealed record TorrentFileRow(int Index, string Name, string Size);
 
-        public TorrentFilePickerDialog(IReadOnlyList<Services.TorrentFileEntry> files, string torrentName)
+        public TorrentFilePickerDialog(
+            IReadOnlyList<Services.TorrentFileEntry> files,
+            string torrentName,
+            System.Func<string, string, string>? loc = null)
         {
-            Title = "Select a file";
+            string L(string key, string fallback) => loc == null ? fallback : loc(key, fallback);
+
+            Title = L("torrent_picker_title", "Select a file");
             Width = 720;
             Height = 480;
             MinWidth = 520;
@@ -62,13 +67,13 @@ namespace MpvLauncher.Gui
             var view = new GridView();
             view.Columns.Add(new GridViewColumn
             {
-                Header = "File",
+                Header = L("torrent_picker_file", "File"),
                 Width = 520,
                 DisplayMemberBinding = new System.Windows.Data.Binding(nameof(TorrentFileRow.Name))
             });
             view.Columns.Add(new GridViewColumn
             {
-                Header = "Size",
+                Header = L("torrent_picker_size", "Size"),
                 Width = 120,
                 DisplayMemberBinding = new System.Windows.Data.Binding(nameof(TorrentFileRow.Size))
             });
@@ -96,7 +101,7 @@ namespace MpvLauncher.Gui
             };
             var cancel = new Button
             {
-                Content = "Cancel",
+                Content = L("torrent_picker_cancel", "Cancel"),
                 Padding = new Thickness(16, 8, 16, 8),
                 Margin = new Thickness(0, 0, 8, 0),
                 IsCancel = true
@@ -104,7 +109,7 @@ namespace MpvLauncher.Gui
             cancel.Click += (_, _) => { DialogResult = false; Close(); };
             var select = new Button
             {
-                Content = "Play selected file",
+                Content = L("torrent_picker_play", "Play selected file"),
                 Padding = new Thickness(16, 8, 16, 8),
                 IsDefault = true
             };
