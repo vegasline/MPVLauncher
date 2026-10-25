@@ -57,11 +57,37 @@ namespace MpvLauncher.Gui.Services
         // Upstream projects. The asset is then chosen by predicate, so a release
         // that renames or adds a build does not break the lookup as long as one
         // asset still matches.
-        private const string MpvRepo = "shinchiro/mpv-winbuild-cmake";
+        internal const string MpvRepo = "shinchiro/mpv-winbuild-cmake";
         private const string MpvAssetPrefix = "mpv-x86_64-v3";
-        private const string YtDlpRepo = "yt-dlp/yt-dlp";
+        internal const string YtDlpRepo = "yt-dlp/yt-dlp";
         private const string YtDlpAssetName = "yt-dlp.exe";
-        private const string FfmpegRepo = "GyanD/codexffmpeg";
+        internal const string FfmpegRepo = "GyanD/codexffmpeg";
+
+        internal static bool IsMpvAsset(string name) =>
+            name.StartsWith(MpvAssetPrefix, StringComparison.OrdinalIgnoreCase);
+
+        internal static bool IsYtDlpAsset(string name) =>
+            name.Equals(YtDlpAssetName, StringComparison.OrdinalIgnoreCase);
+
+        /// <summary>
+        /// The FFmpeg release ships several builds; "essentials" is the one this
+        /// app installs, and the .zip variant is preferred over .7z only because
+        /// it was the first match historically. Both extract the same files.
+        /// </summary>
+        internal static bool IsFfmpegAsset(string name) =>
+            name.Contains("essentials_build", StringComparison.OrdinalIgnoreCase)
+            && name.EndsWith(".zip", StringComparison.OrdinalIgnoreCase);
+
+        /// <summary>
+        /// One release as far as the update check needs it: the tag for display,
+        /// the publication time for date-based comparisons, and the asset that
+        /// would be installed.
+        /// </summary>
+        internal sealed record UpstreamRelease(
+            string Tag,
+            DateTimeOffset? PublishedAt,
+            string AssetName,
+            string AssetUrl);
 
         private static readonly HttpClient Http = CreateHttpClient();
         private readonly ConfigService _configService;
@@ -167,14 +193,12 @@ namespace MpvLauncher.Gui.Services
             {
                 case ToolKind.Mpv:
                 {
-                    var asset = await FindGitHubAssetAsync(MpvRepo, name =>
-                        name.StartsWith(MpvAssetPrefix, StringComparison.OrdinalIgnoreCase), ct);
+                    var asset = await FindGitHubAssetAsync(MpvRepo, IsMpvAsset, ct);
                     return (asset.Url, asset.Name);
                 }
                 case ToolKind.YtDlp:
                 {
-                    var asset = await FindGitHubAssetAsync(YtDlpRepo, name =>
-                        name.Equals(YtDlpAssetName, StringComparison.OrdinalIgnoreCase), ct);
+                    var asset = await FindGitHubAssetAsync(YtDlpRepo, IsYtDlpAsset, ct);
                     return (asset.Url, asset.Name);
                     // Bare executable; no extraction step.
                 }
@@ -182,9 +206,7 @@ namespace MpvLauncher.Gui.Services
                 {
                     try
                     {
-                        var zip = await FindGitHubAssetAsync(FfmpegRepo, name =>
-                            name.Contains("essentials_build", StringComparison.OrdinalIgnoreCase)
-                            && name.EndsWith(".zip", StringComparison.OrdinalIgnoreCase), ct);
+                        var zip = await FindGitHubAssetAsync(FfmpegRepo, IsFfmpegAsset, ct);
                         return (zip.Url, zip.Name);
                     }
                     catch
@@ -212,6 +234,23 @@ namespace MpvLauncher.Gui.Services
             Func<string, bool> predicate,
             CancellationToken ct)
         {
+            var release = await GetLatestReleaseAsync(repo, predicate, ct);
+            return (release.AssetName, release.AssetUrl);
+        }
+
+        /// <summary>
+        /// Reads the latest release of a repository, including the tag and
+        /// publication date the update check compares against what is installed.
+        ///
+        /// Shares the client and the single release request with the installer,
+        /// so checking three tools costs three API calls rather than nine, and an
+        /// unauthenticated client stays well below its hourly limit.
+        /// </summary>
+        internal async Task<UpstreamRelease> GetLatestReleaseAsync(
+            string repo,
+            Func<string, bool> predicate,
+            CancellationToken ct)
+        {
             string apiUrl = $"https://api.github.com/repos/{repo}/releases/latest";
             using var req = new HttpRequestMessage(HttpMethod.Get, apiUrl);
             req.Headers.Accept.ParseAdd("application/vnd.github+json");
@@ -222,8 +261,21 @@ namespace MpvLauncher.Gui.Services
             await using var stream = await resp.Content.ReadAsStreamAsync(ct);
             using var doc = await JsonDocument.ParseAsync(stream, cancellationToken: ct);
 
-            if (!doc.RootElement.TryGetProperty("assets", out var assets) || assets.ValueKind != JsonValueKind.Array)
+            var root = doc.RootElement;
+
+            if (!root.TryGetProperty("assets", out var assets) || assets.ValueKind != JsonValueKind.Array)
                 throw new InvalidOperationException($"{repo}: release asset list is empty.");
+
+            string tag = root.TryGetProperty("tag_name", out var tagElement)
+                ? tagElement.GetString() ?? ""
+                : "";
+
+            DateTimeOffset? published = null;
+            if (root.TryGetProperty("published_at", out var publishedElement)
+                && DateTimeOffset.TryParse(publishedElement.GetString(), out var parsed))
+            {
+                published = parsed;
+            }
 
             foreach (var asset in assets.EnumerateArray())
             {
@@ -232,7 +284,7 @@ namespace MpvLauncher.Gui.Services
 
                 string url = asset.GetProperty("browser_download_url").GetString()
                     ?? throw new InvalidOperationException($"{name}: download URL missing.");
-                return (name, url);
+                return new UpstreamRelease(tag, published, name, url);
             }
 
             throw new InvalidOperationException($"{repo}: matching asset not found.");

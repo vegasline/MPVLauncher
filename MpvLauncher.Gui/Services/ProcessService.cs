@@ -92,7 +92,8 @@ namespace MpvLauncher.Gui.Services
         bool Success,
         string MessageKey,
         string[] Args,
-        MpvProbe Probe)
+        MpvProbe Probe,
+        Process? Process = null)
     {
         public const string Started = "play_mpv_started";
         public const string NotFound = "play_mpv_not_found";
@@ -100,8 +101,8 @@ namespace MpvLauncher.Gui.Services
         public const string NotRunnable = "play_mpv_broken";
         public const string LaunchFailed = "play_launch_failed";
 
-        public static LaunchResult Ok(MpvProbe probe) =>
-            new(true, Started, Array.Empty<string>(), probe);
+        public static LaunchResult Ok(MpvProbe probe, Process? process = null) =>
+            new(true, Started, Array.Empty<string>(), probe, process);
 
         public static LaunchResult Fail(string key, MpvProbe probe, params string[] args) =>
             new(false, key, args, probe);
@@ -243,7 +244,7 @@ namespace MpvLauncher.Gui.Services
         /// Unlike the extension path this accepts local paths and other schemes,
         /// because the value came from the user rather than from a web page.
         /// </summary>
-        public LaunchResult PlayMedia(string urlOrPath)
+        public LaunchResult PlayMedia(string urlOrPath, IReadOnlyList<string>? sessionArgs = null, string title = "", bool addHistory = true)
     {
         if (string.IsNullOrWhiteSpace(urlOrPath))
             return LaunchResult.Fail(LaunchResult.EmptyInput,
@@ -282,6 +283,15 @@ namespace MpvLauncher.Gui.Services
             argsList.Add($"--profile={cfg.MpvProfile.Trim()}");
         if (!string.IsNullOrWhiteSpace(cfg.ExtraArgs))
             argsList.AddRange(CommandLineTokenize.Split(cfg.ExtraArgs.Trim()));
+
+        // Session-only options supplied by the torrent path. They are never
+        // written to mpv.conf: the torrent feature must not change how mpv
+        // behaves when it is opened on its own.
+        if (sessionArgs != null)
+            argsList.AddRange(sessionArgs);
+        if (!string.IsNullOrWhiteSpace(title))
+            argsList.Add($"--title={title}");
+
         argsList.Add(url);
 
         try
@@ -294,9 +304,9 @@ namespace MpvLauncher.Gui.Services
             };
             foreach (string a in argsList) psi.ArgumentList.Add(a);
 
-            Process.Start(psi);
-            _configService.AddHistory(url);
-            return LaunchResult.Ok(probe);
+            var process = Process.Start(psi);
+            if (addHistory) _configService.AddHistory(url);
+            return LaunchResult.Ok(probe, process);
         }
         catch (Exception ex)
         {

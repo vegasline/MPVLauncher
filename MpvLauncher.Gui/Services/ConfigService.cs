@@ -102,6 +102,61 @@ namespace MpvLauncher.Gui.Services
         /// <summary>Recent URLs, newest first, capped at 50 by AddHistory.</summary>
         public List<HistoryItem> PlaybackHistory { get; set; } = new();
 
+        // ---- Optional torrent streaming (off unless the user enables it) ----
+        // These are launcher settings, not helper options: the helper receives
+        // them on its command line and validates them again. Defaults here are
+        // the documented ones, so a config.json written by an older build keeps
+        // working without a migration step.
+
+        /// <summary>Master switch. Every torrent source is refused while false.</summary>
+        public bool TorrentStreamingEnabled { get; set; } = false;
+
+        /// <summary>Set after the user has seen the privacy notice once.</summary>
+        public bool TorrentPrivacyAccepted { get; set; } = false;
+
+        /// <summary>
+        /// Root for per-session folders. Empty means
+        /// %APPDATA%\MPVLauncher\cache\torrent. A custom folder is still
+        /// cleaned per session; the launcher only removes folders it created.
+        /// </summary>
+        public string TorrentDownloadDir { get; set; } = "";
+
+        /// <summary>Remember the chosen file per info hash.</summary>
+        public bool TorrentRememberFile { get; set; } = true;
+
+        public int TorrentForwardWindowMiB { get; set; } = TorrentSettings.DefaultForwardWindowMiB;
+        public int TorrentMpvBufferMiB { get; set; } = TorrentSettings.DefaultMpvBufferMiB;
+
+        /// <summary>KiB/s. 0 means uploads are off; never more than 128.</summary>
+        public int TorrentUploadLimitKiB { get; set; } = TorrentSettings.DefaultUploadKiB;
+
+        public int TorrentMaxConnections { get; set; } = TorrentSettings.DefaultMaxConnections;
+        public int TorrentMaxHalfOpen { get; set; } = TorrentSettings.DefaultMaxHalfOpen;
+
+        /// <summary>
+        /// Seconds playback waits for the end of the file. 0 starts as soon as
+        /// the beginning is ready; the tail downloads in the background.
+        /// </summary>
+        public int TorrentTailWaitSeconds { get; set; } = TorrentSettings.DefaultTailWaitSeconds;
+
+        /// <summary>
+        /// Extra tracker list, one URL per line. Empty means the verified
+        /// defaults in <see cref="TorrentSettings.DefaultTrackerList"/>.
+        /// </summary>
+        public string TorrentTrackerList { get; set; } = "";
+
+        /// <summary>Version tag of the installed helper, for update checks.</summary>
+        public string TorrentHelperVersion { get; set; } = "";
+
+        /// <summary>
+        /// SHA256 of the installed helper. Checked before every launch, so a
+        /// swapped binary is refused even if the version string still matches.
+        /// </summary>
+        public string TorrentHelperSha256 { get; set; } = "";
+
+        /// <summary>Info hash to last played file index.</summary>
+        public Dictionary<string, int> TorrentLastFiles { get; set; } = new();
+
         /// <summary>
         /// Returns every appearance override to its shipped value.
         ///

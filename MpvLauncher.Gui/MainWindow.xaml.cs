@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
@@ -76,7 +77,28 @@ namespace MpvLauncher.Gui
         private readonly DependencyService _depService;
         private readonly BrowserIntegrationService _browserService;
         private readonly DownloadInstallService _downloadService;
+        private readonly ToolUpdateService _toolUpdateService;
         private readonly ModernZAnime4kService _modernZService;
+        private readonly TorrentHelperInstallService _torrentInstaller;
+        private readonly TorrentSessionService _torrentSession;
+
+        /// <summary>The mpv process started for a torrent stream, if any.</summary>
+        private Process? _torrentMpv;
+
+        /// <summary>The source the current card refers to, for history and logs.</summary>
+        private TorrentSource? _torrentSource;
+
+        /// <summary>Info hash reported by the helper, when metadata is available.</summary>
+        private string _torrentInfoHash = "";
+
+        /// <summary>File list from the last metadata event, used by the picker.</summary>
+        private IReadOnlyList<TorrentFileEntry> _torrentFiles = Array.Empty<TorrentFileEntry>();
+
+        /// <summary>True between the click and the helper's first state event.</summary>
+        private bool _torrentStarting;
+
+        /// <summary>True while a deliberate shutdown is in progress, so an exit is not an error.</summary>
+        private bool _torrentStopping;
 
         /// <summary>Corner radius used by the borderless window chrome.</summary>
         private const double WindowCornerRadius = 8;
@@ -110,7 +132,19 @@ namespace MpvLauncher.Gui
             _depService = new DependencyService(_procService);
             _browserService = new BrowserIntegrationService();
             _downloadService = new DownloadInstallService(_configService);
+            _toolUpdateService = new ToolUpdateService(_procService, _depService, _downloadService);
             _modernZService = new ModernZAnime4kService();
+            _torrentInstaller = new TorrentHelperInstallService(_configService);
+            _torrentSession = new TorrentSessionService();
+
+            // A previous run that crashed leaves session folders behind. They
+            // are all under our cache directory and no other process can be
+            // using them, because the helper exits with its launcher.
+            TorrentSessionService.CleanStaleSessions();
+
+            _torrentSession.EventReceived += e => Dispatcher.InvokeAsync(() => OnTorrentEvent(e));
+            _torrentSession.Ready += e => Dispatcher.InvokeAsync(() => OnTorrentReady(e));
+            _torrentSession.Exited += code => Dispatcher.InvokeAsync(() => OnTorrentExited(code));
 
             // Theme and language changes come from the settings pages, so the
             // window subscribes rather than being told.
@@ -130,6 +164,11 @@ namespace MpvLauncher.Gui
             // started while this process is still the locked one it is waiting
             // on - Closed is too late, the process is already going.
             Closing += (_, _) => UpdateService.ScheduleOldExecutableRemoval();
+
+            // The helper also notices a dead launcher by itself; this is only
+            // the fast path so the port and the files go away immediately. It
+            // must not block the UI thread while the helper shuts down.
+            Closing += (_, _) => _ = _torrentSession.StopAsync(TimeSpan.FromSeconds(2));
         }
 
         /// <summary>
@@ -186,6 +225,7 @@ namespace MpvLauncher.Gui
             TxtInstallDir.Text = $"Tools folder: {AppPaths.BinDir}";
             TxtDataFolderPath.Text = AppPaths.Root;
             TxtStatus.Text = _locService.Get("status_ready", "Ready");
+            PopulateTorrentSettings();
 
             _ = RefreshDependenciesAsync();
             _ = InitializeBrowserIntegrationAsync();
@@ -318,6 +358,15 @@ namespace MpvLauncher.Gui
         /// </summary>
         private void Play(string target)
         {
+            // Torrent sources are intercepted before mpv is involved. The gate
+            // is checked here rather than in the click handlers so the URL box,
+            // the file picker, drag/drop and history rows all behave the same.
+            if (TorrentSourceParser.TryParse(target, out var torrent, out _))
+            {
+                _ = PlayTorrentAsync(torrent);
+                return;
+            }
+
             TxtStatus.Text = _locService.Get("status_playing", "Launching MPV...");
             var res = _procService.PlayMedia(target);
 
@@ -462,12 +511,44 @@ namespace MpvLauncher.Gui
             }
         }
 
-        private async void BtnUpdateYtdl_Click(object sender, RoutedEventArgs e)
+        private async void BtnCheckToolUpdates_Click(object sender, RoutedEventArgs e)
         {
-            TxtStatus.Text = "Updating yt-dlp...";
-            var res = await _depService.UpdateYtdlAsync();
-            TxtStatus.Text = res.Success ? "yt-dlp updated." : res.Output;
-            await RefreshDependenciesAsync();
+            BtnCheckToolUpdates.IsEnabled = false;
+            TxtStatus.Text = _locService.Get("tools_updates_checking", "Checking program updates...");
+
+            try
+            {
+                // GitHub release lookups and the three --version probes are all
+                // blocking work; none of it may run on the UI thread.
+                var items = await Task.Run(() => _toolUpdateService.CheckAllAsync());
+
+                TxtStatus.Text = items.All(i => i.State == ToolUpdateState.UpToDate)
+                    ? _locService.Get("tools_updates_all_current", "All three programs are up to date.")
+                    : "";
+
+                var dialog = new ToolUpdatesDialog(
+                    items,
+                    _locService.Get,
+                    async (kind, progress) =>
+                    {
+                        var result = await _downloadService.InstallAsync(kind, progress);
+                        if (result.Success) await RefreshDependenciesAsync();
+                        return result;
+                    })
+                {
+                    Owner = this
+                };
+
+                dialog.ShowDialog();
+            }
+            catch (Exception ex)
+            {
+                TxtStatus.Text = _locService.Get("tools_updates_failed", "Check failed") + ": " + ex.Message;
+            }
+            finally
+            {
+                BtnCheckToolUpdates.IsEnabled = true;
+            }
         }
 
         private async void BtnInstallMpv_Click(object sender, RoutedEventArgs e)
@@ -1301,6 +1382,476 @@ namespace MpvLauncher.Gui
         }
         #endregion
 
+        #region Torrent streaming
+
+        private bool _torrentSettingsLoading;
+
+        private void PopulateTorrentSettings()
+        {
+            _torrentSettingsLoading = true;
+            try
+            {
+                var cfg = _configService.Config;
+                ChkTorrentEnabled.IsChecked = cfg.TorrentStreamingEnabled;
+                ChkTorrentRememberFile.IsChecked = cfg.TorrentRememberFile;
+                TxtTorrentDownloadDir.Text = TorrentLaunchPolicy.EffectiveDownloadDirectory(cfg);
+                TxtTorrentWindow.Text = cfg.TorrentForwardWindowMiB.ToString(CultureInfo.InvariantCulture);
+                TxtTorrentBuffer.Text = cfg.TorrentMpvBufferMiB.ToString(CultureInfo.InvariantCulture);
+                TxtTorrentUpload.Text = cfg.TorrentUploadLimitKiB.ToString(CultureInfo.InvariantCulture);
+                TxtTorrentMaxConns.Text = cfg.TorrentMaxConnections.ToString(CultureInfo.InvariantCulture);
+                TxtTorrentHalfOpen.Text = cfg.TorrentMaxHalfOpen.ToString(CultureInfo.InvariantCulture);
+                TxtTorrentTailWait.Text = cfg.TorrentTailWaitSeconds.ToString(CultureInfo.InvariantCulture);
+                TxtTorrentTrackers.Text = string.IsNullOrWhiteSpace(cfg.TorrentTrackerList)
+                    ? TorrentSettings.DefaultTrackerList
+                    : cfg.TorrentTrackerList;
+            }
+            finally
+            {
+                _torrentSettingsLoading = false;
+            }
+
+            UpdateTorrentHelperStatus();
+        }
+
+        private void UpdateTorrentHelperStatus()
+        {
+            var cfg = _configService.Config;
+            if (TorrentHelperInstallService.IsInstalled)
+            {
+                string version = string.IsNullOrWhiteSpace(cfg.TorrentHelperVersion) ? "?" : cfg.TorrentHelperVersion;
+                TxtTorrentHelperStatus.Text = _locService.Format(
+                    "torrent_helper_installed", "Installed (v{0})", version);
+            }
+            else
+            {
+                TxtTorrentHelperStatus.Text = _locService.Get(
+                    "torrent_helper_not_installed", "Not installed");
+            }
+
+            BtnInstallTorrentHelper.Content = _locService.Get(
+                "torrent_install_helper", "Download & install");
+        }
+
+        /// <summary>
+        /// Parses one numeric field. A value that is not a number falls back to
+        /// the documented default; a number outside the range is clamped. The
+        /// caller gets one flag for both so it can say "some values changed".
+        /// </summary>
+        private static int ReadTorrentInt(TextBox box, int fallback, Func<int, int> normalize, ref bool invalid)
+        {
+            if (!int.TryParse(box.Text.Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out int value))
+            {
+                invalid = true;
+                value = fallback;
+            }
+            return normalize(value);
+        }
+
+        private void BtnSaveTorrentSettings_Click(object sender, RoutedEventArgs e)
+        {
+            var cfg = _configService.Config;
+            bool invalid = false;
+
+            cfg.TorrentStreamingEnabled = ChkTorrentEnabled.IsChecked == true;
+            cfg.TorrentRememberFile = ChkTorrentRememberFile.IsChecked ?? true;
+            cfg.TorrentDownloadDir = TxtTorrentDownloadDir.Text.Trim();
+            cfg.TorrentForwardWindowMiB = ReadTorrentInt(
+                TxtTorrentWindow, TorrentSettings.DefaultForwardWindowMiB, TorrentSettings.NormalizeForwardWindowMiB, ref invalid);
+            cfg.TorrentMpvBufferMiB = ReadTorrentInt(
+                TxtTorrentBuffer, TorrentSettings.DefaultMpvBufferMiB, TorrentSettings.NormalizeMpvBufferMiB, ref invalid);
+            cfg.TorrentUploadLimitKiB = ReadTorrentInt(
+                TxtTorrentUpload, TorrentSettings.DefaultUploadKiB, TorrentSettings.NormalizeUploadKiB, ref invalid);
+            cfg.TorrentMaxConnections = ReadTorrentInt(
+                TxtTorrentMaxConns, TorrentSettings.DefaultMaxConnections, TorrentSettings.NormalizeMaxConnections, ref invalid);
+            cfg.TorrentMaxHalfOpen = ReadTorrentInt(
+                TxtTorrentHalfOpen, TorrentSettings.DefaultMaxHalfOpen,
+                v => TorrentSettings.NormalizeHalfOpen(v, cfg.TorrentMaxConnections), ref invalid);
+            cfg.TorrentTailWaitSeconds = ReadTorrentInt(
+                TxtTorrentTailWait, TorrentSettings.DefaultTailWaitSeconds, TorrentSettings.NormalizeTailWait, ref invalid);
+            cfg.TorrentTrackerList = TorrentSettings.NormalizeTrackerList(TxtTorrentTrackers.Text);
+            _configService.Save();
+            UpdateUrlHint();
+
+            // Show what was actually stored, so a clamped or rejected value is
+            // visible instead of silently different from what was typed.
+            TxtTorrentWindow.Text = cfg.TorrentForwardWindowMiB.ToString(CultureInfo.InvariantCulture);
+            TxtTorrentBuffer.Text = cfg.TorrentMpvBufferMiB.ToString(CultureInfo.InvariantCulture);
+            TxtTorrentUpload.Text = cfg.TorrentUploadLimitKiB.ToString(CultureInfo.InvariantCulture);
+            TxtTorrentMaxConns.Text = cfg.TorrentMaxConnections.ToString(CultureInfo.InvariantCulture);
+            TxtTorrentHalfOpen.Text = cfg.TorrentMaxHalfOpen.ToString(CultureInfo.InvariantCulture);
+            TxtTorrentTailWait.Text = cfg.TorrentTailWaitSeconds.ToString(CultureInfo.InvariantCulture);
+            TxtTorrentTrackers.Text = cfg.TorrentTrackerList;
+            TxtTorrentSettingsStatus.Text = invalid
+                ? _locService.Get("torrent_bad_number", "Some values were invalid and were replaced with defaults.")
+                : _locService.Get("torrent_saved", "Torrent settings saved.");
+
+            if (!cfg.TorrentStreamingEnabled && _torrentSession.IsRunning)
+                _ = StopTorrentAsync(killMpv: true);
+        }
+
+        private void ChkTorrentEnabled_Changed(object sender, RoutedEventArgs e)
+        {
+            if (_torrentSettingsLoading) return;
+            bool enabled = ChkTorrentEnabled.IsChecked == true;
+            _configService.Config.TorrentStreamingEnabled = enabled;
+            _configService.Save();
+            UpdateUrlHint();
+
+            if (!enabled && _torrentSession.IsRunning)
+                _ = StopTorrentAsync(killMpv: true);
+        }
+
+        /// <summary>
+        /// WPF text boxes have no placeholder, so the hint is a separate TextBlock
+        /// shown while the box is empty. Magnet links are only named when the
+        /// torrent feature is on; with it off they would be refused on paste.
+        /// </summary>
+        private void UpdateUrlHint()
+        {
+            TxtUrlHint.Text = _configService.Config.TorrentStreamingEnabled
+                ? _locService.Get("input_url_hint", "Paste a URL or magnet link")
+                : _locService.Get("input_url_hint_url", "Paste a video URL");
+        }
+
+        private void BtnBrowseTorrentDir_Click(object sender, RoutedEventArgs e)
+        {
+            var dlg = new OpenFolderDialog
+            {
+                Title = _locService.Get("torrent_dir_label", "Temporary download folder"),
+                InitialDirectory = TorrentLaunchPolicy.EffectiveDownloadDirectory(_configService.Config)
+            };
+            if (dlg.ShowDialog() == true)
+                TxtTorrentDownloadDir.Text = dlg.FolderName;
+        }
+
+        private void BtnTorrentResetField_Click(object sender, RoutedEventArgs e)
+        {
+            string tag = (sender as Button)?.Tag?.ToString() ?? "";
+            switch (tag)
+            {
+                case "window": TxtTorrentWindow.Text = TorrentSettings.DefaultForwardWindowMiB.ToString(CultureInfo.InvariantCulture); break;
+                case "buffer": TxtTorrentBuffer.Text = TorrentSettings.DefaultMpvBufferMiB.ToString(CultureInfo.InvariantCulture); break;
+                case "upload": TxtTorrentUpload.Text = TorrentSettings.DefaultUploadKiB.ToString(CultureInfo.InvariantCulture); break;
+                case "conns": TxtTorrentMaxConns.Text = TorrentSettings.DefaultMaxConnections.ToString(CultureInfo.InvariantCulture); break;
+                case "halfopen": TxtTorrentHalfOpen.Text = TorrentSettings.DefaultMaxHalfOpen.ToString(CultureInfo.InvariantCulture); break;
+                case "tailwait": TxtTorrentTailWait.Text = TorrentSettings.DefaultTailWaitSeconds.ToString(CultureInfo.InvariantCulture); break;
+                case "trackers": TxtTorrentTrackers.Text = TorrentSettings.DefaultTrackerList; break;
+            }
+        }
+
+        private async void BtnInstallTorrentHelper_Click(object sender, RoutedEventArgs e)
+        {
+            BtnInstallTorrentHelper.IsEnabled = false;
+            TxtTorrentSettingsStatus.Text = _locService.Get("torrent_helper_installing", "Downloading helper...");
+            try
+            {
+                var progress = new Progress<DownloadProgress>(p =>
+                {
+                    TxtTorrentSettingsStatus.Text = p.Percent is double pct
+                        ? $"{p.Stage} {pct:0}%"
+                        : p.Stage;
+                });
+
+                var result = await _torrentInstaller.InstallAsync(progress);
+                if (result.Success)
+                {
+                    _configService.Config.TorrentHelperVersion = result.Version;
+                    _configService.Config.TorrentHelperSha256 = result.Sha256;
+                    _configService.Save();
+                    TxtTorrentSettingsStatus.Text = _locService.Format(
+                        "torrent_helper_installed", "Installed (v{0})", result.Version);
+                }
+                else
+                {
+                    TxtTorrentSettingsStatus.Text = _locService.Format(
+                        "torrent_helper_failed", "Helper install failed: {0}", result.Message);
+                }
+            }
+            catch (Exception ex)
+            {
+                TxtTorrentSettingsStatus.Text = _locService.Format(
+                    "torrent_helper_failed", "Helper install failed: {0}", ex.Message);
+            }
+            finally
+            {
+                UpdateTorrentHelperStatus();
+                BtnInstallTorrentHelper.IsEnabled = true;
+            }
+        }
+
+        private async Task PlayTorrentAsync(TorrentSource source)
+        {
+            var cfg = _configService.Config;
+            var block = TorrentLaunchPolicy.Check(cfg, TorrentHelperInstallService.IsInstalled);
+            if (block == TorrentLaunchBlock.FeatureDisabled)
+            {
+                ShowTorrentNotice("torrent_disabled",
+                    "Torrent streaming is off. Open settings to enable it.",
+                    "torrent_disabled_hint",
+                    "Every torrent source is refused while the switch is off, and the helper is not started.");
+                return;
+            }
+            if (block == TorrentLaunchBlock.HelperMissing)
+            {
+                ShowTorrentNotice("torrent_helper_missing",
+                    "The mpvtorrent helper is not installed.",
+                    "torrent_helper_missing_hint",
+                    "Open Settings, then Torrent streaming, and install the helper.");
+                return;
+            }
+
+            if (!cfg.TorrentPrivacyAccepted)
+            {
+                var answer = MessageBox.Show(
+                    this,
+                    _locService.Get("torrent_privacy_text",
+                        "While a torrent streams, your IP address is visible to peers and trackers. " +
+                        "Use this only for content you own or that is legal to share."),
+                    _locService.Get("torrent_privacy_title", "Privacy notice"),
+                    MessageBoxButton.OKCancel,
+                    MessageBoxImage.Warning);
+                if (answer != MessageBoxResult.OK) return;
+                cfg.TorrentPrivacyAccepted = true;
+                _configService.Save();
+            }
+
+            if (_torrentStarting || _torrentSession.IsRunning)
+                await StopTorrentAsync(killMpv: true);
+
+            _torrentStarting = true;
+            _torrentSource = source;
+            _torrentInfoHash = source.InfoHash;
+            _torrentFiles = Array.Empty<TorrentFileEntry>();
+
+            TxtTorrentTitle.Text = _locService.Get("torrent_card_title", "Torrent stream");
+            TxtTorrentStatus.Text = _locService.Get("torrent_status_starting", "Starting the torrent helper...");
+            TxtTorrentDetail.Text = TorrentSourceParser.DescribeForLog(source);
+            BtnTorrentOpenSettings.Visibility = Visibility.Collapsed;
+            BarTorrent.Visibility = Visibility.Visible;
+            BarTorrent.Value = 0;
+            CardTorrent.Visibility = Visibility.Visible;
+
+            int? select = null;
+            if (cfg.TorrentRememberFile &&
+                !string.IsNullOrEmpty(source.InfoHash) &&
+                cfg.TorrentLastFiles.TryGetValue(source.InfoHash, out int remembered))
+            {
+                select = remembered;
+            }
+
+            var request = new TorrentStartRequest(source, cfg, Environment.ProcessId, select);
+            var (ok, message) = await _torrentSession.StartAsync(request);
+            _torrentStarting = false;
+            if (!ok)
+            {
+                SetTorrentError(_locService.Format(
+                    "torrent_error_start", "Could not start the torrent helper: {0}", message));
+            }
+        }
+
+        private void ShowTorrentNotice(string statusKey, string statusFallback, string detailKey, string detailFallback)
+        {
+            TxtTorrentTitle.Text = _locService.Get("torrent_card_title", "Torrent stream");
+            TxtTorrentStatus.Text = _locService.Get(statusKey, statusFallback);
+            TxtTorrentDetail.Text = _locService.Get(detailKey, detailFallback);
+            BtnTorrentOpenSettings.Visibility = Visibility.Visible;
+            BarTorrent.Visibility = Visibility.Collapsed;
+            CardTorrent.Visibility = Visibility.Visible;
+            TxtStatus.Text = TxtTorrentStatus.Text;
+        }
+
+        private void OnTorrentEvent(TorrentHelperEvent e)
+        {
+            switch (e.Type)
+            {
+                case "source":
+                    if (!string.IsNullOrEmpty(e.InfoHash)) _torrentInfoHash = e.InfoHash;
+                    break;
+
+                case "metadata":
+                    if (!string.IsNullOrEmpty(e.Name)) TxtTorrentTitle.Text = e.Name;
+                    if (e.Files != null) _torrentFiles = e.Files;
+                    break;
+
+                case "select_required":
+                    _ = PromptTorrentFileAsync();
+                    break;
+
+                case "hint":
+                    TxtTorrentDetail.Text = _locService.Get(
+                        "torrent_hint_still_searching",
+                        "Still looking for peers. A restrictive network can slow this down.");
+                    break;
+
+                case "error":
+                    if (e.Fatal)
+                        SetTorrentError(_locService.Format(
+                            "torrent_error_helper", "Torrent helper error: {0}", e.Message));
+                    else if (!string.IsNullOrEmpty(e.Message))
+                        TxtTorrentDetail.Text = e.Message;
+                    break;
+
+                case "state":
+                    RenderTorrentState(e);
+                    break;
+            }
+        }
+
+        private void RenderTorrentState(TorrentHelperEvent e)
+        {
+            string status = e.Phase switch
+            {
+                "metadata" => _locService.Get("torrent_status_metadata", "Reading torrent metadata..."),
+                "select" => _locService.Get("torrent_status_select", "Choose a file to play."),
+                "preload" => _locService.Get("torrent_status_preload", "Buffering the beginning of the file..."),
+                "playing" => _locService.Get("torrent_status_playing", "Streaming from the local endpoint..."),
+                _ => _locService.Get("torrent_status_searching", "Searching for peers...")
+            };
+            TxtTorrentStatus.Text = status;
+            TxtTorrentDetail.Text = _locService.Format(
+                "torrent_peer_detail",
+                "{0} peers · {1}/s · {2} MB received",
+                e.Peers,
+                FormatTorrentSpeed(e.DownloadSpeed),
+                (e.Received / 1048576.0).ToString("0.0", CultureInfo.CurrentCulture));
+
+            double progress = Math.Clamp(e.Progress, 0, 1);
+            BarTorrent.Value = progress;
+        }
+
+        private static string FormatTorrentSpeed(long bytesPerSecond)
+        {
+            if (bytesPerSecond >= 1048576)
+                return (bytesPerSecond / 1048576.0).ToString("0.0", CultureInfo.CurrentCulture) + " MB";
+            if (bytesPerSecond >= 1024)
+                return (bytesPerSecond / 1024.0).ToString("0.0", CultureInfo.CurrentCulture) + " KB";
+            return bytesPerSecond.ToString(CultureInfo.CurrentCulture) + " B";
+        }
+
+        private async Task PromptTorrentFileAsync()
+        {
+            if (_torrentFiles.Count == 0) return;
+
+            var dlg = new TorrentFilePickerDialog(_torrentFiles, TxtTorrentTitle.Text) { Owner = this };
+            if (dlg.ShowDialog() == true)
+            {
+                await _torrentSession.SendSelectAsync(dlg.SelectedIndex);
+            }
+            else
+            {
+                await StopTorrentAsync(killMpv: true);
+            }
+        }
+
+        private void OnTorrentReady(TorrentHelperEvent e)
+        {
+            if (string.IsNullOrEmpty(e.Url)) return;
+
+            var cfg = _configService.Config;
+            var mpvArgs = TorrentHelperArguments.BuildMpvArguments(
+                cfg.TorrentMpvBufferMiB,
+                TorrentSettings.NormalizeCachePauseWait(TorrentSettings.DefaultCachePauseWaitSeconds));
+
+            string title = string.IsNullOrWhiteSpace(e.DisplayName)
+                ? (e.FileName ?? "")
+                : e.DisplayName!;
+            if (!string.IsNullOrWhiteSpace(e.Name) && !title.StartsWith(e.Name, StringComparison.Ordinal))
+                title = e.Name + " - " + title;
+
+            var res = _procService.PlayMedia(e.Url, mpvArgs, title, addHistory: false);
+            if (!res.Success || res.Process == null)
+            {
+                SetTorrentError(_locService.Get("torrent_error_mpv", "mpv could not start for this torrent."));
+                _ = StopTorrentAsync(killMpv: false);
+                return;
+            }
+
+            // The local URL is ephemeral and carries a session token, so the
+            // history keeps the torrent source instead.
+            if (_torrentSource != null)
+                _configService.AddHistory(_torrentSource.Value, title);
+
+            if (cfg.TorrentRememberFile && !string.IsNullOrEmpty(_torrentInfoHash))
+            {
+                cfg.TorrentLastFiles[_torrentInfoHash] = e.FileIndex;
+                _configService.Save();
+            }
+
+            _torrentMpv = res.Process;
+            _torrentMpv.EnableRaisingEvents = true;
+            _torrentMpv.Exited += (_, _) => Dispatcher.InvokeAsync(async () =>
+            {
+                await StopTorrentAsync(killMpv: false);
+            });
+
+            TxtTorrentStatus.Text = _locService.Get("torrent_status_playing", "Streaming from the local endpoint...");
+            BarTorrent.Value = 1;
+            LoadHistory();
+        }
+
+        private void OnTorrentExited(int exitCode)
+        {
+            _torrentStarting = false;
+            if (_torrentStopping) return;
+            if (CardTorrent.Visibility == Visibility.Visible)
+            {
+                SetTorrentError(_locService.Format(
+                    "torrent_error_helper_exit",
+                    "The torrent helper stopped unexpectedly (exit code {0}).",
+                    exitCode));
+            }
+            _torrentMpv = null;
+        }
+
+        private void SetTorrentError(string message)
+        {
+            TxtTorrentStatus.Text = _locService.Get("torrent_status_failed", "Torrent stream failed.");
+            TxtTorrentDetail.Text = message;
+            TxtStatus.Text = message;
+            BtnTorrentOpenSettings.Visibility = Visibility.Collapsed;
+            BarTorrent.Visibility = Visibility.Collapsed;
+            CardTorrent.Visibility = Visibility.Visible;
+        }
+
+        private async Task StopTorrentAsync(bool killMpv)
+        {
+            if (_torrentStopping) return;
+            _torrentStopping = true;
+            try
+            {
+                var mpv = _torrentMpv;
+                _torrentMpv = null;
+                if (killMpv && mpv != null)
+                {
+                    try { if (!mpv.HasExited) mpv.Kill(entireProcessTree: true); }
+                    catch { }
+                }
+
+                await _torrentSession.StopAsync();
+                CardTorrent.Visibility = Visibility.Collapsed;
+                _torrentFiles = Array.Empty<TorrentFileEntry>();
+                _torrentSource = null;
+                _torrentInfoHash = "";
+            }
+            finally
+            {
+                _torrentStopping = false;
+                _torrentStarting = false;
+            }
+        }
+
+        private void BtnTorrentCancel_Click(object sender, RoutedEventArgs e) =>
+            _ = StopTorrentAsync(killMpv: true);
+
+        private void BtnTorrentOpenSettings_Click(object sender, RoutedEventArgs e)
+        {
+            SetActiveTab(PanelSettings, BtnNavSettings);
+            ExpTorrentAdvanced.IsExpanded = true;
+            ChkTorrentEnabled.Focus();
+        }
+
+        #endregion
+
         #region Themes
         private void PopulateThemes()
         {
@@ -1847,6 +2398,7 @@ namespace MpvLauncher.Gui
             TxtPlayerTitle.Text = _locService.Get("player_title", "Media & Stream Player");
             TxtPlayerDesc.Text = _locService.Get("player_desc", "Paste a video URL or drag and drop a local video file.");
             TxtUrlInput.ToolTip = _locService.Get("input_url_placeholder", "YouTube, Twitch, or a direct m3u8/mp4 link...");
+            UpdateUrlHint();
             BtnPlayUrl.Content = _locService.Get("btn_play", "Play with MPV");
             TxtDropZone.Text = _locService.Get("drop_zone_text", "Drag and drop a video file here");
             BtnBrowseFile.Content = _locService.Get("btn_browse_file", "Select File");
@@ -1855,7 +2407,7 @@ namespace MpvLauncher.Gui
 
             TxtToolsTitle.Text = _locService.Get("tools_title", "Dependencies & Browser");
             TxtSystemStatus.Text = _locService.Get("system_status", "System status");
-            BtnUpdateYtdl.Content = _locService.Get("btn_update_ytdl", "Update yt-dlp (-U)");
+            BtnCheckToolUpdates.Content = _locService.Get("btn_check_tool_updates", "Check program updates");
             BtnRefreshTools.Content = _locService.Get("btn_refresh", "Refresh");
             TxtDownloadsTitle.Text = _locService.Get("downloads_title", "Download sources");
             TxtInstallDir.Text = $"{_locService.Get("tools_folder_label", "Tools folder:")} {AppPaths.BinDir}";
@@ -1872,6 +2424,37 @@ namespace MpvLauncher.Gui
             BtnOpenChromeExtensions.Content = _locService.Get("btn_open_browser_ext", "Open chrome://extensions");
 
             TxtSettingsTitle.Text = _locService.Get("settings_title", "Application & MPV Settings");
+
+            // ---- Torrent streaming ----
+            TxtTorrentTitle.Text = _locService.Get("torrent_card_title", "Torrent stream");
+            BtnTorrentCancel.Content = _locService.Get("torrent_btn_cancel", "Cancel");
+            BtnTorrentOpenSettings.Content = _locService.Get("torrent_open_settings", "Open torrent settings");
+            TxtTorrentSettingsTitle.Text = _locService.Get("torrent_settings_title", "Torrent streaming (optional)");
+            TxtTorrentSettingsDesc.Text = _locService.Get("torrent_settings_desc",
+                "Off by default. When enabled, torrent links, .torrent files and info hashes are streamed through a local helper.");
+            ChkTorrentEnabled.Content = _locService.Get("torrent_enable", "Enable torrent streaming");
+            TxtTorrentPrivacy.Text = _locService.Get("torrent_privacy_text",
+                "While a torrent streams, your IP address is visible to peers and trackers. Use this only for content you own or that is legal to share.");
+            TxtTorrentDownloadDirLabel.Text = _locService.Get("torrent_dir_label", "Temporary download folder:");
+            BtnBrowseTorrentDir.Content = _locService.Get("torrent_browse", "Browse");
+            BtnResetTorrentDir.Content = _locService.Get("torrent_reset", "Default");
+            ChkTorrentRememberFile.Content = _locService.Get("torrent_remember_file",
+                "Remember the last played file in multi-file torrents");
+            TxtTorrentHelperTitle.Text = _locService.Get("torrent_helper_label", "Helper program (mpvtorrent)");
+            ExpTorrentAdvanced.Header = _locService.Get("torrent_advanced", "Advanced");
+            TxtTorrentAdvancedNote.Text = _locService.Get("torrent_advanced_note",
+                "Values are clamped to safe limits. Upload is off at 0 KiB/s.");
+            TxtTorrentWindowLabel.Text = _locService.Get("torrent_window_label", "Forward window (MiB)");
+            TxtTorrentBufferLabel.Text = _locService.Get("torrent_buffer_label", "mpv forward buffer (MiB)");
+            TxtTorrentUploadLabel.Text = _locService.Get("torrent_upload_label", "Upload limit (KiB/s, 0 = off)");
+            TxtTorrentConnsLabel.Text = _locService.Get("torrent_conns_label", "Maximum connections");
+            TxtTorrentHalfOpenLabel.Text = _locService.Get("torrent_halfopen_label", "Simultaneous connection attempts");
+            TxtTorrentTailWaitLabel.Text = _locService.Get("torrent_tailwait_label",
+                "Wait for the end of the file before starting (s, 0 = start at once)");
+            TxtTorrentTrackersLabel.Text = _locService.Get("torrent_trackers_label", "Tracker list (one URL per line):");
+            BtnSaveTorrentSettings.Content = _locService.Get("torrent_save", "Save torrent settings");
+            UpdateTorrentHelperStatus();
+
             TxtMpvConfigTitle.Text = _locService.Get("mpv_config_title", "MPV Player Configuration");
             TxtMpvPathLabel.Text = _locService.Get("mpv_path_label", "MPV Executable Path:");
             BtnBrowseMpv.Content = _locService.Get("btn_browse_mpv", "Browse");
@@ -1943,7 +2526,7 @@ namespace MpvLauncher.Gui
 
             TxtGuideDepsTitle.Text = _locService.Get("guide_deps_title", "📦 Dependencies (MPV, yt-dlp, FFmpeg)");
             TxtGuideDepsSub.Text = _locService.Get("guide_deps_sub", "Three core tools are required for optimal operation:");
-            TxtGuideDepsBody.Text = _locService.Get("guide_deps_body", "1. MPV: Hardware-accelerated modern media player engine.\n2. yt-dlp: CLI tool extracting streams from hundreds of video platforms. Update frequently with 'Update yt-dlp (-U)'.\n3. FFmpeg: Media stream demuxer and converter engine.\n\nAll tools can be downloaded and installed with one click in the 'Dependencies' tab.");
+            TxtGuideDepsBody.Text = _locService.Get("guide_deps_body", "1. MPV: Hardware-accelerated modern media player engine.\n2. yt-dlp: CLI tool extracting streams from hundreds of video platforms. Use 'Check program updates' in the Dependencies tab when a stream stops working.\n3. FFmpeg: Media stream demuxer and converter engine.\n\nAll tools can be downloaded and installed with one click in the 'Dependencies' tab.");
 
             TxtGuideBrowserTitle.Text = _locService.Get("guide_browser_title", "🌐 Browser Extension Integration");
             TxtGuideBrowserSub.Text = _locService.Get("guide_browser_sub", "Open web videos in MPV directly from your browser:");

@@ -255,6 +255,11 @@ namespace MpvLauncher.Gui.Services
         private static bool TryValidateMediaUrl(string url, out string normalized)
         {
             normalized = "";
+            // The browser extension is never a torrent entry point, even when
+            // the feature is enabled in the app. A page can hand us a .torrent
+            // URL that looks like ordinary media, so the shape is rejected here
+            // before any scheme check would let it through.
+            if (TorrentLaunchPolicy.IsRejectedFromBrowser(url)) return false;
             if (!Uri.TryCreate(url, UriKind.Absolute, out var uri)) return false;
             if (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps) return false;
             if (string.IsNullOrEmpty(uri.Host)) return false;

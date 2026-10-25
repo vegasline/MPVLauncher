@@ -34,6 +34,8 @@ site-specific workaround. This makes it one click.
 
 - 📥 **Installs what mpv needs** — mpv, yt-dlp and FFmpeg, from their upstream
   releases. No Python, no separate runtime, no system-wide install.
+- 🔄 **Checks those three for updates** — one button compares what you have with
+  the official release pages and updates only what is out of date.
 - 🔌 **Installs the extension** for Chrome, Edge, Brave, Opera, Vivaldi, Yandex
   and Firefox, and repairs it if the app folder moves.
 - 🎨 **Themes + appearance editor** — 4 themes, custom colours, blur, corner
@@ -155,6 +157,45 @@ Full details in [`MpvLauncher.Gui/Services/NativeHostService.cs`](MpvLauncher.Gu
 
 ---
 
+## ⬇️ Torrent streaming (optional)
+
+Torrent streaming is **off by default** and is never available from the browser
+extension. When you turn it on, the launcher can play a magnet link, a
+`.torrent` file or a `.torrent` URL through a small helper program,
+`mpvtorrent`, which downloads only the parts of the video being watched and
+serves them to mpv over `127.0.0.1`.
+
+- 🧩 **Install once.** Open **Dependencies → Torrent helper**, then
+  **Download & install**. The executable comes from this repository's
+  `mpvtorrent-v*` release, is checked against its published SHA-256, and is
+  kept in `%APPDATA%\MPVLauncher`.
+- 🎛️ **Choose what downloads.** For a multi-file torrent the launcher asks
+  which file to play and can remember that choice per torrent. Every file is
+  deselected first; only the current playback window is fetched.
+- ⚡ **Fast start.** Playback begins as soon as the beginning of the file is
+  available; the end of the file keeps downloading in the background so
+  seeking there still works without stalling the start. An advanced setting
+  can wait up to 30 seconds for the end of the file before starting.
+- 🚫 **No seeding.** Uploads are off by default (`0 KiB/s`) and the session
+  stops as soon as mpv closes. A torrent is never left running in the
+  background, and its temporary files are removed.
+- 🧹 **Cleanup on every exit.** Closing mpv, closing the launcher or killing
+  either process stops the helper and removes its session folder; folders left
+  behind by an earlier crash are removed on the next start.
+- 🌐 **Local only.** The HTTP stream listens on a random `127.0.0.1` port with a
+  per-session token in the path and validates the `Host` header against DNS
+  rebinding.
+- ⚖️ **Your responsibility.** Peers see your IP address while a torrent is
+  active. Use this only for content you own or that is legal to share in your
+  jurisdiction.
+
+Settings live under **Settings → Torrent streaming**: temporary folder,
+remembered file, helper install, and an **Advanced** group (forward window, mpv
+buffer, upload limit, connection limits, end-of-file wait). Advanced values return to their safe
+defaults on every start.
+
+---
+
 ## ⌨️ Anime4K shortcuts (inside mpv)
 
 | Key | Action |
@@ -182,8 +223,8 @@ before a change reaches `%APPDATA%`. Then re-run
 **Install / repair extensions** in the app.
 
 ```powershell
-node tools\extension-tests.js   # 147 checks - extension logic and security
-node tools\locale-tests.js      #  29 checks - locale files stay consistent
+node tools\extension-tests.js   # 250 checks - extension logic and security
+node tools\locale-tests.js      #  40 checks - locale files stay consistent
 ```
 
 ---
@@ -206,6 +247,11 @@ node tools\locale-tests.js      #  29 checks - locale files stay consistent
 - [ModernZ](https://github.com/Samillion/ModernZ) — modern OSC for mpv
 - [SharpCompress](https://github.com/adamhathcock/sharpcompress) — archive
   extraction
+- [WebTorrent](https://github.com/webtorrent/webtorrent) — torrent engine in
+  `mpvtorrent` (MIT); complete dependency licences are in
+  [`tools/mpvtorrent/THIRD_PARTY_NOTICES.md`](tools/mpvtorrent/THIRD_PARTY_NOTICES.md)
+- [Node.js](https://nodejs.org/) — runtime embedded in the `mpvtorrent`
+  executable
 
 ## 📄 License
 

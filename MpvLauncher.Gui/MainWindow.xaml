@@ -406,7 +406,21 @@
                                         <ColumnDefinition Width="*"/>
                                         <ColumnDefinition Width="Auto"/>
                                     </Grid.ColumnDefinitions>
-                                    <TextBox x:Name="TxtUrlInput" Background="#33000000" Foreground="White" FontSize="13" Padding="12,10" BorderBrush="#33FFFFFF" BorderThickness="1" VerticalContentAlignment="Center" Margin="0,0,10,0" KeyDown="TxtUrlInput_KeyDown"/>
+                                    <Grid Grid.Column="0" Margin="0,0,10,0">
+                                        <TextBox x:Name="TxtUrlInput" Background="#33000000" Foreground="White" FontSize="13" Padding="12,10" BorderBrush="#33FFFFFF" BorderThickness="1" VerticalContentAlignment="Center" KeyDown="TxtUrlInput_KeyDown"/>
+                                        <TextBlock x:Name="TxtUrlHint" Text="Paste a URL or magnet link" FontSize="13" Foreground="#8892A4" Margin="14,0,14,0" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" IsHitTestVisible="False">
+                                            <TextBlock.Style>
+                                                <Style TargetType="TextBlock">
+                                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding Text, ElementName=TxtUrlInput}" Value="">
+                                                            <Setter Property="Visibility" Value="Visible"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </TextBlock.Style>
+                                        </TextBlock>
+                                    </Grid>
                                     <Button x:Name="BtnPlayUrl" Grid.Column="1" Style="{StaticResource ModernButton}" Content="Play with MPV" Click="BtnPlayUrl_Click"/>
                                 </Grid>
 
@@ -417,6 +431,19 @@
                                         <Button x:Name="BtnBrowseFile" Style="{StaticResource SecondaryButton}" Content="Select File" Click="BtnBrowseFile_Click" HorizontalAlignment="Center" Margin="0,10,0,0" Padding="12,6" FontSize="12"/>
                                     </StackPanel>
                                 </Border>
+                            </StackPanel>
+                        </Border>
+
+                        <Border x:Name="CardTorrent" Background="#CC1E222D" CornerRadius="12" BorderBrush="#1FFFFFFF" BorderThickness="1" Padding="20" Margin="0,0,0,16" Visibility="Collapsed">
+                            <StackPanel>
+                                <Grid Margin="0,0,0,8">
+                                    <TextBlock x:Name="TxtTorrentTitle" Text="Torrent streaming" FontSize="15" FontWeight="SemiBold"/>
+                                    <Button x:Name="BtnTorrentCancel" Style="{StaticResource SecondaryButton}" Content="Cancel" Click="BtnTorrentCancel_Click" HorizontalAlignment="Right" Padding="12,6" FontSize="12"/>
+                                </Grid>
+                                <TextBlock x:Name="TxtTorrentStatus" Text="" FontSize="12" Foreground="#9AA3B2" TextWrapping="Wrap"/>
+                                <ProgressBar x:Name="BarTorrent" Height="6" Margin="0,10,0,6" Minimum="0" Maximum="1" Value="0" Foreground="#3B82F6" Background="#33000000" BorderThickness="0" Visibility="Collapsed"/>
+                                <TextBlock x:Name="TxtTorrentDetail" Text="" FontSize="11" Foreground="#64748B" TextWrapping="Wrap"/>
+                                <Button x:Name="BtnTorrentOpenSettings" Style="{StaticResource SecondaryButton}" Content="Open torrent settings" Click="BtnTorrentOpenSettings_Click" HorizontalAlignment="Left" Margin="0,10,0,0" Padding="12,6" FontSize="12" Visibility="Collapsed"/>
                             </StackPanel>
                         </Border>
 
@@ -471,7 +498,7 @@
                                     </Border>
                                 </Grid>
                                 <StackPanel Orientation="Horizontal">
-                                    <Button x:Name="BtnUpdateYtdl" Style="{StaticResource ModernButton}" Content="Update yt-dlp (-U)" Click="BtnUpdateYtdl_Click" Margin="0,0,10,0"/>
+                                    <Button x:Name="BtnCheckToolUpdates" Style="{StaticResource ModernButton}" Content="Check program updates" Click="BtnCheckToolUpdates_Click" Margin="0,0,10,0"/>
                                     <Button x:Name="BtnRefreshTools" Style="{StaticResource SecondaryButton}" Content="Refresh" Click="BtnRefreshTools_Click"/>
                                 </StackPanel>
                             </StackPanel>
@@ -613,6 +640,125 @@
                                 <TextBox x:Name="TxtMpvExtraArgs" Background="#33000000" Foreground="White" FontSize="12" Padding="10,8" BorderBrush="#33FFFFFF" BorderThickness="1" Margin="0,0,0,16"/>
 
                                 <Button x:Name="BtnSaveMpvSettings" Style="{StaticResource ModernButton}" Content="Save Settings" Click="BtnSaveMpvSettings_Click" HorizontalAlignment="Left"/>
+                            </StackPanel>
+                        </Border>
+
+                        <Border x:Name="CardTorrentSettings" Background="#CC1E222D" CornerRadius="12" BorderBrush="#1FFFFFFF" BorderThickness="1" Padding="20" Margin="0,0,0,16">
+                            <StackPanel>
+                                <TextBlock x:Name="TxtTorrentSettingsTitle" Text="Torrent streaming (optional)" FontSize="15" FontWeight="SemiBold" Margin="0,0,0,6"/>
+                                <TextBlock x:Name="TxtTorrentSettingsDesc" Text="Off by default. When enabled, torrent links, .torrent files and info hashes are streamed through a local helper." FontSize="12" Foreground="#9AA3B2" TextWrapping="Wrap" Margin="0,0,0,12"/>
+
+                                <CheckBox x:Name="ChkTorrentEnabled" Content="Enable torrent streaming" Foreground="#F0F2F5" FontSize="12" Margin="0,0,0,8" Checked="ChkTorrentEnabled_Changed" Unchecked="ChkTorrentEnabled_Changed"/>
+                                <TextBlock x:Name="TxtTorrentPrivacy" Text="Your IP address is visible to peers and trackers while a torrent is open. Only use content you own or that is legal to share. Nothing is seeded after you stop." FontSize="11" Foreground="#F59E0B" TextWrapping="Wrap" Margin="0,0,0,12"/>
+
+                                <TextBlock x:Name="TxtTorrentDownloadDirLabel" Text="Temporary download folder:" FontSize="12" Foreground="#9AA3B2" Margin="0,0,0,4"/>
+                                <Grid Margin="0,0,0,10">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBox x:Name="TxtTorrentDownloadDir" Background="#33000000" Foreground="White" FontSize="12" Padding="10,8" BorderBrush="#33FFFFFF" BorderThickness="1" VerticalContentAlignment="Center" Margin="0,0,10,0"/>
+                                    <Button x:Name="BtnBrowseTorrentDir" Grid.Column="1" Style="{StaticResource SecondaryButton}" Content="Browse" Click="BtnBrowseTorrentDir_Click" Margin="0,0,8,0"/>
+                                    <Button x:Name="BtnResetTorrentDir" Grid.Column="2" Style="{StaticResource SecondaryButton}" Content="Default" Tag="dir" Click="BtnTorrentResetField_Click"/>
+                                </Grid>
+
+                                <CheckBox x:Name="ChkTorrentRememberFile" Content="Remember the last played file in multi-file torrents" Foreground="#F0F2F5" FontSize="12" Margin="0,0,0,12"/>
+
+                                <Border Background="#22000000" CornerRadius="8" Padding="14" Margin="0,0,0,12">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <StackPanel Grid.Column="0" Margin="0,0,12,0">
+                                            <TextBlock x:Name="TxtTorrentHelperTitle" Text="Helper program (mpvtorrent)" FontSize="12" FontWeight="SemiBold"/>
+                                            <TextBlock x:Name="TxtTorrentHelperStatus" Text="" FontSize="11" Foreground="#9AA3B2" TextWrapping="Wrap" Margin="0,3,0,0"/>
+                                        </StackPanel>
+                                        <Button x:Name="BtnInstallTorrentHelper" Grid.Column="1" Style="{StaticResource ModernButton}" Content="Download &amp; Install" Click="BtnInstallTorrentHelper_Click" Padding="12,7" FontSize="12" VerticalAlignment="Center"/>
+                                    </Grid>
+                                </Border>
+
+                                <Expander x:Name="ExpTorrentAdvanced" Header="Advanced" Foreground="#F0F2F5" FontSize="12" Margin="0,0,0,10">
+                                    <StackPanel Margin="0,10,0,0">
+                                        <TextBlock x:Name="TxtTorrentAdvancedNote" Text="Values are clamped to safe limits. Upload is off at 0 KiB/s." FontSize="11" Foreground="#64748B" Margin="0,0,0,10" TextWrapping="Wrap"/>
+
+                                        <Grid Margin="0,0,0,8">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="90"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock x:Name="TxtTorrentWindowLabel" Grid.Column="0" Text="Forward window (MiB)" FontSize="12" Foreground="#9AA3B2" VerticalAlignment="Center"/>
+                                            <TextBox x:Name="TxtTorrentWindow" Grid.Column="1" Background="#33000000" Foreground="White" FontSize="12" Padding="8,6" BorderBrush="#33FFFFFF" BorderThickness="1" Margin="0,0,8,0"/>
+                                            <Button Grid.Column="2" Style="{StaticResource SecondaryButton}" Content="Reset" Tag="window" Click="BtnTorrentResetField_Click" Padding="10,6" FontSize="11"/>
+                                        </Grid>
+
+                                        <Grid Margin="0,0,0,8">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="90"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock x:Name="TxtTorrentBufferLabel" Grid.Column="0" Text="mpv forward buffer (MiB)" FontSize="12" Foreground="#9AA3B2" VerticalAlignment="Center"/>
+                                            <TextBox x:Name="TxtTorrentBuffer" Grid.Column="1" Background="#33000000" Foreground="White" FontSize="12" Padding="8,6" BorderBrush="#33FFFFFF" BorderThickness="1" Margin="0,0,8,0"/>
+                                            <Button Grid.Column="2" Style="{StaticResource SecondaryButton}" Content="Reset" Tag="buffer" Click="BtnTorrentResetField_Click" Padding="10,6" FontSize="11"/>
+                                        </Grid>
+
+                                        <Grid Margin="0,0,0,8">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="90"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock x:Name="TxtTorrentUploadLabel" Grid.Column="0" Text="Upload limit (KiB/s, 0 = off)" FontSize="12" Foreground="#9AA3B2" VerticalAlignment="Center"/>
+                                            <TextBox x:Name="TxtTorrentUpload" Grid.Column="1" Background="#33000000" Foreground="White" FontSize="12" Padding="8,6" BorderBrush="#33FFFFFF" BorderThickness="1" Margin="0,0,8,0"/>
+                                            <Button Grid.Column="2" Style="{StaticResource SecondaryButton}" Content="Reset" Tag="upload" Click="BtnTorrentResetField_Click" Padding="10,6" FontSize="11"/>
+                                        </Grid>
+
+                                        <Grid Margin="0,0,0,8">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="90"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock x:Name="TxtTorrentConnsLabel" Grid.Column="0" Text="Maximum connections" FontSize="12" Foreground="#9AA3B2" VerticalAlignment="Center"/>
+                                            <TextBox x:Name="TxtTorrentMaxConns" Grid.Column="1" Background="#33000000" Foreground="White" FontSize="12" Padding="8,6" BorderBrush="#33FFFFFF" BorderThickness="1" Margin="0,0,8,0"/>
+                                            <Button Grid.Column="2" Style="{StaticResource SecondaryButton}" Content="Reset" Tag="conns" Click="BtnTorrentResetField_Click" Padding="10,6" FontSize="11"/>
+                                        </Grid>
+
+                                        <Grid Margin="0,0,0,8">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="90"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock x:Name="TxtTorrentHalfOpenLabel" Grid.Column="0" Text="Simultaneous connection attempts" FontSize="12" Foreground="#9AA3B2" VerticalAlignment="Center"/>
+                                            <TextBox x:Name="TxtTorrentHalfOpen" Grid.Column="1" Background="#33000000" Foreground="White" FontSize="12" Padding="8,6" BorderBrush="#33FFFFFF" BorderThickness="1" Margin="0,0,8,0"/>
+                                            <Button Grid.Column="2" Style="{StaticResource SecondaryButton}" Content="Reset" Tag="halfopen" Click="BtnTorrentResetField_Click" Padding="10,6" FontSize="11"/>
+                                        </Grid>
+
+                                        <Grid Margin="0,0,0,8">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="90"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock x:Name="TxtTorrentTailWaitLabel" Grid.Column="0" Text="Wait for the end of the file before starting (s, 0 = start at once)" FontSize="12" Foreground="#9AA3B2" VerticalAlignment="Center" TextWrapping="Wrap"/>
+                                            <TextBox x:Name="TxtTorrentTailWait" Grid.Column="1" Background="#33000000" Foreground="White" FontSize="12" Padding="8,6" BorderBrush="#33FFFFFF" BorderThickness="1" Margin="0,0,8,0"/>
+                                            <Button Grid.Column="2" Style="{StaticResource SecondaryButton}" Content="Reset" Tag="tailwait" Click="BtnTorrentResetField_Click" Padding="10,6" FontSize="11"/>
+                                        </Grid>
+
+                                        <TextBlock x:Name="TxtTorrentTrackersLabel" Text="Tracker list (one URL per line):" FontSize="12" Foreground="#9AA3B2" Margin="0,4,0,4"/>
+                                        <TextBox x:Name="TxtTorrentTrackers" Background="#33000000" Foreground="White" FontSize="11" Padding="8,6" BorderBrush="#33FFFFFF" BorderThickness="1" Height="92" AcceptsReturn="True" TextWrapping="NoWrap" VerticalScrollBarVisibility="Auto" FontFamily="Consolas"/>
+                                        <Button Style="{StaticResource SecondaryButton}" Content="Restore verified trackers" Tag="trackers" Click="BtnTorrentResetField_Click" HorizontalAlignment="Left" Margin="0,6,0,0" Padding="10,6" FontSize="11"/>
+                                    </StackPanel>
+                                </Expander>
+
+                                <StackPanel Orientation="Horizontal">
+                                    <Button x:Name="BtnSaveTorrentSettings" Style="{StaticResource ModernButton}" Content="Save torrent settings" Click="BtnSaveTorrentSettings_Click" HorizontalAlignment="Left"/>
+                                    <TextBlock x:Name="TxtTorrentSettingsStatus" Text="" FontSize="11" Foreground="#64748B" VerticalAlignment="Center" Margin="12,0,0,0" TextWrapping="Wrap"/>
+                                </StackPanel>
                             </StackPanel>
                         </Border>
 
@@ -876,7 +1022,7 @@
                             <StackPanel>
                                 <TextBlock x:Name="TxtGuideDepsTitle" Text="📦 Bağımlılıklar (MPV, yt-dlp, FFmpeg)" FontSize="16" FontWeight="SemiBold" Foreground="#6366F1" Margin="0,0,0,8"/>
                                 <TextBlock x:Name="TxtGuideDepsSub" Text="Programın tam performansla çalışması için üç temel araç gereklidir:" FontSize="13" Foreground="#F0F2F5" Margin="0,0,0,8" TextWrapping="Wrap"/>
-                                <TextBlock x:Name="TxtGuideDepsBody" Text="1. MPV: Modern ve donanım hızlandırmalı video oynatıcı motorudur.&#x0a;2. yt-dlp: YouTube ve diğer sitelerden canlı akış ve video verilerini çeken yardımcı programdır. Sitelerin güncellemeleri nedeniyle yt-dlp sık sık güncellenir; akış açılmadığında 'yt-dlp Güncelle (-U)' butonuna tıklayabilirsiniz.&#x0a;3. FFmpeg: Medya akışlarını ayrıştırma ve birleştirme motorudur.&#x0a;&#x0a;Tüm bu araçları 'Bağımlılıklar' sekmesinden tek tıkla otomatik indirebilir ve kurabilirsiniz." FontSize="12" Foreground="#9AA3B2" LineHeight="20" TextWrapping="Wrap"/>
+                                <TextBlock x:Name="TxtGuideDepsBody" Text="1. MPV: Modern ve donanım hızlandırmalı video oynatıcı motorudur.&#x0a;2. yt-dlp: YouTube ve diğer sitelerden canlı akış ve video verilerini çeken yardımcı programdır. Sitelerin güncellemeleri nedeniyle yt-dlp sık sık güncellenir; akış açılmadığında 'Program güncellemelerini denetle' düğmesini kullanabilirsiniz.&#x0a;3. FFmpeg: Medya akışlarını ayrıştırma ve birleştirme motorudur.&#x0a;&#x0a;Tüm bu araçları 'Bağımlılıklar' sekmesinden tek tıkla otomatik indirebilir ve kurabilirsiniz." FontSize="12" Foreground="#9AA3B2" LineHeight="20" TextWrapping="Wrap"/>
                             </StackPanel>
                         </Border>
 

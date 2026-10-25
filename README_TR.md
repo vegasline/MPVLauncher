@@ -34,6 +34,8 @@ bir yöntem gerekir. Bu proje bunu tek tıkla hâle getirir.
 
 - 📥 **mpv'nin ihtiyacı olanları kurar** — mpv, yt-dlp ve FFmpeg'i kendi resmî
   yayınlarından. Python yok, harici çalışma zamanı yok, sisteme kurulum yok.
+- 🔄 **Bu üçünü güncelleme için denetler** — tek düğme, kurulu sürümleri resmî
+  sürüm sayfalarıyla karşılaştırır ve yalnızca eski olanı günceller.
 - 🔌 **Eklentiyi kurar** — Chrome, Edge, Brave, Opera, Vivaldi, Yandex ve Firefox
   için; uygulama klasörü taşınırsa onarır.
 - 🎨 **Temalar ve görünüm düzenleyici** — 4 tema, özel renkler, bulanıklık, köşe
@@ -157,6 +159,46 @@ Ayrıntılar:
 
 ---
 
+## ⬇️ Torrent akışı (isteğe bağlı)
+
+Torrent akışı **varsayılan olarak kapalıdır** ve tarayıcı eklentisi üzerinden
+hiçbir zaman kullanılamaz. Etkinleştirdiğinizde launcher; magnet bağlantısını,
+`.torrent` dosyasını veya `.torrent` adresini küçük bir yardımcı program olan
+`mpvtorrent` üzerinden oynatabilir. Yardımcı, videonun yalnızca izlenen
+bölümlerini indirir ve mpv'ye `127.0.0.1` üzerinden sunar.
+
+- 🧩 **Bir kez kurun.** **Bağımlılıklar → Torrent yardımcısı** bölümünü açıp
+  **İndir ve yükle**'ye basın. Çalıştırılabilir dosya bu deponun `mpvtorrent-v*`
+  sürümünden gelir, yayımlanan SHA-256 ile doğrulanır ve `%APPDATA%\MPVLauncher`
+  altında tutulur.
+- 🎛️ **Neyin indirileceğini siz seçin.** Çok dosyalı bir torrentte launcher
+  hangi dosyanın oynatılacağını sorar ve bu seçimi torrent başına hatırlayabilir.
+  Önce tüm dosyaların seçimi kaldırılır; yalnızca geçerli oynatma penceresi
+  indirilir.
+- ⚡ **Hızlı başlangıç.** Oynatma, dosyanın başı hazır olur olmaz başlar;
+  dosyanın sonu arka planda inmeye devam eder, böylece oraya sarma başlangıcı
+  beklemez. Gelişmiş bir ayar, başlamadan önce dosya sonu için en fazla 30 saniye
+  bekleyebilir.
+- 🚫 **Seed yok.** Yükleme varsayılan olarak kapalıdır (`0 KiB/s`) ve mpv
+  kapanır kapanmaz oturum durur. Torrent arka planda asla açık bırakılmaz ve
+  geçici dosyaları silinir.
+- 🧹 **Her çıkışta temizlik.** mpv'yi, launcher'ı kapatmak veya süreçlerden
+  birini sonlandırmak yardımcıyı durdurur ve oturum klasörünü siler; önceki bir
+  çökmeden kalan klasörler bir sonraki başlatmada temizlenir.
+- 🌐 **Yalnızca yerel.** HTTP akışı rastgele bir `127.0.0.1` portunda, yolda
+  oturuma özel bir belirteçle dinler ve `Host` başlığını DNS yeniden
+  yönlendirmesine karşı doğrular.
+- ⚖️ **Sorumluluk sizde.** Torrent etkinken eşler IP adresinizi görür. Bunu
+  yalnızca sahibi olduğunuz veya bulunduğunuz yerde paylaşımı yasal olan
+  içerikler için kullanın.
+
+Ayarlar **Ayarlar → Torrent akışı** altındadır: geçici klasör, hatırlanan dosya,
+yardımcı kurulumu ve **Gelişmiş** grubu (ileri pencere, mpv tamponu, yükleme
+sınırı, bağlantı sınırları, dosya sonu beklemesi). Gelişmiş değerler her
+başlatmada güvenli varsayılanlarına döner.
+
+---
+
 ## ⌨️ Anime4K kısayolları (mpv içinde)
 
 | Tuş | İşlev |
@@ -184,8 +226,8 @@ Eklenti çalıştırılabilir dosyanın içine gömülüdür; bu yüzden bir de�
 Ardından uygulamada **Eklentileri hazırla / onar**'ı yeniden çalıştırın.
 
 ```powershell
-node tools\extension-tests.js   # 147 kontrol - eklenti mantığı ve güvenlik
-node tools\locale-tests.js      #  29 kontrol - dil dosyaları tutarlı kalır
+node tools\extension-tests.js   # 250 kontrol - eklenti mantığı ve güvenlik
+node tools\locale-tests.js      #  40 kontrol - dil dosyaları tutarlı kalır
 ```
 
 ---
@@ -207,6 +249,12 @@ node tools\locale-tests.js      #  29 kontrol - dil dosyaları tutarlı kalır
 - [Anime4K](https://github.com/bloc97/Anime4K) — gerçek zamanlı anime yükseltme
 - [ModernZ](https://github.com/Samillion/ModernZ) — mpv için modern OSC
 - [SharpCompress](https://github.com/adamhathcock/sharpcompress) — arşiv çıkarma
+- [WebTorrent](https://github.com/webtorrent/webtorrent) — `mpvtorrent`
+  içindeki torrent motoru (MIT); tüm bağımlılık lisansları
+  [`tools/mpvtorrent/THIRD_PARTY_NOTICES.md`](tools/mpvtorrent/THIRD_PARTY_NOTICES.md)
+  içinde
+- [Node.js](https://nodejs.org/) — `mpvtorrent` çalıştırılabilir dosyasına
+  gömülü çalışma zamanı
 
 ## 📄 Lisans
 

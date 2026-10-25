@@ -152,42 +152,5 @@ namespace MpvLauncher.Gui.Services
             }
             return "FFmpeg not found";
         }
-
-        /// <summary>
-        /// Runs "yt-dlp -U", which makes it replace itself in place.
-        ///
-        /// Wrapped in Task.Run because WaitForExit blocks, and given a 30 second
-        /// budget so a stalled download cannot freeze the UI thread. The tool
-        /// writes to both streams, so both are captured for the status line.
-        /// </summary>
-        public async Task<(bool Success, string Output)> UpdateYtdlAsync()
-        {
-            string path = FindYtdlPath();
-            if (!File.Exists(path))
-                return (false, "yt-dlp.exe not found. Download it first.");
-
-            try
-            {
-                return await Task.Run(() =>
-                {
-                    var p = Process.Start(new ProcessStartInfo
-                    {
-                        FileName = path,
-                        Arguments = "-U",
-                        RedirectStandardOutput = true,
-                        RedirectStandardError = true,
-                        UseShellExecute = false,
-                        CreateNoWindow = true
-                    });
-                    p?.WaitForExit(30000);
-                    string outText = p?.StandardOutput.ReadToEnd() ?? "";
-                    return (true, string.IsNullOrWhiteSpace(outText) ? "Update finished." : outText);
-                });
-            }
-            catch (Exception ex)
-            {
-                return (false, "Update failed: " + ex.Message);
-            }
-        }
     }
 }

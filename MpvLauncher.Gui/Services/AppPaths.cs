@@ -64,6 +64,12 @@ namespace MpvLauncher.Gui.Services
         public static string YtDlpExe => Default.YtDlpExe;
         public static string FfmpegExe => Default.FfmpegExe;
 
+        /// <summary>The optional torrent helper. Downloaded, never shipped.</summary>
+        public static string TorrentHelperExe => Path.Combine(Default.BinDir, "mpvtorrent.exe");
+
+        /// <summary>Persistent DHT and metadata cache for the torrent helper.</summary>
+        public static string TorrentCacheDir => Path.Combine(Default.CacheDir, "torrent");
+
         public static string MpvAppDataDir => Default.MpvAppDataDir;
         public static string MpvFontsDir => Default.MpvFontsDir;
         public static string MpvScriptsDir => Default.MpvScriptsDir;
