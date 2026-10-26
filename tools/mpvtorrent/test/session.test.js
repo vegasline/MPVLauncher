@@ -66,6 +66,46 @@ function readyFixture (tailWaitSec = 0) {
   return session
 }
 
+test('a seek moves the window before the response can block', () => {
+  const session = readyFixture()
+  session.ready = true
+  session.position = 0
+  session.window = { startPiece: 0, endPiece: 4, urgentEndPiece: 1 }
+  session.applied = []
+  session.applyWindow = (plan, opts) => session.applied.push({ plan, opts })
+
+  session.noteSeek(400 * 1024 * 1024)
+
+  assert.equal(session.position, 400 * 1024 * 1024)
+  assert.equal(session.applied.length, 1)
+  assert.equal(session.applied[0].opts.force, true)
+  // 400 MiB into the file is piece 50; the window opens 6 MiB behind it.
+  assert.equal(session.applied[0].plan.startPiece, 49)
+})
+
+test('a normal forward step is not treated as a seek', () => {
+  const session = readyFixture()
+  session.ready = true
+  session.position = 10 * 1024 * 1024
+  session.applied = []
+  session.applyWindow = (plan, opts) => session.applied.push({ plan, opts })
+
+  session.noteSeek(11 * 1024 * 1024)
+
+  assert.equal(session.applied.length, 0)
+  assert.equal(session.position, 10 * 1024 * 1024)
+})
+
+test('a seek before playback starts does not move anything', () => {
+  const session = readyFixture()
+  session.applied = []
+  session.applyWindow = (plan, opts) => session.applied.push({ plan, opts })
+
+  session.noteSeek(400 * 1024 * 1024)
+
+  assert.equal(session.applied.length, 0)
+})
+
 test('the tail is fetched only once playback is ready', () => {
   const session = readyFixture()
   const tail = session.preload.tail

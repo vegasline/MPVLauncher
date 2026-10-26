@@ -4,7 +4,7 @@
 
 <p align="center">
 <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="MIT License"></a>
-<a href="https://github.com/vegasline/MPVLauncher/releases/latest"><img src="https://img.shields.io/badge/app-1.9.14-blue.svg" alt="App version 1.9.14"></a>
+<a href="https://github.com/vegasline/MPVLauncher/releases/latest"><img src="https://img.shields.io/badge/app-1.9.15-blue.svg" alt="App version 1.9.15"></a>
 <a href="https://addons.mozilla.org/firefox/addon/mpv-launcher/"><img src="https://img.shields.io/badge/Firefox_Add--on-FF7139FF?logo=firefox-browser&logoColor=white" alt="Firefox add-on"></a>
 </p>
 
@@ -38,8 +38,13 @@ site-specific workaround. This makes it one click.
   the official release pages and updates only what is out of date.
 - 🔌 **Installs the extension** for Chrome, Edge, Brave, Opera, Vivaldi, Yandex
   and Firefox, and repairs it if the app folder moves.
-- 🎨 **Themes + appearance editor** — 4 themes, custom colours, blur, corner
-  radii and background image.
+- 🎨 **Themes + appearance editor** — 7 themes, including Halloween and New
+  Year, plus custom colours, blur, corner radii and background image.
+- 💾 **Save as theme** — any look you build in the editor becomes a theme file
+  under `%APPDATA%\MPVLauncher\themes` and appears in the picker.
+- 🏷️ **Your own launcher icon** — drop any `.ico` into
+  `%APPDATA%\MPVLauncher\icons` and pick it under Themes; the window and its
+  desktop shortcut follow.
 - ✨ **Anime4K and ModernZ** — anime upscaling and a nicer on-screen controller.
 - 🗂️ **Playback history** — your last 50 entries, shared with the extension.
 - 🌍 **12 languages** in the app, **13** in the extension.

@@ -152,6 +152,11 @@ namespace MpvLauncher.Gui.Services
                         Arguments = "--version",
                         RedirectStandardOutput = true,
                         RedirectStandardError = true,
+                        // mpv prints UTF-8 (the copyright sign) even on a
+                        // Turkish Windows, where the default OEM code page
+                        // would turn it into two garbage characters.
+                        StandardOutputEncoding = System.Text.Encoding.UTF8,
+                        StandardErrorEncoding = System.Text.Encoding.UTF8,
                         UseShellExecute = false,
                         CreateNoWindow = true
                     }
@@ -290,7 +295,14 @@ namespace MpvLauncher.Gui.Services
         if (sessionArgs != null)
             argsList.AddRange(sessionArgs);
         if (!string.IsNullOrWhiteSpace(title))
+        {
+            // --title only names the window; mpv shows ${media-title} on screen,
+            // which falls back to the URL's last segment (the session token)
+            // when the container has no title tag. Both are set so the window
+            // title, the on-screen title and the card always agree.
+            argsList.Add($"--force-media-title={title}");
             argsList.Add($"--title={title}");
+        }
 
         argsList.Add(url);
 

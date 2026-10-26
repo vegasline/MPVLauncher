@@ -1,6 +1,7 @@
-using System;
+﻿using System;
 using System.Windows;
 using System.Windows.Controls;
+using MpvLauncher.Gui.Services;
 
 namespace MpvLauncher.Gui
 {
@@ -40,6 +41,8 @@ namespace MpvLauncher.Gui
         public UpdateDialog()
         {
             InitializeComponent();
+            DialogTheme.Apply(this);
+            Loaded += (_, _) => DialogTheme.Apply(this);
         }
 
         /// <summary>Sets the notice text.</summary>

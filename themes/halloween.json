@@ -1,0 +1,33 @@
+{
+  "id": "halloween",
+  "name": "Halloween Night",
+  "author": "MPV Launcher",
+  "version": "1.0",
+  "background": {
+    "type": "gradient",
+    "color": "#0B0710",
+    "image": "",
+    "blur_radius": 0,
+    "overlay_color": "rgba(8, 4, 12, 0.28)",
+    "gradient": ["#0B0710", "#25101A", "#3D1608"],
+    "angle": 150
+  },
+  "colors": {
+    "card_bg": "#1C1119",
+    "card_border": "rgba(255, 140, 40, 0.30)",
+    "accent": "#FF7518",
+    "accent_hover": "#E85D04",
+    "logo": "#FF7518",
+    "text_primary": "#FFF3E6",
+    "text_secondary": "#EFC9A8",
+    "text_muted": "#A87B5A",
+    "success": "#7BC96F",
+    "warning": "#FFB703",
+    "danger": "#E63946"
+  },
+  "opacity": {
+    "cards": 0.88,
+    "inputs": 0.55,
+    "buttons": 1.0
+  }
+}

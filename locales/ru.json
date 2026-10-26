@@ -142,6 +142,7 @@
     "label_text_secondary": "Вторичный Текст:",
     "btn_apply_colors": "Применить Цвета",
     "btn_reset_defaults": "Сбросить по Умолчанию",
+    "theme_applied": "Тема применена.",
     "theme_reset_success": "Настройки темы и оформления сброшены к значениям по умолчанию.",
     "guide_title": "Руководство Пользователя",
     "guide_quickstart_title": "🎬 Быстрый Старт и Воспроизведение",
@@ -254,6 +255,12 @@
     "torrent_conns_label": "Максимум подключений",
     "torrent_halfopen_label": "Одновременные попытки подключения",
     "torrent_tailwait_label": "Ждать конца файла перед началом (с, 0 = начать сразу)",
-    "torrent_trackers_label": "Список трекеров (по одному URL в строке):"
+    "torrent_trackers_label": "Список трекеров (по одному URL в строке):",
+    "save_theme": "Сохранить как тему",
+    "theme_name": "Название темы",
+    "theme_name_label": "Название темы",
+    "theme_name_default": "Моя тема",
+    "theme_saved": "Тема сохранена: {0}",
+    "pick_color": "Выбрать цвет"
   }
 }

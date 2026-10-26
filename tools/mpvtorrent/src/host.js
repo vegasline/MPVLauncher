@@ -19,10 +19,30 @@ export function isAllowedHost (header, port) {
   return false
 }
 
-/** The request path must be exactly /s/<token>. */
+/**
+ * The request path must be /s/<token>, optionally followed by one decorative
+ * segment holding the file name.
+ *
+ * The name exists only so players can derive a readable title from the URL;
+ * it is never used to pick a file or to touch the disk. The token is compared
+ * exactly, and the optional segment may not contain a slash or a control
+ * character, so a crafted path cannot walk upwards.
+ */
 export function isAuthorizedPath (requestPath, token) {
   if (typeof requestPath !== 'string' || typeof token !== 'string' || token.length < 16) return false
-  return requestPath === `/s/${token}`
+
+  const prefix = `/s/${token}`
+  if (requestPath === prefix) return true
+  if (!requestPath.startsWith(prefix + '/')) return false
+
+  const name = requestPath.slice(prefix.length + 1)
+  if (name.length === 0 || name.length > 300) return false
+  if (name.includes('/') || name.includes('\\')) return false
+  // Percent-encoded separators too: the segment is only cosmetic, so there is
+  // no reason to let a path-shaped string through.
+  if (/%2f|%5c/i.test(name)) return false
+  // eslint-disable-next-line no-control-regex
+  return !/[\u0000-\u001f\u007f]/.test(name)
 }
 
 export function createStreamToken (randomBytes) {

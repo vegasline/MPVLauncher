@@ -80,7 +80,7 @@ Every event has `type`. Events are emitted at most twice per second.
 {"type":"metadata","infoHash":"...","name":"...","totalLength":123,"pieceLength":262144,
  "files":[{"index":0,"name":"dir/video.mkv","displayName":"video.mkv","length":123}]}
 {"type":"selected","fileIndex":0,"fileName":"dir/video.mkv","displayName":"video.mkv","size":123}
-{"type":"ready","url":"http://127.0.0.1:54321/s/<token>","fileIndex":0,
+{"type":"ready","url":"http://127.0.0.1:54321/s/<token>/<url-encoded file name>","fileIndex":0,
  "fileName":"dir/video.mkv","displayName":"video.mkv","size":123,"pieceLength":262144}
 {"type":"hint","code":"still_searching","message":"..."}
 {"type":"error","code":"metadata_timeout","message":"...","fatal":true}
@@ -105,9 +105,11 @@ deleted.
 
 ## HTTP endpoint
 
-`GET`/`HEAD` on `/s/<random token>` with a `Range` header. Replies are `200`,
-`206` with `Content-Range`, or `416`. The server binds `127.0.0.1` on a random
-port, requires `Host` to be a loopback literal with that port (DNS-rebinding
+`GET`/`HEAD` on `/s/<random token>` with a `Range` header. The token may be
+followed by one decorative segment holding the file name, which players use as a
+fallback title; it is ignored for authorization. Replies are `200`, `206` with
+`Content-Range`, or `416`. The server binds `127.0.0.1` on a random port,
+requires `Host` to be a loopback literal with that port (DNS-rebinding
 protection), and is open only for the session.
 
 ## Piece selection
@@ -127,6 +129,27 @@ requested when that wait starts. At playback the window is:
 - 6 MiB backward;
 - the first 8 MiB (or two pieces) ahead of the read head are marked critical;
 - everything outside the window is deselected.
+
+A jump of 4 MiB or more moves the window **before** the HTTP response starts
+waiting for its first piece. The stream's own piece iterator selects at the
+same priority as the window, so without that step a seek made the client keep
+downloading the old window while the new position waited for pieces nobody had
+asked for - the symptom being hundreds of megabytes downloaded at full speed
+and a video that still did not start.
+
+Only pieces inside the selected file are ever requested: the torrent is added
+with `deselect: true`, so no other file in a multi-file torrent is downloaded.
+Pieces that straddle a file boundary are shared with the neighbouring file, so a
+multi-file torrent can show a few megabytes on the files next to the selected
+one; their own pieces are never requested.
+
+The HTTP layer never hands an open-ended range to the torrent: mpv asks for
+`bytes=N-`, and WebTorrent's file iterator selects every piece of the range it is
+given, so passing the rest of the file would select the rest of the file and the
+download would run to the end at full speed regardless of playback. Reads are
+therefore issued in 16 MiB segments, one at a time, so selection can only ever
+reach one segment past the read head. Because the generator is pulled by the
+response, a player that stops reading also stops the download.
 
 The planner is a pure function in `src/window.js` and is unit tested; sliding
 is driven by the byte offset the HTTP layer has served.

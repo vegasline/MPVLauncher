@@ -1,6 +1,6 @@
 {
   "name": "mpvtorrent",
-  "version": "1.0.1",
+  "version": "1.0.4",
   "description": "Headless torrent-to-HTTP streamer used by MPVLauncher",
   "license": "MIT",
   "type": "module",

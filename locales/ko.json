@@ -142,6 +142,7 @@
     "label_text_secondary": "보조 글자 색상:",
     "btn_apply_colors": "색상 적용",
     "btn_reset_defaults": "기본값으로 초기화",
+    "theme_applied": "테마가 적용되었습니다.",
     "theme_reset_success": "테마 및 인터페이스 설정이 기본값으로 초기화되었습니다.",
     "guide_title": "사용자 가이드 및 안내",
     "guide_quickstart_title": "🎬 빠른 시작 및 동영상 재생",
@@ -254,6 +255,12 @@
     "torrent_conns_label": "최대 연결 수",
     "torrent_halfopen_label": "동시 연결 시도 수",
     "torrent_tailwait_label": "시작 전에 파일 끝을 기다림(초, 0 = 즉시 시작)",
-    "torrent_trackers_label": "트래커 목록(줄당 URL 하나):"
+    "torrent_trackers_label": "트래커 목록(줄당 URL 하나):",
+    "save_theme": "테마로 저장",
+    "theme_name": "테마 이름",
+    "theme_name_label": "테마 이름",
+    "theme_name_default": "내 테마",
+    "theme_saved": "테마 저장됨: {0}",
+    "pick_color": "색상 선택"
   }
 }

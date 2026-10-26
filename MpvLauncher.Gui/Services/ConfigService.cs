@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text.Json;
@@ -84,6 +84,14 @@ namespace MpvLauncher.Gui.Services
         public double CustomButtonOpacity { get; set; } = 1.0;
         public double CustomShadowBlur { get; set; } = 16.0;
         public double CustomShadowOpacity { get; set; } = 0.35;
+
+        /// <summary>
+        /// Version of the appearance block above. Bumped when the meaning of a
+        /// field changes; the window then re-seeds the overrides from the saved
+        /// theme once, so an old config cannot keep a theme's colours pinned to
+        /// values from a previous version.
+        /// </summary>
+        public int AppearanceSchema { get; set; }
 
         /// <summary>
         /// True until the first successful GUI setup (templates plus browser

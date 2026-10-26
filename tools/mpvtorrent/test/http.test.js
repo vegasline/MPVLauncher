@@ -31,6 +31,31 @@ function request (port, { method = 'GET', path = `/s/${TOKEN}`, headers = {} } =
   })
 }
 
+test('a range request reports its start before the stream is opened', async () => {
+  // This ordering is what lets a seek move the download window before the
+  // response blocks on a piece that is not selected yet.
+  const order = []
+  const server = createStreamServer({
+    token: TOKEN,
+    getFileInfo: () => ({ size: BODY.length, name: 'movie.mkv' }),
+    openStream: (start, end) => {
+      order.push('open:' + start)
+      return Readable.from([BODY.subarray(start, end + 1)])
+    },
+    onReadStart: offset => order.push('start:' + offset),
+    timeoutMs: 2000
+  })
+  await server.listen()
+  try {
+    const res = await request(server.port, { headers: { range: 'bytes=40-59' } })
+    assert.equal(res.status, 206)
+    assert.deepEqual(order, ['start:40', 'open:40'])
+  } finally {
+    await server.close()
+  }
+})
+
+
 async function withServer (openStream, fn) {
   const server = createStreamServer({
     token: TOKEN,
@@ -52,6 +77,26 @@ test('content types follow the file extension', () => {
   assert.equal(contentTypeFor('a.MKV'), 'video/x-matroska')
   assert.equal(contentTypeFor('a.mp4'), 'video/mp4')
   assert.equal(contentTypeFor('a.bin'), 'application/octet-stream')
+})
+
+test('the stream URL carries the file name for players that show it', async () => {
+  const server = createStreamServer({
+    token: TOKEN,
+    getFileInfo: () => ({ size: BODY.length, name: 'Show/episode 08 [1080p].mkv' }),
+    openStream: (start, end) => open(start, end),
+    timeoutMs: 2000
+  })
+  await server.listen()
+  try {
+    // Only the basename survives; the rest is percent-encoded.
+    assert.match(server.url, /\/s\/[a-f0-9]+\/episode%2008%20%5B1080p%5D\.mkv$/)
+
+    const parsed = new URL(server.url)
+    const res = await request(server.port, { path: parsed.pathname })
+    assert.equal(res.status, 200)
+  } finally {
+    await server.close()
+  }
 })
 
 test('HEAD describes the file without opening a stream', async () => {

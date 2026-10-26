@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
+using System.Windows.Media.Effects;
 using MpvLauncher.Gui.Services;
 
 namespace MpvLauncher.Gui
@@ -18,14 +19,13 @@ namespace MpvLauncher.Gui
     /// use. Keeping the download out of the dialog means the dialog cannot
     /// invent an install path of its own, and the progress text it shows is the
     /// installer's own stage description.
+    ///
+    /// The height follows the content instead of being fixed: three rows plus a
+    /// long failure message did not fit in the old 440px box and forced a
+    /// scrollbar over three items.
     /// </summary>
     public sealed class ToolUpdatesDialog : Window
     {
-        private static readonly Brush Muted = new SolidColorBrush(Color.FromRgb(0x9A, 0xA3, 0xB2));
-        private static readonly Brush Current = new SolidColorBrush(Color.FromRgb(0x4A, 0xDE, 0x80));
-        private static readonly Brush Outdated = new SolidColorBrush(Color.FromRgb(0xFB, 0xBF, 0x24));
-        private static readonly Brush Broken = new SolidColorBrush(Color.FromRgb(0xF8, 0x71, 0x71));
-
         private readonly Func<string, string, string> _loc;
         private readonly Func<ToolKind, IProgress<DownloadProgress>, System.Threading.Tasks.Task<InstallResult>> _install;
         private readonly List<ToolUpdateRow> _rows = new();
@@ -48,28 +48,121 @@ namespace MpvLauncher.Gui
             _install = install;
 
             Title = _loc("tools_updates_title", "Program updates");
-            Width = 660;
-            Height = 440;
-            MinWidth = 520;
-            MinHeight = 340;
+            Width = 720;
+            MinWidth = 560;
+            SizeToContent = SizeToContent.Height;
+            MaxHeight = Math.Max(420, SystemParameters.WorkArea.Height * 0.86);
             WindowStartupLocation = WindowStartupLocation.CenterOwner;
-            Background = new SolidColorBrush(Color.FromRgb(0x1E, 0x22, 0x2D));
-            Foreground = Brushes.White;
             ShowInTaskbar = false;
+            ResizeMode = ResizeMode.NoResize;
+            FontSize = 12;
 
-            var root = new Grid { Margin = new Thickness(20) };
+            // Frameless, like the main window: a system caption bar on a
+            // translucent theme was the one piece that never matched.
+            WindowStyle = WindowStyle.None;
+            AllowsTransparency = true;
+            Background = Brushes.Transparent;
+
+            var palette = UiTheme.Current;
+
+            var shell = new Border
+            {
+                Background = palette.Popup,
+                BorderBrush = palette.CardBorder,
+                BorderThickness = new Thickness(1),
+                CornerRadius = new CornerRadius(12),
+                Margin = new Thickness(14),
+                Effect = new DropShadowEffect
+                {
+                    BlurRadius = 26,
+                    ShadowDepth = 0,
+                    Opacity = 0.5,
+                    Color = Colors.Black
+                }
+            };
+
+            var layout = new Grid();
+            layout.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            layout.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            shell.Child = layout;
+
+            var titleBar = new Grid { Height = 42, Background = Brushes.Transparent };
+            titleBar.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            titleBar.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+            var title = new TextBlock
+            {
+                Text = _loc("tools_updates_title", "Program updates"),
+                FontSize = 13,
+                FontWeight = FontWeights.SemiBold,
+                Foreground = palette.TextPrimary,
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(18, 0, 0, 0)
+            };
+            titleBar.Children.Add(title);
+
+            var closeGlyph = new Button
+            {
+                Width = 38,
+                Height = 30,
+                Margin = new Thickness(0, 0, 8, 0),
+                Background = Brushes.Transparent,
+                BorderThickness = new Thickness(0),
+                ToolTip = _loc("tools_updates_close", "Close"),
+                Cursor = System.Windows.Input.Cursors.Hand,
+                Content = new System.Windows.Shapes.Path
+                {
+                    Data = Geometry.Parse("M 0,0 L 10,10 M 10,0 L 0,10"),
+                    Stroke = palette.TextSecondary,
+                    StrokeThickness = 1.4,
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                    VerticalAlignment = VerticalAlignment.Center
+                }
+            };
+            closeGlyph.Click += (_, _) => Close();
+
+            var closeButtonTemplate = new ControlTemplate(typeof(Button));
+            var border = new FrameworkElementFactory(typeof(Border), "chrome");
+            border.SetValue(Border.BackgroundProperty, new TemplateBindingExtension(Button.BackgroundProperty));
+            border.SetValue(Border.CornerRadiusProperty, new CornerRadius(6));
+            var presenter = new FrameworkElementFactory(typeof(ContentPresenter));
+            presenter.SetValue(HorizontalAlignmentProperty, HorizontalAlignment.Center);
+            presenter.SetValue(VerticalAlignmentProperty, VerticalAlignment.Center);
+            border.AppendChild(presenter);
+            closeButtonTemplate.VisualTree = border;
+            var hover = new Trigger { Property = UIElement.IsMouseOverProperty, Value = true };
+            hover.Setters.Add(new Setter(Border.BackgroundProperty, palette.Surface, "chrome"));
+            closeButtonTemplate.Triggers.Add(hover);
+            closeGlyph.Template = closeButtonTemplate;
+
+            Grid.SetColumn(closeGlyph, 1);
+            titleBar.Children.Add(closeGlyph);
+
+            titleBar.MouseLeftButtonDown += (_, e) =>
+            {
+                if (e.ButtonState == System.Windows.Input.MouseButtonState.Pressed)
+                {
+                    try { DragMove(); } catch { }
+                }
+            };
+
+            layout.Children.Add(titleBar);
+
+            var root = new Grid { Margin = new Thickness(24, 0, 24, 22) };
             root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-            root.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
             root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            Grid.SetRow(root, 1);
+            layout.Children.Add(root);
 
             var header = new TextBlock
             {
                 Text = _loc("tools_updates_subtitle",
                     "Checked against the official release pages. MPV and FFmpeg publish daily builds, so they are only reported when yours is more than a month old."),
                 FontSize = 12,
-                Foreground = Muted,
+                Foreground = palette.TextSecondary,
                 TextWrapping = TextWrapping.Wrap,
-                Margin = new Thickness(0, 0, 0, 14)
+                Margin = new Thickness(0, 0, 0, 16)
             };
             root.Children.Add(header);
 
@@ -82,17 +175,23 @@ namespace MpvLauncher.Gui
             {
                 Content = list,
                 VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
-                HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled
+                HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
+                MaxHeight = Math.Max(260, SystemParameters.WorkArea.Height * 0.55),
+                Margin = new Thickness(-4, 0, -4, 0),
+                Padding = new Thickness(4, 0, 4, 0)
             };
+            ScrollAutoHide.SetEnabled(scroll, true);
             Grid.SetRow(scroll, 1);
             root.Children.Add(scroll);
 
             var close = new Button
             {
                 Content = _loc("tools_updates_close", "Close"),
-                Padding = new Thickness(18, 8, 18, 8),
+                Style = DialogTheme.Style(this, "SecondaryButton"),
+                Padding = new Thickness(22, 9, 22, 9),
+                MinWidth = 110,
                 HorizontalAlignment = HorizontalAlignment.Right,
-                Margin = new Thickness(0, 12, 0, 0),
+                Margin = new Thickness(0, 16, 0, 0),
                 IsCancel = true,
                 IsDefault = true
             };
@@ -100,22 +199,26 @@ namespace MpvLauncher.Gui
             Grid.SetRow(close, 2);
             root.Children.Add(close);
 
-            Content = root;
+            Content = shell;
             KeyDown += (_, e) => { if (e.Key == System.Windows.Input.Key.Escape) Close(); };
+            Loaded += (_, _) => DialogTheme.Apply(this);
         }
 
         private Border BuildRow(ToolUpdateInfo info)
         {
+            var palette = UiTheme.Current;
+
             var grid = new Grid();
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
 
-            var text = new StackPanel { Margin = new Thickness(0, 0, 14, 0) };
+            var text = new StackPanel { Margin = new Thickness(0, 0, 16, 0) };
             text.Children.Add(new TextBlock
             {
                 Text = info.Name,
                 FontSize = 14,
-                FontWeight = FontWeights.SemiBold
+                FontWeight = FontWeights.SemiBold,
+                Foreground = palette.TextPrimary
             });
 
             if (!string.IsNullOrEmpty(info.Installed))
@@ -124,9 +227,9 @@ namespace MpvLauncher.Gui
                 {
                     Text = string.Format(_loc("tools_updates_installed", "Installed: {0}"), info.Installed),
                     FontSize = 11,
-                    Foreground = Muted,
+                    Foreground = palette.TextSecondary,
                     TextWrapping = TextWrapping.Wrap,
-                    Margin = new Thickness(0, 3, 0, 0)
+                    Margin = new Thickness(0, 4, 0, 0)
                 });
             }
 
@@ -136,7 +239,7 @@ namespace MpvLauncher.Gui
                 {
                     Text = string.Format(_loc("tools_updates_latest", "Latest: {0}"), info.Latest),
                     FontSize = 11,
-                    Foreground = Muted,
+                    Foreground = palette.TextSecondary,
                     TextWrapping = TextWrapping.Wrap,
                     Margin = new Thickness(0, 2, 0, 0)
                 });
@@ -149,7 +252,7 @@ namespace MpvLauncher.Gui
                 FontWeight = FontWeights.SemiBold,
                 Foreground = StateBrush(info.State),
                 TextWrapping = TextWrapping.Wrap,
-                MaxWidth = 300
+                Margin = new Thickness(0, 8, 0, 0)
             };
             text.Children.Add(status);
             Grid.SetColumn(text, 0);
@@ -158,7 +261,8 @@ namespace MpvLauncher.Gui
             var action = new Button
             {
                 Content = _loc("tools_updates_update", "Update"),
-                Padding = new Thickness(16, 7, 16, 7),
+                Style = DialogTheme.Style(this, "ModernButton"),
+                Padding = new Thickness(18, 8, 18, 8),
                 VerticalAlignment = VerticalAlignment.Center,
                 Visibility = info.State is ToolUpdateState.Available or ToolUpdateState.NotInstalled
                     ? Visibility.Visible
@@ -175,9 +279,11 @@ namespace MpvLauncher.Gui
 
             return new Border
             {
-                Background = new SolidColorBrush(Color.FromRgb(0x22, 0x26, 0x31)),
-                CornerRadius = new CornerRadius(8),
-                Padding = new Thickness(14),
+                Background = palette.Surface,
+                BorderBrush = palette.CardBorder,
+                BorderThickness = new Thickness(1),
+                CornerRadius = new CornerRadius(10),
+                Padding = new Thickness(16),
                 Margin = new Thickness(0, 0, 0, 10),
                 Child = grid
             };
@@ -201,12 +307,16 @@ namespace MpvLauncher.Gui
             return text;
         }
 
-        private static Brush StateBrush(ToolUpdateState state) => state switch
+        private static Brush StateBrush(ToolUpdateState state)
         {
-            ToolUpdateState.UpToDate => Current,
-            ToolUpdateState.Available or ToolUpdateState.NotInstalled => Outdated,
-            _ => Broken
-        };
+            var palette = UiTheme.Current;
+            return state switch
+            {
+                ToolUpdateState.UpToDate => palette.Success,
+                ToolUpdateState.Available or ToolUpdateState.NotInstalled => palette.Warning,
+                _ => palette.Danger
+            };
+        }
 
         private async void OnUpdateClick(object sender, RoutedEventArgs e)
         {
@@ -215,7 +325,7 @@ namespace MpvLauncher.Gui
 
             _busy = true;
             SetActionsEnabled(false);
-            row.Status.Foreground = Muted;
+            row.Status.Foreground = UiTheme.Current.TextSecondary;
             row.Status.Text = _loc("tools_updates_updating", "Updating...");
 
             var progress = new Progress<DownloadProgress>(p =>
@@ -237,19 +347,19 @@ namespace MpvLauncher.Gui
                 if (result.Success)
                 {
                     row.Done = true;
-                    row.Status.Foreground = Current;
+                    row.Status.Foreground = UiTheme.Current.Success;
                     row.Status.Text = _loc("tools_updates_updated", "Updated");
                     row.Action.Visibility = Visibility.Collapsed;
                 }
                 else
                 {
-                    row.Status.Foreground = Broken;
+                    row.Status.Foreground = UiTheme.Current.Danger;
                     row.Status.Text = result.Message;
                 }
             }
             catch (Exception ex)
             {
-                row.Status.Foreground = Broken;
+                row.Status.Foreground = UiTheme.Current.Danger;
                 row.Status.Text = ex.Message;
             }
             finally

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
@@ -186,11 +186,25 @@ namespace MpvLauncher.Gui
         /// </summary>
         private void MainWindow_Loaded(object sender, RoutedEventArgs e)
         {
+            // A config written before the palette was applied as a whole holds
+            // the dark defaults for every field, which is why switching themes
+            // used to leave the window looking the same. Repair that once by
+            // taking the active theme's palette as the new baseline. It has to
+            // happen before the first UpdateTheme, or the window paints with the
+            // stale overrides and only corrects itself on the next change.
+            if (_configService.Config.AppearanceSchema < 1)
+            {
+                UiTheme.AdoptTheme(_themeService.CurrentTheme, _configService.Config);
+                _configService.Config.AppearanceSchema = 1;
+                _configService.Save();
+            }
+
             UpdateLocalization();
             UpdateTheme();
             LoadHistory();
             PopulateLanguages();
             PopulateThemes();
+
 
             // ---- Playback settings ----
             TxtMpvPath.Text = _configService.Config.MpvPath;
@@ -212,24 +226,9 @@ namespace MpvLauncher.Gui
             TxtMpvProfile.Text = _configService.Config.MpvProfile;
             TxtMpvExtraArgs.Text = _configService.Config.ExtraArgs;
 
-            // ---- Appearance overrides ----
-            // The opacity sliders show percentages while the config stores 0..1.
-            SliderBlur.Value = _configService.Config.CustomBlur;
-            SliderOpacity.Value = _configService.Config.CustomCardOpacity * 100;
-            SliderSidebarOpacity.Value = _configService.Config.CustomSidebarOpacity * 100;
-            SliderInputOpacity.Value = _configService.Config.CustomInputOpacity * 100;
-            SliderButtonOpacity.Value = _configService.Config.CustomButtonOpacity * 100;
-            TxtColorBg.Text = _configService.Config.CustomBgColor;
-            TxtColorSidebar.Text = _configService.Config.CustomSidebarColor;
-            TxtColorCard.Text = _configService.Config.CustomCardColor;
-            TxtColorAccent.Text = _configService.Config.CustomAccentColor;
-            TxtColorBorder.Text = _configService.Config.CustomBorderColor;
-            TxtColorTextPrimary.Text = _configService.Config.CustomTextPrimary;
-            TxtColorTextSecondary.Text = _configService.Config.CustomTextSecondary;
-            TxtColorLogo.Text = _configService.Config.CustomLogoColor;
-            TxtCustomBgUrl.Text = _configService.Config.CustomBackground;
+            SyncAppearanceControls();
 
-            TxtInstallDir.Text = $"Tools folder: {AppPaths.BinDir}";
+            TxtInstallDir.Text = _locService.Get("tools_folder_label", "Tools folder:") + " " + AppPaths.BinDir;
             TxtDataFolderPath.Text = AppPaths.Root;
             TxtStatus.Text = _locService.Get("status_ready", "Ready");
             PopulateTorrentSettings();
@@ -296,19 +295,16 @@ namespace MpvLauncher.Gui
             BtnNavThemes.Background = Brushes.Transparent;
             BtnNavGuide.Background = Brushes.Transparent;
 
-            var muted = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#9AA3B2"));
-            BtnNavPlayer.Foreground = muted;
-            BtnNavTools.Foreground = muted;
-            BtnNavSettings.Foreground = muted;
-            BtnNavThemes.Foreground = muted;
-            BtnNavGuide.Foreground = muted;
+            var ui = UiTheme.Current;
+            BtnNavPlayer.Foreground = ui.TextSecondary;
+            BtnNavTools.Foreground = ui.TextSecondary;
+            BtnNavSettings.Foreground = ui.TextSecondary;
+            BtnNavThemes.Foreground = ui.TextSecondary;
+            BtnNavGuide.Foreground = ui.TextSecondary;
 
             activePanel.Visibility = Visibility.Visible;
-            string accent = !string.IsNullOrWhiteSpace(_configService?.Config.CustomAccentColor)
-                ? _configService.Config.CustomAccentColor
-                : (_themeService?.CurrentTheme?.Colors?.Accent ?? "#6366F1");
-            activeButton.Background = ToBrush(accent, "#6366F1");
-            activeButton.Foreground = Brushes.White;
+            activeButton.Background = ui.Accent;
+            activeButton.Foreground = ui.OnAccent;
         }
 
         private void BtnNavPlayer_Click(object sender, RoutedEventArgs e) => SetActiveTab(PanelPlayer, BtnNavPlayer);
@@ -446,9 +442,9 @@ namespace MpvLauncher.Gui
                     Ytdl: _depService.CheckYtdlStatus(),
                     Ffmpeg: _depService.CheckFfmpegStatus()));
 
-                TxtMpvStatus.Text = status.Mpv;
-                TxtYtdlStatus.Text = status.Ytdl;
-                TxtFfmpegStatus.Text = status.Ffmpeg;
+                TxtMpvStatus.Text = CompactToolStatus(status.Mpv);
+                TxtYtdlStatus.Text = CompactToolStatus(status.Ytdl);
+                TxtFfmpegStatus.Text = CompactToolStatus(status.Ffmpeg);
             }
             catch (Exception ex)
             {
@@ -460,6 +456,29 @@ namespace MpvLauncher.Gui
         }
 
         private async void BtnRefreshTools_Click(object sender, RoutedEventArgs e) => await RefreshDependenciesAsync();
+
+        /// <summary>
+        /// First line of a tool's version output, cut to a length that fits the
+        /// tile. mpv prints a multi-line copyright banner and yt-dlp prints a
+        /// changelog URL; the tile only has room for one line, and the version
+        /// number was the part being pushed out of sight by the rest.
+        /// </summary>
+        private static string CompactToolStatus(string? text)
+        {
+            if (string.IsNullOrWhiteSpace(text)) return "";
+
+            string first = text
+                .Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .FirstOrDefault() ?? "";
+
+            // mpv and ffmpeg append their copyright banner to the same line;
+            // it is noise in a 12px tile, and dropping it here is what lets the
+            // version number stay visible.
+            int copyright = first.IndexOf(" Copyright", StringComparison.OrdinalIgnoreCase);
+            if (copyright > 0) first = first[..copyright].TrimEnd();
+
+            return first.Length <= 90 ? first : first[..87] + "...";
+        }
 
         /// <summary>
         /// Brings browser integration up to date at startup.
@@ -1767,17 +1786,12 @@ namespace MpvLauncher.Gui
                 cfg.TorrentMpvBufferMiB,
                 TorrentSettings.NormalizeCachePauseWait(TorrentSettings.DefaultCachePauseWaitSeconds));
 
+            // The card names the torrent; mpv and the history name the file that
+            // is actually playing. In a multi-file torrent the torrent name says
+            // nothing about which episode this is, so it is not repeated here.
             string title = string.IsNullOrWhiteSpace(e.DisplayName)
                 ? (e.FileName ?? "")
                 : e.DisplayName!;
-
-            // The card, the picker and mpv should read the same. The ready event
-            // does not carry the torrent name, so the remembered one is used.
-            if (!string.IsNullOrWhiteSpace(_torrentName)
-                && !title.StartsWith(_torrentName, StringComparison.Ordinal))
-            {
-                title = _torrentName + " - " + title;
-            }
 
             var res = _procService.PlayMedia(e.Url, mpvArgs, title, addHistory: false);
             if (!res.Success || res.Process == null)
@@ -1875,13 +1889,72 @@ namespace MpvLauncher.Gui
         #endregion
 
         #region Themes
+        /// <summary>
+        /// Pushes the saved appearance values back into the sliders and colour
+        /// boxes. Called at startup, after a theme switch and after a reset, so
+        /// the controls always show what the window is actually painted with -
+        /// the old startup path left some of them holding stale values.
+        /// </summary>
+        private void SyncAppearanceControls()
+        {
+            if (_configService == null) return;
+            var cfg = _configService.Config;
+
+            SliderBlur.Value = Math.Clamp(cfg.CustomBlur, SliderBlur.Minimum, SliderBlur.Maximum);
+            SliderOpacity.Value = Math.Clamp(cfg.CustomCardOpacity * 100, SliderOpacity.Minimum, SliderOpacity.Maximum);
+            SliderSidebarOpacity.Value = Math.Clamp(cfg.CustomSidebarOpacity * 100, SliderSidebarOpacity.Minimum, SliderSidebarOpacity.Maximum);
+            SliderInputOpacity.Value = Math.Clamp(cfg.CustomInputOpacity * 100, SliderInputOpacity.Minimum, SliderInputOpacity.Maximum);
+            SliderButtonOpacity.Value = Math.Clamp(cfg.CustomButtonOpacity * 100, SliderButtonOpacity.Minimum, SliderButtonOpacity.Maximum);
+
+            TxtColorBg.Text = cfg.CustomBgColor;
+            TxtColorSidebar.Text = cfg.CustomSidebarColor;
+            TxtColorCard.Text = cfg.CustomCardColor;
+            TxtColorAccent.Text = cfg.CustomAccentColor;
+            TxtColorBorder.Text = cfg.CustomBorderColor;
+            TxtColorTextPrimary.Text = cfg.CustomTextPrimary;
+            TxtColorTextSecondary.Text = cfg.CustomTextSecondary;
+            TxtColorLogo.Text = cfg.CustomLogoColor;
+            TxtCustomBgUrl.Text = cfg.CustomBackground;
+        }
+
+        /// <summary>
+        /// Saves what is on screen as a reusable theme file, then selects it so
+        /// the user can see it in the list straight away.
+        /// </summary>
+        private void BtnSaveTheme_Click(object sender, RoutedEventArgs e)
+        {
+            var prompt = new PromptDialog(
+                _locService.Get("save_theme", "Save as theme"),
+                _locService.Get("theme_name_label", "Theme name"),
+                _locService.Get("theme_name_default", "My theme"))
+            {
+                Owner = this
+            };
+
+            if (prompt.ShowDialog() != true || string.IsNullOrWhiteSpace(prompt.Value)) return;
+
+            var model = _themeService.CaptureCurrent(prompt.Value, _configService.Config);
+            string id = _themeService.SaveTheme(prompt.Value, model);
+            _configService.Config.Theme = id;
+            _configService.Save();
+
+            PopulateThemes();
+            SelectTheme(id);
+            TxtStatus.Text = string.Format(
+                _locService.Get("theme_saved", "Theme saved: {0}"),
+                prompt.Value);
+        }
+
         private void PopulateThemes()
         {
             PanelThemesWrap.Children.Clear();
             var themes = _themeService.GetAvailableThemes();
+            string current = _configService.Config.Theme;
 
             foreach (var t in themes)
             {
+                bool selected = string.Equals(t.Id, current, StringComparison.OrdinalIgnoreCase);
+
                 var btn = new Button
                 {
                     Style = (Style)FindResource("SecondaryButton"),
@@ -1890,27 +1963,51 @@ namespace MpvLauncher.Gui
                     Tag = t.Id
                 };
 
+                if (selected)
+                {
+                    // The picker has to show which theme is live; without it a
+                    // click looked like it did nothing at all.
+                    btn.Background = UiTheme.Current.Accent;
+                    btn.Foreground = UiTheme.Current.OnAccent;
+                }
+
                 var sp = new StackPanel();
-                sp.Children.Add(new TextBlock { Text = t.Name, FontWeight = FontWeights.SemiBold, FontSize = 13 });
+                sp.Children.Add(new TextBlock
+                {
+                    Text = t.Name,
+                    FontWeight = FontWeights.SemiBold,
+                    FontSize = 13,
+                    Foreground = selected ? UiTheme.Current.OnAccent : UiTheme.Current.TextPrimary
+                });
                 if (!string.IsNullOrEmpty(t.Author))
                     sp.Children.Add(new TextBlock
                     {
                         Text = t.Author,
                         FontSize = 11,
-                        Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#64748B")),
+                        Foreground = selected ? UiTheme.Current.OnAccent : UiTheme.Current.TextMuted,
+                        Opacity = selected ? 0.8 : 1.0,
                         Margin = new Thickness(0, 2, 0, 0)
                     });
 
                 btn.Content = sp;
-                btn.Click += (_, _) =>
-                {
-                    _themeService.LoadTheme(t.Id);
-                    _configService.Config.Theme = t.Id;
-                    _configService.Save();
-                };
+                btn.Click += (_, _) => SelectTheme(t.Id);
 
                 PanelThemesWrap.Children.Add(btn);
             }
+        }
+
+        private void SelectTheme(string themeId)
+        {
+            _themeService.LoadTheme(themeId);
+            UiTheme.AdoptTheme(_themeService.CurrentTheme, _configService.Config);
+            _configService.Config.Theme = themeId;
+            _configService.Save();
+
+            UpdateTheme();
+            SyncAppearanceControls();
+            PopulateThemes();
+
+            TxtStatus.Text = _locService.Get("theme_applied", "Theme applied.");
         }
 
         /// <summary>
@@ -1926,13 +2023,42 @@ namespace MpvLauncher.Gui
         {
             var tm = _themeService.CurrentTheme;
             var cfg = _configService.Config;
+            var ui = UiTheme.Apply(tm, cfg);
+
+            // The templates bind to these keys, so replacing the brushes here
+            // restyles every reference in one pass. A colour that is still
+            // assigned by hand somewhere is a leftover from before the palette.
+            Resources["WindowBrush"] = ui.Window;
+            Resources["CardBrush"] = ui.Card;
+            Resources["CardBorderBrush"] = ui.CardBorder;
+            Resources["WindowBorderBrush"] = ui.WindowBorder;
+            Resources["HairlineBrush"] = ui.Hairline;
+            Resources["SurfaceBrush"] = ui.Surface;
+            Resources["InputBrush"] = ui.Input;
+            Resources["PopupBrush"] = ui.Popup;
+            Resources["HoverBrush"] = ui.Surface;
+            Resources["TextPrimaryBrush"] = ui.TextPrimary;
+            Resources["TextSecondaryBrush"] = ui.TextSecondary;
+            Resources["TextMutedBrush"] = ui.TextMuted;
+            Resources["AccentBrush"] = ui.Accent;
+            Resources["AccentHoverBrush"] = ui.AccentHover;
+            Resources["OnAccentBrush"] = ui.OnAccent;
+            Resources["SuccessBrush"] = ui.Success;
+            Resources["WarningBrush"] = ui.Warning;
+            Resources["DangerBrush"] = ui.Danger;
+            Resources["SecondaryButtonBrush"] = ui.SecondaryButton;
+            Resources["DangerButtonBrush"] = ui.DangerButton;
+            Resources["ButtonOpacity"] = ui.ButtonOpacity;
 
             string bgUrl = !string.IsNullOrEmpty(cfg.CustomBackground)
                 ? cfg.CustomBackground
                 : tm.Background.Image;
 
-            string bgColor = !string.IsNullOrEmpty(cfg.CustomBgColor) ? cfg.CustomBgColor : tm.Background.Color;
-            WindowFrame.Background = ToBrush(bgColor, "#12141A");
+            // A theme may paint its background instead of shipping an image.
+            // Both paths end in the same Border, so the overlay and blur below
+            // apply either way.
+            WindowFrame.Background = BuildBackgroundGradient(tm, cfg) ?? ui.Window;
+            WindowFrame.BorderBrush = ui.WindowBorder;
             BgOverlayBorder.Background = ToBrush(tm.Background.OverlayColor, "#B20D0F18");
 
             WindowFrame.CornerRadius = new CornerRadius(cfg.WindowCornerRadius);
@@ -1955,71 +2081,59 @@ namespace MpvLauncher.Gui
 
             BgBlurEffect.Radius = cfg.CustomBlur >= 0 ? cfg.CustomBlur : tm.Background.BlurRadius;
 
-            try
+            var cardRadius = new CornerRadius(cfg.CardCornerRadius);
+            ApplyCardStyle(CardUrl, ui.Card, cardRadius);
+            ApplyCardStyle(CardHistory, ui.Card, cardRadius);
+            ApplyCardStyle(CardStatus, ui.Card, cardRadius);
+            ApplyCardStyle(CardDownloads, ui.Card, cardRadius);
+            ApplyCardStyle(CardBrowser, ui.Card, cardRadius);
+            ApplyCardStyle(CardThemes, ui.Card, cardRadius);
+            ApplyCardStyle(CardThemeAnime4k, ui.Card, cardRadius);
+            ApplyCardStyle(CardThemeCustomizer, ui.Card, cardRadius);
+            ApplyCardStyle(CardMpvConfig, ui.Card, cardRadius);
+            ApplyCardStyle(CardLang, ui.Card, cardRadius);
+            ApplyCardStyle(CardDataFolder, ui.Card, cardRadius);
+
+            if (SidebarBorder != null) SidebarBorder.Background = ui.Sidebar;
+
+            if (BorderBrandIcon != null)
             {
-                byte cardAlpha = (byte)Math.Clamp(cfg.CustomCardOpacity * 255, 10, 255);
-                var cardColor = ToColor(!string.IsNullOrEmpty(cfg.CustomCardColor) ? cfg.CustomCardColor : tm.Colors.CardBg, "#1E222D");
-                cardColor.A = cardAlpha;
-                var cardBrush = new SolidColorBrush(cardColor);
-
-                var cardRadius = new CornerRadius(cfg.CardCornerRadius);
-
-                ApplyCardStyle(CardUrl, cardBrush, cardRadius);
-                ApplyCardStyle(CardHistory, cardBrush, cardRadius);
-                ApplyCardStyle(CardStatus, cardBrush, cardRadius);
-                ApplyCardStyle(CardDownloads, cardBrush, cardRadius);
-                ApplyCardStyle(CardBrowser, cardBrush, cardRadius);
-                ApplyCardStyle(CardThemes, cardBrush, cardRadius);
-                ApplyCardStyle(CardThemeAnime4k, cardBrush, cardRadius);
-                ApplyCardStyle(CardThemeCustomizer, cardBrush, cardRadius);
-                ApplyCardStyle(CardMpvConfig, cardBrush, cardRadius);
-                ApplyCardStyle(CardLang, cardBrush, cardRadius);
-                ApplyCardStyle(CardDataFolder, cardBrush, cardRadius);
-
-                if (SidebarBorder != null)
-                {
-                    byte sideAlpha = (byte)Math.Clamp(cfg.CustomSidebarOpacity * 255, 10, 255);
-                    var sideColor = ToColor(!string.IsNullOrEmpty(cfg.CustomSidebarColor) ? cfg.CustomSidebarColor : tm.Background.Color, "#12141A");
-                    sideColor.A = sideAlpha;
-                    SidebarBorder.Background = new SolidColorBrush(sideColor);
-                }
-
-                string accent = !string.IsNullOrWhiteSpace(cfg.CustomAccentColor) ? cfg.CustomAccentColor : tm.Colors.Accent;
-                var accentBrush = ToBrush(accent, "#6366F1");
-
-                if (BorderBrandIcon != null)
-                {
-                    // Logo tint, in order of precedence: the user's explicit
-                    // override, then the theme's own logo colour, then accent.
-                    string logoColor = !string.IsNullOrWhiteSpace(cfg.CustomLogoColor)
-                        ? cfg.CustomLogoColor
-                        : (!string.IsNullOrWhiteSpace(_themeService?.CurrentTheme?.Colors?.Logo)
-                            ? _themeService.CurrentTheme.Colors.Logo
-                            : accent);
-                    BorderBrandIcon.Background = ToBrush(logoColor, accent);
-                }
-
-                if (_activeNavButton != null)
-                {
-                    _activeNavButton.Background = accentBrush;
-                    _activeNavButton.Foreground = Brushes.White;
-                }
-                else if (BtnNavPlayer != null && BtnNavPlayer.Background != Brushes.Transparent)
-                {
-                    BtnNavPlayer.Background = accentBrush;
-                    BtnNavPlayer.Foreground = Brushes.White;
-                }
-
-                if (BtnPlayUrl != null) BtnPlayUrl.Background = accentBrush;
-                if (BtnInstallExtensions != null) BtnInstallExtensions.Background = accentBrush;
-                if (BtnInstallMpv != null) BtnInstallMpv.Background = accentBrush;
-                if (BtnInstallYtdlp != null) BtnInstallYtdlp.Background = accentBrush;
-                if (BtnInstallFfmpeg != null) BtnInstallFfmpeg.Background = accentBrush;
-                if (BtnSaveMpvSettings != null) BtnSaveMpvSettings.Background = accentBrush;
-                if (BtnApplyColors != null) BtnApplyColors.Background = accentBrush;
+                // Logo tint: the theme's own logo colour, else the accent. The
+                // config field is kept in sync by AdoptTheme and the picker.
+                string logoColor = !string.IsNullOrWhiteSpace(cfg.CustomLogoColor)
+                    ? cfg.CustomLogoColor
+                    : (!string.IsNullOrWhiteSpace(tm.Colors?.Logo) ? tm.Colors.Logo : "");
+                BorderBrandIcon.Background = string.IsNullOrWhiteSpace(logoColor)
+                    ? ui.Accent
+                    : ToBrush(logoColor, "#6366F1");
             }
-            catch { }
+
+            if (_activeNavButton != null)
+            {
+                _activeNavButton.Background = ui.Accent;
+                _activeNavButton.Foreground = ui.OnAccent;
+            }
+            else if (BtnNavPlayer != null && BtnNavPlayer.Background != Brushes.Transparent)
+            {
+                BtnNavPlayer.Background = ui.Accent;
+                BtnNavPlayer.Foreground = ui.OnAccent;
+            }
+
+            if (BtnPlayUrl != null) BtnPlayUrl.Background = ui.Accent;
+            if (BtnInstallExtensions != null) BtnInstallExtensions.Background = ui.Accent;
+            if (BtnInstallMpv != null) BtnInstallMpv.Background = ui.Accent;
+            if (BtnInstallYtdlp != null) BtnInstallYtdlp.Background = ui.Accent;
+            if (BtnInstallFfmpeg != null) BtnInstallFfmpeg.Background = ui.Accent;
+            if (BtnSaveMpvSettings != null) BtnSaveMpvSettings.Background = ui.Accent;
+            if (BtnApplyColors != null) BtnApplyColors.Background = ui.Accent;
+
+            // The dialogs are built from the same palette, so one that is
+            // already open follows a live theme change too.
+            ThemePaletteChanged?.Invoke(ui);
         }
+
+        /// <summary>Raised after the palette changes so open dialogs can restyle.</summary>
+        public static event Action<UiPalette>? ThemePaletteChanged;
 
         /// <summary>Applies the fill and corner radius to one card border.</summary>
         private static void ApplyCardStyle(Border? card, Brush bg, CornerRadius radius)
@@ -2031,6 +2145,36 @@ namespace MpvLauncher.Gui
             }
         }
 
+        /// <summary>
+        /// The theme's background gradient, or null when it uses an image or a
+        /// flat colour. Angles follow the CSS convention: 90 points top to
+        /// bottom, 135 from the top-left corner.
+        /// </summary>
+        private static Brush? BuildBackgroundGradient(ThemeModel theme, AppConfig config)
+        {
+            if (!string.IsNullOrEmpty(config.CustomBackground)) return null;
+
+            var background = theme.Background;
+            var stops = background?.Gradient;
+            if (background == null || stops == null || stops.Count < 2) return null;
+
+            double radians = (background.Angle - 90) * Math.PI / 180.0;
+            var brush = new LinearGradientBrush
+            {
+                StartPoint = new Point(0.5 - Math.Cos(radians) / 2, 0.5 - Math.Sin(radians) / 2),
+                EndPoint = new Point(0.5 + Math.Cos(radians) / 2, 0.5 + Math.Sin(radians) / 2)
+            };
+
+            for (int i = 0; i < stops.Count; i++)
+            {
+                brush.GradientStops.Add(new GradientStop(
+                    UiTheme.Parse(stops[i], "#000000"),
+                    (double)i / (stops.Count - 1)));
+            }
+
+            brush.Freeze();
+            return brush;
+        }
         private static SolidColorBrush ToBrush(string value, string fallback)
             => new(ToColor(value, fallback));
 
@@ -2206,22 +2350,9 @@ namespace MpvLauncher.Gui
             _configService.Save();
             _themeService.LoadTheme("dark");
 
-            SliderBlur.Value = _configService.Config.CustomBlur;
-            SliderOpacity.Value = _configService.Config.CustomCardOpacity * 100;
-            SliderSidebarOpacity.Value = _configService.Config.CustomSidebarOpacity * 100;
-            SliderInputOpacity.Value = _configService.Config.CustomInputOpacity * 100;
-            SliderButtonOpacity.Value = _configService.Config.CustomButtonOpacity * 100;
-            TxtColorBg.Text = _configService.Config.CustomBgColor;
-            TxtColorSidebar.Text = _configService.Config.CustomSidebarColor;
-            TxtColorCard.Text = _configService.Config.CustomCardColor;
-            TxtColorAccent.Text = _configService.Config.CustomAccentColor;
-            TxtColorBorder.Text = _configService.Config.CustomBorderColor;
-            TxtColorTextPrimary.Text = _configService.Config.CustomTextPrimary;
-            TxtColorTextSecondary.Text = _configService.Config.CustomTextSecondary;
-            TxtColorLogo.Text = _configService.Config.CustomLogoColor;
-            TxtCustomBgUrl.Text = "";
-
+            SyncAppearanceControls();
             UpdateTheme();
+            PopulateThemes();
             TxtStatus.Text = _locService.Get("theme_reset_success", "Theme and UI settings reset to defaults.");
         }
 
@@ -2312,12 +2443,18 @@ namespace MpvLauncher.Gui
 
             try
             {
-                // 1. Local file on disk
-                if (File.Exists(bgUrl))
+                // 1. Local file on disk. A theme names its artwork relative to
+                // the themes folder, so a relative value has to be resolved
+                // there rather than against the working directory.
+                string localPath = bgUrl;
+                if (!Path.IsPathRooted(bgUrl) && !bgUrl.Contains("://", StringComparison.Ordinal))
+                    localPath = Path.Combine(AppPaths.ThemesDir, bgUrl.Replace('/', Path.DirectorySeparatorChar));
+
+                if (File.Exists(localPath))
                 {
                     var bmp = new BitmapImage();
                     bmp.BeginInit();
-                    bmp.UriSource = new Uri(Path.GetFullPath(bgUrl), UriKind.Absolute);
+                    bmp.UriSource = new Uri(Path.GetFullPath(localPath), UriKind.Absolute);
                     bmp.CacheOption = BitmapCacheOption.OnLoad;
                     bmp.CreateOptions = BitmapCreateOptions.PreservePixelFormat;
                     bmp.EndInit();
@@ -2540,7 +2677,12 @@ namespace MpvLauncher.Gui
             BtnApplyColors.Content = _locService.Get("btn_apply_colors", "Apply Colors");
             if (TxtColorLogoLabel != null)
                 TxtColorLogoLabel.Text = _locService.Get("label_logo_color", "Logo Color:");
+            BtnSaveTheme.Content = _locService.Get("save_theme", "Save as theme");
             BtnResetThemeDefaults.Content = _locService.Get("btn_reset_defaults", "Reset to Defaults");
+
+            // Shared tooltip for the eight swatch buttons, so the wording lives
+            // in the language packs instead of once per button in XAML.
+            Resources["PickColorTip"] = _locService.Get("pick_color", "Pick a colour");
 
             // Guide sections
             TxtGuideTitle.Text = _locService.Get("guide_title", "User Guide & Information");

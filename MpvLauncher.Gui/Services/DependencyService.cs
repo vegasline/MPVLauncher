@@ -1,5 +1,6 @@
 using System;
 using System.Diagnostics;
+using System.Text;
 using System.IO;
 using System.Threading.Tasks;
 
@@ -107,6 +108,7 @@ namespace MpvLauncher.Gui.Services
                         FileName = path,
                         Arguments = "--version",
                         RedirectStandardOutput = true,
+                        StandardOutputEncoding = Encoding.UTF8,
                         UseShellExecute = false,
                         CreateNoWindow = true
                     });
@@ -134,6 +136,7 @@ namespace MpvLauncher.Gui.Services
                         FileName = path,
                         Arguments = "-version",
                         RedirectStandardOutput = true,
+                        StandardOutputEncoding = Encoding.UTF8,
                         UseShellExecute = false,
                         CreateNoWindow = true
                     });

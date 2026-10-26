@@ -142,6 +142,7 @@
     "label_text_secondary": "次文本颜色：",
     "btn_apply_colors": "应用色彩",
     "btn_reset_defaults": "恢复默认设置",
+    "theme_applied": "主题已应用。",
     "theme_reset_success": "主题与界面设置已恢复为默认值。",
     "guide_title": "使用指南与说明",
     "guide_quickstart_title": "🎬 快速上手与视频播放",
@@ -254,6 +255,12 @@
     "torrent_conns_label": "最大连接数",
     "torrent_halfopen_label": "同时连接尝试数",
     "torrent_tailwait_label": "开始前等待文件末尾（秒，0 = 立即开始）",
-    "torrent_trackers_label": "跟踪器列表（每行一个 URL）："
+    "torrent_trackers_label": "跟踪器列表（每行一个 URL）：",
+    "save_theme": "另存为主题",
+    "theme_name": "主题名称",
+    "theme_name_label": "主题名称",
+    "theme_name_default": "我的主题",
+    "theme_saved": "主题已保存：{0}",
+    "pick_color": "选择颜色"
   }
 }

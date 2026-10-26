@@ -8,6 +8,7 @@
 import { randomBytes } from 'node:crypto'
 import { mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
+import { Readable } from 'node:stream'
 import WebTorrent from 'webtorrent'
 import parseTorrent from 'parse-torrent'
 import { fetchTorrentBuffer, materializeSource } from './source.js'
@@ -22,7 +23,38 @@ const VIDEO = /\.(mp4|m4v|mkv|webm|avi|mov|ts|m2ts|mpg|mpeg|ogv|flv|wmv|3gp)$/i
 const STATUS_MS = 500
 const HINT_MS = 45_000
 const GIVE_UP_MS = 120_000
+
+// WebTorrent's file iterator selects every piece of the range it is given.
+// mpv asks for open-ended ranges (bytes=N-), so handing the whole remainder to
+// createReadStream selects the rest of the file and defeats the download
+// window. Reading in bounded segments keeps each selection inside the window.
+const READ_SEGMENT_BYTES = 16 * 1024 * 1024
+
+/**
+ * Streams `from..to` (inclusive) of a torrent file in bounded segments.
+ *
+ * Each segment gets its own file iterator, so at most one segment of pieces is
+ * selected beyond what has already been read. The async generator stops pulling
+ * when the HTTP response applies backpressure, which ties the download rate to
+ * the player instead of the other way round.
+ */
+function readInSegments (file, from, to, segmentBytes) {
+  const size = Math.max(1, Math.floor(segmentBytes) || READ_SEGMENT_BYTES)
+
+  async function * generate () {
+    for (let position = from; position <= to; position += size) {
+      const last = Math.min(position + size - 1, to)
+      const stream = file.createReadStream({ start: position, end: last })
+      for await (const chunk of stream) yield chunk
+    }
+  }
+
+  return Readable.from(generate())
+}
 const PRELOAD_GIVE_UP_MS = 300_000
+// A range that starts more than this away from the last read is a seek, not
+// the next chunk of the same playback.
+const SEEK_DEADBAND_BYTES = 4 * 1024 * 1024
 const DHT_SAVE_MS = 60_000
 
 // Standard bootstrap routers used by bittorrent-dht itself. They are listed
@@ -372,6 +404,7 @@ export class TorrentSession {
         ? { size: this.currentFile.length, name: this.currentFile.name }
         : null,
       openStream: (start, end) => this.openStream(start, end),
+      onReadStart: offset => this.noteSeek(offset),
       onProgress: offset => this.noteRead(offset),
       log: this.log
     })
@@ -384,7 +417,26 @@ export class TorrentSession {
     if (!file) throw new Error('no file selected')
     const from = Math.max(0, Math.min(start, file.length - 1))
     const to = Math.max(from, Math.min(end, file.length - 1))
-    return file.createReadStream({ start: from, end: to })
+    return readInSegments(file, from, to, this.options.readSegmentBytes || READ_SEGMENT_BYTES)
+  }
+
+  /**
+   * A seek arrives as a fresh GET for a different offset. The window has to
+   * move at that moment, because the response blocks until its first piece
+   * arrives: waiting for progress reports would leave the old window in place
+   * while mpv sits on a range nobody is downloading.
+   *
+   * Small forward steps are the normal read path and are ignored here, so a
+   * seek cannot be confused with sequential playback.
+   */
+  noteSeek (absoluteFileOffset) {
+    if (!this.ready || this.closing || !this.currentFile || !this.torrent) return
+    const target = Math.max(0, Math.min(absoluteFileOffset, this.currentFile.length - 1))
+    if (Math.abs(target - this.position) < SEEK_DEADBAND_BYTES) return
+
+    this.position = target
+    this.applyWindow(this.plan(target), { force: true })
+    this.log.debug('seek', { position: target, startPiece: this.window?.startPiece })
   }
 
   plan (position = this.position) {

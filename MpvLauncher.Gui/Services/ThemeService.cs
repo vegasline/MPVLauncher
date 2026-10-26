@@ -60,6 +60,17 @@ namespace MpvLauncher.Gui.Services
         public double BlurRadius { get; set; } = 8.0;
         [JsonPropertyName("overlay_color")]
         public string OverlayColor { get; set; } = "rgba(0, 0, 0, 0.4)";
+
+        /// <summary>
+        /// Optional background gradient, painted instead of an image. Themes
+        /// that want artwork without shipping a binary can use "type":
+        /// "gradient" with two or more stops; the angle is in degrees, 90 being
+        /// top to bottom.
+        /// </summary>
+        [JsonPropertyName("gradient")]
+        public List<string> Gradient { get; set; } = new();
+        [JsonPropertyName("angle")]
+        public double Angle { get; set; } = 135.0;
     }
 
     /// <summary>Palette entries bound to the UI by name.</summary>
@@ -83,6 +94,8 @@ namespace MpvLauncher.Gui.Services
         public string TextMuted { get; set; } = "#64748b";
         [JsonPropertyName("success")]
         public string Success { get; set; } = "#10b981";
+        [JsonPropertyName("warning")]
+        public string Warning { get; set; } = "#f59e0b";
         [JsonPropertyName("danger")]
         public string Danger { get; set; } = "#ef4444";
     }
@@ -129,7 +142,7 @@ namespace MpvLauncher.Gui.Services
         /// file is missing or malformed. A bad theme must never stop the app from
         /// starting, which is why the failure path is silent and just resets.
         /// </summary>
-        public void LoadTheme(string themeId)
+        public ThemeModel LoadTheme(string themeId)
         {
             string file = Path.Combine(_themesDir, $"{themeId}.json");
             if (File.Exists(file))
@@ -142,13 +155,14 @@ namespace MpvLauncher.Gui.Services
                     {
                         CurrentTheme = model;
                         ThemeChanged?.Invoke();
-                        return;
+                        return model;
                     }
                 }
                 catch { /* fall through to the built-in defaults */ }
             }
             CurrentTheme = new ThemeModel();
             ThemeChanged?.Invoke();
+            return CurrentTheme;
         }
 
         /// <summary>
@@ -222,9 +236,108 @@ namespace MpvLauncher.Gui.Services
         }
 
         /// <summary>
-        /// A theme id has to be usable as a plain file name. Anything containing a
-        /// separator, a drive letter or a traversal segment is rejected.
+        /// Writes a theme the user built in the appearance editor. The file
+        /// lands next to the shipped ones so it shows up in the picker on the
+        /// next refresh, and the id is derived from the name so a second save
+        /// with the same name overwrites rather than piling up duplicates.
         /// </summary>
+        public string SaveTheme(string name, ThemeModel model)
+        {
+            string baseId = Slug(name);
+            if (string.IsNullOrEmpty(baseId)) baseId = "custom_" + DateTime.Now.Ticks;
+            if (!IsSafeThemeId(baseId)) baseId = "custom_" + DateTime.Now.Ticks;
+
+            model.Id = baseId;
+            model.Name = string.IsNullOrWhiteSpace(name) ? baseId : name.Trim();
+
+            Directory.CreateDirectory(_themesDir);
+            string json = JsonSerializer.Serialize(model, new JsonSerializerOptions { WriteIndented = true });
+            File.WriteAllText(Path.Combine(_themesDir, $"{baseId}.json"), json);
+
+            return baseId;
+        }
+
+        /// <summary>"Neon Sakura" -> "neon_sakura", for a file name.</summary>
+        public static string Slug(string name)
+        {
+            var sb = new System.Text.StringBuilder();
+            foreach (char c in (name ?? "").Trim().ToLowerInvariant())
+            {
+                if (char.IsLetterOrDigit(c)) sb.Append(c);
+                else if (c is ' ' or '-' or '_' && sb.Length > 0 && sb[^1] != '_') sb.Append('_');
+            }
+            return sb.ToString().Trim('_');
+        }
+
+        /// <summary>
+        /// A theme file that describes what is on screen right now: the
+        /// resolved palette plus the background, opacity and radius values.
+        /// </summary>
+        public ThemeModel CaptureCurrent(string name, AppConfig config)
+        {
+            var palette = UiTheme.Current;
+            var theme = CurrentTheme ?? new ThemeModel();
+            var background = theme.Background ?? new ThemeBackground();
+
+            // The wallpaper on screen is either the one the user picked or the
+            // one the active theme brought with it; whichever it is has to be
+            // written into the copy, or saving an image theme loses its art.
+            string image = !string.IsNullOrEmpty(config.CustomBackground)
+                ? config.CustomBackground
+                : background.Image ?? "";
+
+            // The logo can be recoloured independently of the accent, so the
+            // override has to win here as well, or the copy would come back
+            // with the accent colour where the user's pick used to be.
+            string logo = !string.IsNullOrWhiteSpace(config.CustomLogoColor)
+                ? config.CustomLogoColor
+                : theme.Colors?.Logo ?? "";
+
+            Color logoColor = string.IsNullOrWhiteSpace(logo)
+                ? ToColorOf(palette.Accent, "#6366F1")
+                : UiTheme.Parse(logo, ToColorOf(palette.Accent, "#6366F1"));
+
+            return new ThemeModel
+            {
+                Id = Slug(name),
+                Name = name,
+                Author = "Custom",
+                Background = new ThemeBackground
+                {
+                    Type = string.IsNullOrEmpty(image) ? background.Type : "image",
+                    Color = UiTheme.ToHex(ToColorOf(palette.Window, "#12141A")),
+                    Image = image,
+                    BlurRadius = config.CustomBlur,
+                    OverlayColor = background.OverlayColor,
+                    Gradient = string.IsNullOrEmpty(image) ? background.Gradient : new(),
+                    Angle = background.Angle
+                },
+                Colors = new ThemeColors
+                {
+                    CardBg = UiTheme.ToHex(ToColorOf(palette.Card, "#1E222D")),
+                    CardBorder = UiTheme.ToHex(ToColorOf(palette.CardBorder, "#33FFFFFF"), keepAlpha: true),
+                    Accent = UiTheme.ToHex(ToColorOf(palette.Accent, "#6366F1")),
+                    AccentHover = UiTheme.ToHex(ToColorOf(palette.AccentHover, "#4F46E5")),
+                    Logo = UiTheme.ToHex(logoColor),
+                    TextPrimary = UiTheme.ToHex(ToColorOf(palette.TextPrimary, "#F0F2F5")),
+                    TextSecondary = UiTheme.ToHex(ToColorOf(palette.TextSecondary, "#9AA3B2")),
+                    TextMuted = UiTheme.ToHex(ToColorOf(palette.TextMuted, "#64748B")),
+                    Success = UiTheme.ToHex(ToColorOf(palette.Success, "#10B981")),
+                    Warning = UiTheme.ToHex(ToColorOf(palette.Warning, "#F59E0B")),
+                    Danger = UiTheme.ToHex(ToColorOf(palette.Danger, "#EF4444"))
+                },
+                Opacity = new ThemeOpacity
+                {
+                    Cards = config.CustomCardOpacity,
+                    Inputs = config.CustomInputOpacity,
+                    Buttons = config.CustomButtonOpacity
+                }
+            };
+        }
+
+        private static Color ToColorOf(Brush brush, string fallback)
+            => brush is SolidColorBrush solid ? solid.Color : UiTheme.Parse(fallback, Colors.Transparent);
+
         private static bool IsSafeThemeId(string? id)
         {
             if (string.IsNullOrEmpty(id) || id.Length > 64) return false;

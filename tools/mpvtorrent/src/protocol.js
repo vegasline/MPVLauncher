@@ -6,7 +6,7 @@
 // The helper therefore never uses console.log.
 
 export const CONTRACT_VERSION = 2
-export const HELPER_VERSION = '1.0.1'
+export const HELPER_VERSION = '1.0.4'
 
 /** Writes newline-delimited JSON events to a stream (stdout by default). */
 export function createEventWriter (stream = process.stdout) {

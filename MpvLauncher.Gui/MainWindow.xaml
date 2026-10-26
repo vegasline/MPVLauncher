@@ -1,8 +1,10 @@
-<Window x:Class="MpvLauncher.Gui.MainWindow"
+﻿<Window x:Class="MpvLauncher.Gui.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:sys="clr-namespace:System;assembly=System.Runtime"
+        xmlns:svc="clr-namespace:MpvLauncher.Gui.Services"
         mc:Ignorable="d"
         Title="MPV Launcher" Height="680" Width="1040"
         Icon="pack://application:,,,/app.ico"
@@ -10,14 +12,39 @@
         WindowStyle="None"
         AllowsTransparency="True"
         Background="Transparent"
-        Foreground="#F0F2F5"
+        Foreground="{DynamicResource TextPrimaryBrush}"
         FontFamily="Segoe UI, Inter, Arial"
         AllowDrop="True" Drop="Window_Drop" DragOver="Window_DragOver">
 
     <Window.Resources>
+        <!-- Defaults only: UpdateTheme replaces every one of these with the
+             active theme's colour at startup, and DynamicResource references
+             below pick the new brush up without touching the tree. -->
+        <SolidColorBrush x:Key="AccentBrush" Color="#6366F1"/>
+        <SolidColorBrush x:Key="AccentHoverBrush" Color="#4F46E5"/>
+        <SolidColorBrush x:Key="OnAccentBrush" Color="#FFFFFF"/>
+        <SolidColorBrush x:Key="TextPrimaryBrush" Color="#F0F2F5"/>
+        <SolidColorBrush x:Key="TextSecondaryBrush" Color="#9AA3B2"/>
+        <SolidColorBrush x:Key="TextMutedBrush" Color="#64748B"/>
+        <SolidColorBrush x:Key="CardBorderBrush" Color="#33FFFFFF"/>
+        <SolidColorBrush x:Key="HairlineBrush" Color="#1FFFFFFF"/>
+        <SolidColorBrush x:Key="SurfaceBrush" Color="#22000000"/>
+        <SolidColorBrush x:Key="InputBrush" Color="#33000000"/>
+        <SolidColorBrush x:Key="CardBrush" Color="#CC1E222D"/>
+        <SolidColorBrush x:Key="WindowBrush" Color="#12141A"/>
+        <SolidColorBrush x:Key="PopupBrush" Color="#1E222D"/>
+        <SolidColorBrush x:Key="SuccessBrush" Color="#10B981"/>
+        <SolidColorBrush x:Key="WarningBrush" Color="#F59E0B"/>
+        <SolidColorBrush x:Key="DangerBrush" Color="#F87171"/>
+        <SolidColorBrush x:Key="SecondaryButtonBrush" Color="#252A38"/>
+        <SolidColorBrush x:Key="DangerButtonBrush" Color="#3A1D22"/>
+        <SolidColorBrush x:Key="HoverBrush" Color="#363B4D"/>
+        <SolidColorBrush x:Key="WindowBorderBrush" Color="#2E384D"/>
+        <sys:Double x:Key="ButtonOpacity">1</sys:Double>
+
         <Style x:Key="WindowControlButton" TargetType="Button">
             <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="Foreground" Value="#9AA3B2"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}"/>
             <Setter Property="FontSize" Value="13"/>
             <Setter Property="Width" Value="38"/>
             <Setter Property="Height" Value="32"/>
@@ -59,8 +86,9 @@
         </Style>
 
         <Style x:Key="ModernButton" TargetType="Button">
-            <Setter Property="Background" Value="#6366F1"/>
+            <Setter Property="Background" Value="{DynamicResource AccentBrush}"/>
             <Setter Property="Foreground" Value="White"/>
+            <Setter Property="Opacity" Value="{DynamicResource ButtonOpacity}"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
             <Setter Property="FontSize" Value="13"/>
             <Setter Property="Padding" Value="16,10"/>
@@ -86,18 +114,18 @@
         </Style>
 
         <Style x:Key="SecondaryButton" TargetType="Button" BasedOn="{StaticResource ModernButton}">
-            <Setter Property="Background" Value="#252A38"/>
-            <Setter Property="Foreground" Value="#F0F2F5"/>
+            <Setter Property="Background" Value="{DynamicResource SecondaryButtonBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
         </Style>
 
         <Style x:Key="DangerButton" TargetType="Button" BasedOn="{StaticResource ModernButton}">
-            <Setter Property="Background" Value="#3A1D22"/>
-            <Setter Property="Foreground" Value="#F87171"/>
+            <Setter Property="Background" Value="{DynamicResource DangerButtonBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource DangerBrush}"/>
         </Style>
 
         <Style x:Key="NavButton" TargetType="Button">
             <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="Foreground" Value="#9AA3B2"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}"/>
             <Setter Property="FontWeight" Value="Medium"/>
             <Setter Property="FontSize" Value="13"/>
             <Setter Property="Padding" Value="14,10"/>
@@ -112,7 +140,7 @@
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="bdr" Property="Background" Value="#1FFFFFFF"/>
+                                <Setter TargetName="bdr" Property="Background" Value="{DynamicResource HairlineBrush}"/>
                                 <Setter Property="Foreground" Value="White"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
@@ -122,8 +150,8 @@
         </Style>
 
         <Style TargetType="ComboBoxItem">
-            <Setter Property="Foreground" Value="#F0F2F5"/>
-            <Setter Property="Background" Value="#1E222D"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
+            <Setter Property="Background" Value="{DynamicResource PopupBrush}"/>
             <Setter Property="Padding" Value="12,8"/>
             <Setter Property="Template">
                 <Setter.Value>
@@ -133,10 +161,10 @@
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsHighlighted" Value="True">
-                                <Setter TargetName="ItemBorder" Property="Background" Value="#363B4D"/>
+                                <Setter TargetName="ItemBorder" Property="Background" Value="{DynamicResource HoverBrush}"/>
                             </Trigger>
                             <Trigger Property="IsSelected" Value="True">
-                                <Setter TargetName="ItemBorder" Property="Background" Value="#6366F1"/>
+                                <Setter TargetName="ItemBorder" Property="Background" Value="{DynamicResource AccentBrush}"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -159,9 +187,9 @@
         </ControlTemplate>
 
         <Style TargetType="ComboBox">
-            <Setter Property="Foreground" Value="#F0F2F5"/>
-            <Setter Property="Background" Value="#33000000"/>
-            <Setter Property="BorderBrush" Value="#33FFFFFF"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
+            <Setter Property="Background" Value="{DynamicResource InputBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource CardBorderBrush}"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="Padding" Value="14,8,12,8"/>
             <Setter Property="MinHeight" Value="38"/>
@@ -195,10 +223,10 @@
                                                           HorizontalAlignment="Left"
                                                           VerticalAlignment="Center"
                                                           Margin="0,0,6,0"
-                                                          TextElement.Foreground="#F0F2F5"/>
+                                                          TextElement.Foreground="{DynamicResource TextPrimaryBrush}"/>
                                         <Path Grid.Column="1"
                                               Data="M 0 0 L 4 4 L 8 0 Z"
-                                              Fill="#9AA3B2"
+                                              Fill="{DynamicResource TextSecondaryBrush}"
                                               HorizontalAlignment="Center"
                                               VerticalAlignment="Center"/>
                                     </Grid>
@@ -210,8 +238,8 @@
                                    AllowsTransparency="True"
                                    Focusable="False"
                                    PopupAnimation="Fade">
-                                <Border Background="#1E222D"
-                                        BorderBrush="#33FFFFFF"
+                                <Border Background="{DynamicResource PopupBrush}"
+                                        BorderBrush="{DynamicResource CardBorderBrush}"
                                         BorderThickness="1"
                                         CornerRadius="8"
                                         Margin="0,4,0,0"
@@ -228,7 +256,7 @@
                                 <Setter TargetName="ComboBorder" Property="Background" Value="#44000000"/>
                             </Trigger>
                             <Trigger Property="IsDropDownOpen" Value="True">
-                                <Setter TargetName="ComboBorder" Property="BorderBrush" Value="#6366F1"/>
+                                <Setter TargetName="ComboBorder" Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
                                 <Setter TargetName="ComboBorder" Property="Background" Value="#55000000"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
@@ -317,10 +345,187 @@
         <Style TargetType="{x:Type ScrollViewer}">
             <Setter Property="CanContentScroll" Value="True"/>
             <Setter Property="PanningMode" Value="VerticalFirst"/>
+            <Setter Property="svc:ScrollAutoHide.Enabled" Value="True"/>
+        </Style>
+
+        <!-- The controls below were left with their system chrome, which is a
+             light-grey box with a blue focus ring: on a dark theme they are the
+             most obvious thing on the screen. Each template here is the minimum
+             needed to use the palette and keep keyboard focus visible. -->
+        <Style TargetType="{x:Type TextBox}">
+            <Setter Property="Background" Value="{DynamicResource InputBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource CardBorderBrush}"/>
+            <Setter Property="CaretBrush" Value="{DynamicResource TextPrimaryBrush}"/>
+            <Setter Property="SelectionBrush" Value="{DynamicResource AccentBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="8,4"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type TextBox}">
+                        <Border x:Name="Bd"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="8">
+                            <ScrollViewer x:Name="PART_ContentHost"
+                                          Margin="{TemplateBinding Padding}"
+                                          VerticalAlignment="Center"
+                                          Focusable="False"
+                                          HorizontalScrollBarVisibility="Hidden"
+                                          VerticalScrollBarVisibility="Hidden"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsKeyboardFocusWithin" Value="True">
+                                <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.55"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style TargetType="{x:Type CheckBox}">
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type CheckBox}">
+                        <StackPanel Orientation="Horizontal" Background="Transparent">
+                            <Border x:Name="Box" Width="18" Height="18" CornerRadius="5"
+                                    Background="{DynamicResource InputBrush}"
+                                    BorderBrush="{DynamicResource CardBorderBrush}"
+                                    BorderThickness="1"
+                                    VerticalAlignment="Center">
+                                <Path x:Name="Tick" Data="M 0 4 L 3 7 L 9 0"
+                                      Stroke="{DynamicResource OnAccentBrush}"
+                                      StrokeThickness="2"
+                                      StrokeStartLineCap="Round"
+                                      StrokeEndLineCap="Round"
+                                      Visibility="Collapsed"
+                                      HorizontalAlignment="Center"
+                                      VerticalAlignment="Center"/>
+                            </Border>
+                            <ContentPresenter Margin="8,0,0,0" VerticalAlignment="Center" RecognizesAccessKey="True"/>
+                        </StackPanel>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="Box" Property="Background" Value="{DynamicResource AccentBrush}"/>
+                                <Setter TargetName="Box" Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
+                                <Setter TargetName="Tick" Property="Visibility" Value="Visible"/>
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Box" Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.5"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style TargetType="{x:Type Slider}">
+            <Setter Property="Height" Value="26"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type Slider}">
+                        <Grid Background="Transparent">
+                            <Border Height="4" CornerRadius="2" VerticalAlignment="Center"
+                                    Background="{DynamicResource HairlineBrush}"/>
+                            <Track x:Name="PART_Track">
+                                <Track.DecreaseRepeatButton>
+                                    <RepeatButton Command="{x:Static Slider.DecreaseLarge}" Focusable="False" IsTabStop="False">
+                                        <RepeatButton.Template>
+                                            <ControlTemplate TargetType="{x:Type RepeatButton}">
+                                                <Border Height="4" CornerRadius="2" VerticalAlignment="Center"
+                                                        Background="{DynamicResource AccentBrush}"/>
+                                            </ControlTemplate>
+                                        </RepeatButton.Template>
+                                    </RepeatButton>
+                                </Track.DecreaseRepeatButton>
+                                <Track.Thumb>
+                                    <Thumb Width="18" Height="18" Cursor="Hand">
+                                        <Thumb.Template>
+                                            <ControlTemplate TargetType="{x:Type Thumb}">
+                                                <Ellipse Fill="{DynamicResource AccentBrush}"
+                                                         Stroke="{DynamicResource OnAccentBrush}"
+                                                         StrokeThickness="1"/>
+                                            </ControlTemplate>
+                                        </Thumb.Template>
+                                    </Thumb>
+                                </Track.Thumb>
+                                <Track.IncreaseRepeatButton>
+                                    <RepeatButton Command="{x:Static Slider.IncreaseLarge}" Focusable="False" IsTabStop="False">
+                                        <RepeatButton.Template>
+                                            <ControlTemplate TargetType="{x:Type RepeatButton}">
+                                                <Border Background="Transparent" Height="4"/>
+                                            </ControlTemplate>
+                                        </RepeatButton.Template>
+                                    </RepeatButton>
+                                </Track.IncreaseRepeatButton>
+                            </Track>
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.5"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style TargetType="{x:Type ToolTip}">
+            <Setter Property="Background" Value="{DynamicResource PopupBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource CardBorderBrush}"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type ToolTip}">
+                        <Border Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="1"
+                                CornerRadius="6"
+                                Padding="10,6">
+                            <ContentPresenter/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style TargetType="{x:Type ListBoxItem}">
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
+            <Setter Property="Padding" Value="10,7"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type ListBoxItem}">
+                        <Border x:Name="Bd" Background="Transparent" CornerRadius="6" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource SurfaceBrush}"/>
+                            </Trigger>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource AccentBrush}"/>
+                                <Setter Property="Foreground" Value="{DynamicResource OnAccentBrush}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
         </Style>
     </Window.Resources>
 
-    <Border x:Name="WindowFrame" Background="#12141A" CornerRadius="8" BorderBrush="#2E384D" BorderThickness="1" ClipToBounds="True">
+    <Border x:Name="WindowFrame" Background="{DynamicResource WindowBrush}" CornerRadius="8" BorderBrush="{DynamicResource WindowBorderBrush}" BorderThickness="1" ClipToBounds="True">
         <Border.Effect>
             <DropShadowEffect BlurRadius="8" ShadowDepth="0" Opacity="0.35" Color="#000000"/>
         </Border.Effect>
@@ -340,12 +545,20 @@
                 </Grid.ColumnDefinitions>
 
                 <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" Margin="14,0,0,0" IsHitTestVisible="False">
-                    <TextBlock x:Name="TxtTitleBar" Text="MPV Launcher" FontSize="12" FontWeight="Bold" Foreground="#9AA3B2"/>
+                    <TextBlock x:Name="TxtTitleBar" Text="MPV Launcher" FontSize="12" FontWeight="Bold" Foreground="{DynamicResource TextSecondaryBrush}"/>
                 </StackPanel>
 
                 <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,6,0">
-                    <Button x:Name="BtnMinimize" Style="{StaticResource WindowControlButton}" Content="🗕" Click="BtnMinimize_Click" ToolTip="Minimize"/>
-                    <Button x:Name="BtnClose" Style="{StaticResource WindowCloseButton}" Content="✕" Click="BtnClose_Click" ToolTip="Close"/>
+                    <!-- Icons are drawn, not glyphs: a font that lacks the
+                         codepoint turned these into boxes on some systems. -->
+                    <Button x:Name="BtnMinimize" Style="{StaticResource WindowControlButton}" Click="BtnMinimize_Click" ToolTip="Minimize">
+                        <Path Data="M 0,0 H 10" Stroke="{DynamicResource TextSecondaryBrush}" StrokeThickness="1.4"
+                              HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Button>
+                    <Button x:Name="BtnClose" Style="{StaticResource WindowCloseButton}" Click="BtnClose_Click" ToolTip="Close">
+                        <Path Data="M 0,0 L 10,10 M 10,0 L 0,10" Stroke="{DynamicResource TextSecondaryBrush}" StrokeThickness="1.4"
+                              HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Button>
                 </StackPanel>
             </Grid>
 
@@ -355,7 +568,7 @@
                     <ColumnDefinition Width="*"/>
                 </Grid.ColumnDefinitions>
 
-                <Border x:Name="SidebarBorder" Grid.Column="0" Background="#A612141A" BorderBrush="#1FFFFFFF" BorderThickness="0,0,1,0" Padding="16,14">
+                <Border x:Name="SidebarBorder" Grid.Column="0" Background="#A612141A" BorderBrush="{DynamicResource HairlineBrush}" BorderThickness="0,0,1,0" Padding="16,14">
                     <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
@@ -364,29 +577,29 @@
                     </Grid.RowDefinitions>
 
                     <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,24">
-                        <Border x:Name="BorderBrandIcon" Width="34" Height="34" Background="#6366F1" CornerRadius="8" Margin="0,0,10,0">
-                            <TextBlock Text="▶" Foreground="White" FontWeight="Bold" FontSize="14" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        <Border x:Name="BorderBrandIcon" Width="34" Height="34" Background="{DynamicResource AccentBrush}" CornerRadius="8" Margin="0,0,10,0">
+                            <Path Data="M 0,0 L 12,6.5 L 0,13 Z" Fill="White" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="2,0,0,0"/>
                         </Border>
                         <TextBlock x:Name="TxtSidebarBrand" Text="MPV Launcher" FontWeight="Bold" FontSize="16" VerticalAlignment="Center" Foreground="White"/>
                     </StackPanel>
 
                     <StackPanel Grid.Row="1">
-                        <Button x:Name="BtnNavPlayer" Style="{StaticResource NavButton}" Content="Player" Click="BtnNavPlayer_Click" Background="#6366F1" Foreground="White" Margin="0,0,0,4"/>
+                        <Button x:Name="BtnNavPlayer" Style="{StaticResource NavButton}" Content="Player" Click="BtnNavPlayer_Click" Background="{DynamicResource AccentBrush}" Foreground="White" Margin="0,0,0,4"/>
                         <Button x:Name="BtnNavTools" Style="{StaticResource NavButton}" Content="Dependencies" Click="BtnNavTools_Click" Margin="0,0,0,4"/>
                         <Button x:Name="BtnNavSettings" Style="{StaticResource NavButton}" Content="Settings" Click="BtnNavSettings_Click" Margin="0,0,0,4"/>
                         <Button x:Name="BtnNavThemes" Style="{StaticResource NavButton}" Content="Themes" Click="BtnNavThemes_Click" Margin="0,0,0,4"/>
                         <Button x:Name="BtnNavGuide" Style="{StaticResource NavButton}" Content="Guide" Click="BtnNavGuide_Click" Margin="0,0,0,4"/>
                     </StackPanel>
 
-                    <Border x:Name="StatusLogBorder" Grid.Row="2" Background="#22000000" CornerRadius="8" BorderBrush="#1FFFFFFF" BorderThickness="1" Padding="10,8" Margin="0,10,0,0" MinHeight="64" MaxHeight="100">
+                    <Border x:Name="StatusLogBorder" Grid.Row="2" Background="{DynamicResource SurfaceBrush}" CornerRadius="8" BorderBrush="{DynamicResource HairlineBrush}" BorderThickness="1" Padding="10,8" Margin="0,10,0,0" MinHeight="64" MaxHeight="100">
                         <Grid>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="Auto"/>
                                 <ColumnDefinition Width="*"/>
                             </Grid.ColumnDefinitions>
-                            <Ellipse Width="8" Height="8" Fill="#10B981" VerticalAlignment="Top" Margin="0,4,8,0"/>
+                            <Ellipse Width="8" Height="8" Fill="{DynamicResource SuccessBrush}" VerticalAlignment="Top" Margin="0,4,8,0"/>
                             <ScrollViewer Grid.Column="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-                                <TextBlock x:Name="TxtStatus" Text="Ready" FontSize="11" Foreground="#9AA3B2" TextWrapping="Wrap" LineHeight="15"/>
+                                <TextBlock x:Name="TxtStatus" Text="Ready" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap" LineHeight="15"/>
                             </ScrollViewer>
                         </Grid>
                     </Border>
@@ -397,9 +610,9 @@
                 <Grid>
                     <StackPanel x:Name="PanelPlayer" Visibility="Visible">
                         <TextBlock x:Name="TxtPlayerTitle" Text="Media &amp; Stream Player" FontSize="22" FontWeight="Bold" Margin="0,0,0,4"/>
-                        <TextBlock x:Name="TxtPlayerDesc" Text="Paste a video URL or drag and drop a local video file." FontSize="13" Foreground="#9AA3B2" Margin="0,0,0,20"/>
+                        <TextBlock x:Name="TxtPlayerDesc" Text="Paste a video URL or drag and drop a local video file." FontSize="13" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,20"/>
 
-                        <Border x:Name="CardUrl" Background="#CC1E222D" CornerRadius="12" BorderBrush="#1FFFFFFF" BorderThickness="1" Padding="20" Margin="0,0,0,16">
+                        <Border x:Name="CardUrl" Background="{DynamicResource CardBrush}" CornerRadius="12" BorderBrush="{DynamicResource HairlineBrush}" BorderThickness="1" Padding="20" Margin="0,0,0,16">
                             <StackPanel>
                                 <Grid Margin="0,0,0,16">
                                     <Grid.ColumnDefinitions>
@@ -407,7 +620,7 @@
                                         <ColumnDefinition Width="Auto"/>
                                     </Grid.ColumnDefinitions>
                                     <Grid Grid.Column="0" Margin="0,0,10,0">
-                                        <TextBox x:Name="TxtUrlInput" Background="#33000000" Foreground="White" FontSize="13" Padding="12,10" BorderBrush="#33FFFFFF" BorderThickness="1" VerticalContentAlignment="Center" KeyDown="TxtUrlInput_KeyDown"/>
+                                        <TextBox x:Name="TxtUrlInput" Background="{DynamicResource InputBrush}" Foreground="White" FontSize="13" Padding="12,5" BorderBrush="{DynamicResource CardBorderBrush}" BorderThickness="1" VerticalContentAlignment="Center" KeyDown="TxtUrlInput_KeyDown"/>
                                         <TextBlock x:Name="TxtUrlHint" Text="Paste a URL or magnet link" FontSize="13" Foreground="#8892A4" Margin="14,0,14,0" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" IsHitTestVisible="False">
                                             <TextBlock.Style>
                                                 <Style TargetType="TextBlock">
@@ -424,39 +637,42 @@
                                     <Button x:Name="BtnPlayUrl" Grid.Column="1" Style="{StaticResource ModernButton}" Content="Play with MPV" Click="BtnPlayUrl_Click"/>
                                 </Grid>
 
-                                <Border x:Name="DropZoneBorder" Background="#15FFFFFF" BorderBrush="#33FFFFFF" BorderThickness="2" CornerRadius="8" Padding="24" Margin="0,0,0,0">
+                                <Border x:Name="DropZoneBorder" Background="#15FFFFFF" BorderBrush="{DynamicResource CardBorderBrush}" BorderThickness="2" CornerRadius="8" Padding="24" Margin="0,0,0,0">
                                     <StackPanel HorizontalAlignment="Center">
-                                        <TextBlock Text="📁" FontSize="26" HorizontalAlignment="Center" Margin="0,0,0,6"/>
-                                        <TextBlock x:Name="TxtDropZone" Text="Drag and drop a video file here" FontSize="13" Foreground="#9AA3B2" HorizontalAlignment="Center"/>
+                                        <Grid Width="34" Height="34" HorizontalAlignment="Center" Margin="0,0,0,8">
+                                            <Border Background="{DynamicResource AccentBrush}" CornerRadius="8" Opacity="0.92"/>
+                                            <Path Fill="White" Data="M13,10 L25,17 L13,24 Z" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                        </Grid>
+                                        <TextBlock x:Name="TxtDropZone" Text="Drag and drop a video file here" FontSize="13" Foreground="{DynamicResource TextSecondaryBrush}" HorizontalAlignment="Center"/>
                                         <Button x:Name="BtnBrowseFile" Style="{StaticResource SecondaryButton}" Content="Select File" Click="BtnBrowseFile_Click" HorizontalAlignment="Center" Margin="0,10,0,0" Padding="12,6" FontSize="12"/>
                                     </StackPanel>
                                 </Border>
                             </StackPanel>
                         </Border>
 
-                        <Border x:Name="CardTorrent" Background="#CC1E222D" CornerRadius="12" BorderBrush="#1FFFFFFF" BorderThickness="1" Padding="20" Margin="0,0,0,16" Visibility="Collapsed">
+                        <Border x:Name="CardTorrent" Background="{DynamicResource CardBrush}" CornerRadius="12" BorderBrush="{DynamicResource HairlineBrush}" BorderThickness="1" Padding="20" Margin="0,0,0,16" Visibility="Collapsed">
                             <StackPanel>
                                 <Grid Margin="0,0,0,8">
                                     <TextBlock x:Name="TxtTorrentTitle" Text="Torrent streaming" FontSize="15" FontWeight="SemiBold"/>
                                     <Button x:Name="BtnTorrentCancel" Style="{StaticResource SecondaryButton}" Content="Cancel" Click="BtnTorrentCancel_Click" HorizontalAlignment="Right" Padding="12,6" FontSize="12"/>
                                 </Grid>
-                                <TextBlock x:Name="TxtTorrentStatus" Text="" FontSize="12" Foreground="#9AA3B2" TextWrapping="Wrap"/>
-                                <ProgressBar x:Name="BarTorrent" Height="6" Margin="0,10,0,6" Minimum="0" Maximum="1" Value="0" Foreground="#3B82F6" Background="#33000000" BorderThickness="0" Visibility="Collapsed"/>
-                                <TextBlock x:Name="TxtTorrentDetail" Text="" FontSize="11" Foreground="#64748B" TextWrapping="Wrap"/>
+                                <TextBlock x:Name="TxtTorrentStatus" Text="" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap"/>
+                                <ProgressBar x:Name="BarTorrent" Height="6" Margin="0,10,0,6" Minimum="0" Maximum="1" Value="0" Foreground="#3B82F6" Background="{DynamicResource InputBrush}" BorderThickness="0" Visibility="Collapsed"/>
+                                <TextBlock x:Name="TxtTorrentDetail" Text="" FontSize="11" Foreground="{DynamicResource TextMutedBrush}" TextWrapping="Wrap"/>
                                 <Button x:Name="BtnTorrentOpenSettings" Style="{StaticResource SecondaryButton}" Content="Open torrent settings" Click="BtnTorrentOpenSettings_Click" HorizontalAlignment="Left" Margin="0,10,0,0" Padding="12,6" FontSize="12" Visibility="Collapsed"/>
                             </StackPanel>
                         </Border>
 
-                        <Border x:Name="CardHistory" Background="#CC1E222D" CornerRadius="12" BorderBrush="#1FFFFFFF" BorderThickness="1" Padding="20">
+                        <Border x:Name="CardHistory" Background="{DynamicResource CardBrush}" CornerRadius="12" BorderBrush="{DynamicResource HairlineBrush}" BorderThickness="1" Padding="20">
                             <StackPanel>
                                 <Grid Margin="0,0,0,12">
                                     <TextBlock x:Name="TxtHistoryTitle" Text="Playback history" FontSize="15" FontWeight="SemiBold"/>
                                     <Button x:Name="BtnClearHistory" Content="Clear history" Click="BtnClearHistory_Click" HorizontalAlignment="Right" Style="{StaticResource SecondaryButton}" Padding="12,6" FontSize="12"/>
                                 </Grid>
-                                <ListBox x:Name="LstHistory" Background="Transparent" BorderThickness="0" Foreground="#F0F2F5" MaxHeight="200" ScrollViewer.VerticalScrollBarVisibility="Auto" MouseDoubleClick="LstHistory_MouseDoubleClick">
+                                <ListBox x:Name="LstHistory" Background="Transparent" BorderThickness="0" Foreground="{DynamicResource TextPrimaryBrush}" MaxHeight="200" ScrollViewer.VerticalScrollBarVisibility="Auto" ScrollViewer.HorizontalScrollBarVisibility="Disabled" MouseDoubleClick="LstHistory_MouseDoubleClick">
                                     <ListBox.ItemTemplate>
                                         <DataTemplate>
-                                            <Border Background="#22000000" CornerRadius="6" Padding="10,8" Margin="0,0,0,4">
+                                            <Border Background="{DynamicResource SurfaceBrush}" CornerRadius="6" Padding="10,8" Margin="0,0,0,4">
                                                 <TextBlock Text="{Binding Url}" FontSize="12" TextTrimming="CharacterEllipsis"/>
                                             </Border>
                                         </DataTemplate>
@@ -469,7 +685,7 @@
                     <StackPanel x:Name="PanelTools" Visibility="Collapsed">
                         <TextBlock x:Name="TxtToolsTitle" Text="Dependencies &amp; Browser" FontSize="22" FontWeight="Bold" Margin="0,0,0,20"/>
 
-                        <Border x:Name="CardStatus" Background="#CC1E222D" CornerRadius="12" BorderBrush="#1FFFFFFF" BorderThickness="1" Padding="20" Margin="0,0,0,16">
+                        <Border x:Name="CardStatus" Background="{DynamicResource CardBrush}" CornerRadius="12" BorderBrush="{DynamicResource HairlineBrush}" BorderThickness="1" Padding="20" Margin="0,0,0,16">
                             <StackPanel>
                                 <TextBlock x:Name="TxtSystemStatus" Text="System status" FontSize="15" FontWeight="SemiBold" Margin="0,0,0,14"/>
                                 <Grid Margin="0,0,0,16">
@@ -478,21 +694,21 @@
                                         <ColumnDefinition Width="*"/>
                                         <ColumnDefinition Width="*"/>
                                     </Grid.ColumnDefinitions>
-                                    <Border Grid.Column="0" Background="#22000000" CornerRadius="8" Padding="12" Margin="0,0,6,0">
+                                    <Border Grid.Column="0" Background="{DynamicResource SurfaceBrush}" CornerRadius="8" Padding="12" Margin="0,0,6,0">
                                         <StackPanel>
-                                            <TextBlock Text="MPV" FontSize="11" Foreground="#64748B" FontWeight="Bold"/>
+                                            <TextBlock Text="MPV" FontSize="11" Foreground="{DynamicResource TextMutedBrush}" FontWeight="Bold"/>
                                             <TextBlock x:Name="TxtMpvStatus" Text="Checking..." FontSize="12" FontWeight="SemiBold" Margin="0,4,0,0" TextWrapping="Wrap"/>
                                         </StackPanel>
                                     </Border>
-                                    <Border Grid.Column="1" Background="#22000000" CornerRadius="8" Padding="12" Margin="6,0,6,0">
+                                    <Border Grid.Column="1" Background="{DynamicResource SurfaceBrush}" CornerRadius="8" Padding="12" Margin="6,0,6,0">
                                         <StackPanel>
-                                            <TextBlock Text="YT-DLP" FontSize="11" Foreground="#64748B" FontWeight="Bold"/>
+                                            <TextBlock Text="YT-DLP" FontSize="11" Foreground="{DynamicResource TextMutedBrush}" FontWeight="Bold"/>
                                             <TextBlock x:Name="TxtYtdlStatus" Text="Checking..." FontSize="12" FontWeight="SemiBold" Margin="0,4,0,0" TextWrapping="Wrap"/>
                                         </StackPanel>
                                     </Border>
-                                    <Border Grid.Column="2" Background="#22000000" CornerRadius="8" Padding="12" Margin="6,0,0,0">
+                                    <Border Grid.Column="2" Background="{DynamicResource SurfaceBrush}" CornerRadius="8" Padding="12" Margin="6,0,0,0">
                                         <StackPanel>
-                                            <TextBlock Text="FFMPEG" FontSize="11" Foreground="#64748B" FontWeight="Bold"/>
+                                            <TextBlock Text="FFMPEG" FontSize="11" Foreground="{DynamicResource TextMutedBrush}" FontWeight="Bold"/>
                                             <TextBlock x:Name="TxtFfmpegStatus" Text="Checking..." FontSize="12" FontWeight="SemiBold" Margin="0,4,0,0" TextWrapping="Wrap"/>
                                         </StackPanel>
                                     </Border>
@@ -504,12 +720,12 @@
                             </StackPanel>
                         </Border>
 
-                        <Border x:Name="CardDownloads" Background="#CC1E222D" CornerRadius="12" BorderBrush="#1FFFFFFF" BorderThickness="1" Padding="20" Margin="0,0,0,16">
+                        <Border x:Name="CardDownloads" Background="{DynamicResource CardBrush}" CornerRadius="12" BorderBrush="{DynamicResource HairlineBrush}" BorderThickness="1" Padding="20" Margin="0,0,0,16">
                             <StackPanel>
                                 <TextBlock x:Name="TxtDownloadsTitle" Text="Download sources" FontSize="15" FontWeight="SemiBold" Margin="0,0,0,4"/>
-                                <TextBlock x:Name="TxtInstallDir" Text="" FontSize="12" Foreground="#9AA3B2" Margin="0,0,0,14" TextWrapping="Wrap"/>
+                                <TextBlock x:Name="TxtInstallDir" Text="" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,14" TextTrimming="CharacterEllipsis" ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}"/>
 
-                                <Border Background="#22000000" CornerRadius="8" Padding="14" Margin="0,0,0,10">
+                                <Border Background="{DynamicResource SurfaceBrush}" CornerRadius="8" Padding="14" Margin="0,0,0,10">
                                     <Grid>
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="*"/>
@@ -517,13 +733,13 @@
                                         </Grid.ColumnDefinitions>
                                         <StackPanel Grid.Column="0" Margin="0,0,12,0">
                                             <TextBlock Text="MPV (x86_64-v3)" FontSize="13" FontWeight="SemiBold"/>
-                                            <TextBlock Text="shinchiro/mpv-winbuild-cmake → mpv-x86_64-v3*.7z" FontSize="11" Foreground="#64748B" Margin="0,2,0,0"/>
+                                            <TextBlock Text="shinchiro/mpv-winbuild-cmake → mpv-x86_64-v3*.7z" FontSize="11" Foreground="{DynamicResource TextMutedBrush}" Margin="0,2,0,0"/>
                                         </StackPanel>
                                         <Button x:Name="BtnInstallMpv" Grid.Column="1" Style="{StaticResource ModernButton}" Content="Download &amp; Install" Click="BtnInstallMpv_Click" VerticalAlignment="Center" Padding="14,8"/>
                                     </Grid>
                                 </Border>
 
-                                <Border Background="#22000000" CornerRadius="8" Padding="14" Margin="0,0,0,10">
+                                <Border Background="{DynamicResource SurfaceBrush}" CornerRadius="8" Padding="14" Margin="0,0,0,10">
                                     <Grid>
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="*"/>
@@ -531,13 +747,13 @@
                                         </Grid.ColumnDefinitions>
                                         <StackPanel Grid.Column="0" Margin="0,0,12,0">
                                             <TextBlock Text="yt-dlp" FontSize="13" FontWeight="SemiBold"/>
-                                            <TextBlock Text="yt-dlp/yt-dlp → yt-dlp_win.zip" FontSize="11" Foreground="#64748B" Margin="0,2,0,0"/>
+                                            <TextBlock Text="yt-dlp/yt-dlp → yt-dlp_win.zip" FontSize="11" Foreground="{DynamicResource TextMutedBrush}" Margin="0,2,0,0"/>
                                         </StackPanel>
                                         <Button x:Name="BtnInstallYtdlp" Grid.Column="1" Style="{StaticResource ModernButton}" Content="Download &amp; Install" Click="BtnInstallYtdlp_Click" VerticalAlignment="Center" Padding="14,8"/>
                                     </Grid>
                                 </Border>
 
-                                <Border Background="#22000000" CornerRadius="8" Padding="14" Margin="0,0,0,14">
+                                <Border Background="{DynamicResource SurfaceBrush}" CornerRadius="8" Padding="14" Margin="0,0,0,14">
                                     <Grid>
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="*"/>
@@ -545,37 +761,37 @@
                                         </Grid.ColumnDefinitions>
                                         <StackPanel Grid.Column="0" Margin="0,0,12,0">
                                             <TextBlock Text="FFmpeg (essentials)" FontSize="13" FontWeight="SemiBold"/>
-                                            <TextBlock Text="gyan.dev → ffmpeg-git-essentials.7z" FontSize="11" Foreground="#64748B" Margin="0,2,0,0"/>
+                                            <TextBlock Text="gyan.dev → ffmpeg-git-essentials.7z" FontSize="11" Foreground="{DynamicResource TextMutedBrush}" Margin="0,2,0,0"/>
                                         </StackPanel>
                                         <Button x:Name="BtnInstallFfmpeg" Grid.Column="1" Style="{StaticResource ModernButton}" Content="Download &amp; Install" Click="BtnInstallFfmpeg_Click" VerticalAlignment="Center" Padding="14,8"/>
                                     </Grid>
                                 </Border>
 
                                 <DockPanel Margin="0,0,0,6">
-                                    <TextBlock x:Name="TxtDownloadStage" Text="Ready" FontSize="12" Foreground="#9AA3B2"/>
-                                    <TextBlock x:Name="TxtDownloadPct" Text="" FontSize="12" Foreground="#9AA3B2" HorizontalAlignment="Right"/>
+                                    <TextBlock x:Name="TxtDownloadStage" Text="Ready" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                    <TextBlock x:Name="TxtDownloadPct" Text="" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" HorizontalAlignment="Right"/>
                                 </DockPanel>
-                                <ProgressBar x:Name="BarDownload" Height="8" Minimum="0" Maximum="100" Value="0" Background="#22000000" Foreground="#6366F1" BorderThickness="0"/>
-                                <TextBlock x:Name="TxtDownloadDetail" Text="" FontSize="11" Foreground="#64748B" Margin="0,6,0,0" TextWrapping="Wrap"/>
+                                <ProgressBar x:Name="BarDownload" Height="8" Minimum="0" Maximum="100" Value="0" Background="{DynamicResource SurfaceBrush}" Foreground="{DynamicResource AccentBrush}" BorderThickness="0"/>
+                                <TextBlock x:Name="TxtDownloadDetail" Text="" FontSize="11" Foreground="{DynamicResource TextMutedBrush}" Margin="0,6,0,0" TextWrapping="Wrap"/>
                             </StackPanel>
                         </Border>
 
 
-                        <Border x:Name="CardThemeAnime4k" Background="#CC1E222D" CornerRadius="12" BorderBrush="#1FFFFFFF" BorderThickness="1" Padding="20" Margin="0,0,0,16">
+                        <Border x:Name="CardThemeAnime4k" Background="{DynamicResource CardBrush}" CornerRadius="12" BorderBrush="{DynamicResource HairlineBrush}" BorderThickness="1" Padding="20" Margin="0,0,0,16">
                             <StackPanel>
                                 <TextBlock x:Name="TxtThemeAnime4kTitle" Text="ModernZ Tema + Anime4K" FontSize="15" FontWeight="SemiBold" Margin="0,0,0,6"/>
-                                <TextBlock x:Name="TxtThemeAnime4kDesc" Text="ModernZ temasını indirir ve Anime4K GLSL shader/ayarlarını %APPDATA%\mpv içerisine yükler." FontSize="12" Foreground="#9AA3B2" Margin="0,0,0,14" TextWrapping="Wrap"/>
+                                <TextBlock x:Name="TxtThemeAnime4kDesc" Text="ModernZ temasını indirir ve Anime4K GLSL shader/ayarlarını %APPDATA%\mpv içerisine yükler." FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,14" TextWrapping="Wrap"/>
                                 <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
                                     <Button x:Name="BtnInstallThemeAnime4k" Style="{StaticResource ModernButton}" Content="Tema+anime4k" Click="BtnInstallThemeAnime4k_Click" Padding="16,8"/>
                                 </StackPanel>
-                                <TextBlock x:Name="TxtThemeAnime4kStatus" Text="" FontSize="12" Foreground="#6366F1" FontWeight="SemiBold" TextWrapping="Wrap"/>
+                                <TextBlock x:Name="TxtThemeAnime4kStatus" Text="" FontSize="12" Foreground="{DynamicResource AccentBrush}" FontWeight="SemiBold" TextWrapping="Wrap"/>
                             </StackPanel>
                         </Border>
 
-                        <Border x:Name="CardBrowser" Background="#CC1E222D" CornerRadius="12" BorderBrush="#1FFFFFFF" BorderThickness="1" Padding="20">
+                        <Border x:Name="CardBrowser" Background="{DynamicResource CardBrush}" CornerRadius="12" BorderBrush="{DynamicResource HairlineBrush}" BorderThickness="1" Padding="20">
                             <StackPanel>
                                 <TextBlock x:Name="TxtBrowserTitle" Text="Browser extension integration" FontSize="15" FontWeight="SemiBold" Margin="0,0,0,6"/>
-                                <TextBlock x:Name="TxtBrowserDesc" Text="Eklenti native messaging altyapısını kurar. Firefox için resmi mağazadan yükleyebilirsiniz. Chromium tarayıcılarda 'Geliştirici Modu'nu açıp paketlenmemiş klasörü yükleyin." FontSize="13" Foreground="#9AA3B2" Margin="0,0,0,16" TextWrapping="Wrap"/>
+                                <TextBlock x:Name="TxtBrowserDesc" Text="Eklenti native messaging altyapısını kurar. Firefox için resmi mağazadan yükleyebilirsiniz. Chromium tarayıcılarda 'Geliştirici Modu'nu açıp paketlenmemiş klasörü yükleyin." FontSize="13" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,16" TextWrapping="Wrap"/>
                                 <WrapPanel Margin="0,0,0,10">
                                     <Button x:Name="BtnInstallExtensions" Style="{StaticResource ModernButton}" Content="Install / repair" Click="BtnInstallExtensions_Click" Margin="0,0,10,10"/>
                                     <Button x:Name="BtnUninstallExtensions" Style="{StaticResource DangerButton}" Content="Uninstall extension" Click="BtnUninstallExtensions_Click" Margin="0,0,10,10"/>
@@ -583,7 +799,7 @@
                                     <Button x:Name="BtnOpenExtensionFolder" Style="{StaticResource SecondaryButton}" Content="Extension Folder" Click="BtnOpenExtensionFolder_Click" Margin="0,0,10,10"/>
                                     <Button x:Name="BtnOpenChromeExtensions" Style="{StaticResource SecondaryButton}" Content="chrome://extensions" Click="BtnOpenChromeExtensions_Click" Margin="0,0,10,10"/>
                                 </WrapPanel>
-                                <TextBlock x:Name="TxtExtensionStatus" Text="" FontSize="12" Foreground="#9AA3B2" Margin="0,4,0,0" TextWrapping="Wrap"/>
+                                <TextBlock x:Name="TxtExtensionStatus" Text="" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,4,0,0" TextWrapping="Wrap"/>
                             </StackPanel>
                         </Border>
                     </StackPanel>
@@ -591,17 +807,17 @@
                     <StackPanel x:Name="PanelSettings" Visibility="Collapsed">
                         <TextBlock x:Name="TxtSettingsTitle" Text="Settings" FontSize="22" FontWeight="Bold" Margin="0,0,0,20"/>
 
-                        <Border x:Name="CardMpvConfig" Background="#CC1E222D" CornerRadius="12" BorderBrush="#1FFFFFFF" BorderThickness="1" Padding="20" Margin="0,0,0,16">
+                        <Border x:Name="CardMpvConfig" Background="{DynamicResource CardBrush}" CornerRadius="12" BorderBrush="{DynamicResource HairlineBrush}" BorderThickness="1" Padding="20" Margin="0,0,0,16">
                             <StackPanel>
                                 <TextBlock x:Name="TxtMpvConfigTitle" Text="MPV Player Configuration" FontSize="15" FontWeight="SemiBold" Margin="0,0,0,14"/>
 
-                                <TextBlock x:Name="TxtMpvPathLabel" Text="MPV Executable Path:" FontSize="12" Foreground="#9AA3B2" Margin="0,0,0,4"/>
+                                <TextBlock x:Name="TxtMpvPathLabel" Text="MPV Executable Path:" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,4"/>
                                 <Grid Margin="0,0,0,12">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="*"/>
                                         <ColumnDefinition Width="Auto"/>
                                     </Grid.ColumnDefinitions>
-                                    <TextBox x:Name="TxtMpvPath" Background="#33000000" Foreground="White" FontSize="12" Padding="10,8" BorderBrush="#33FFFFFF" BorderThickness="1" VerticalContentAlignment="Center" Margin="0,0,10,0"/>
+                                    <TextBox x:Name="TxtMpvPath" Background="{DynamicResource InputBrush}" Foreground="White" FontSize="12" Padding="10,4" BorderBrush="{DynamicResource CardBorderBrush}" BorderThickness="1" VerticalContentAlignment="Center" Margin="0,0,10,0"/>
                                     <Button x:Name="BtnBrowseMpv" Grid.Column="1" Style="{StaticResource SecondaryButton}" Content="Browse" Click="BtnBrowseMpv_Click"/>
                                 </Grid>
 
@@ -610,9 +826,9 @@
                                         <ColumnDefinition Width="*"/>
                                         <ColumnDefinition Width="*"/>
                                     </Grid.ColumnDefinitions>
-                                    <CheckBox x:Name="ChkAlwaysOnTop" Grid.Column="0" Content="Always on top (--ontop)" Foreground="#F0F2F5" FontSize="12" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                    <CheckBox x:Name="ChkAlwaysOnTop" Grid.Column="0" Content="Always on top (--ontop)" Foreground="{DynamicResource TextPrimaryBrush}" FontSize="12" VerticalAlignment="Center" Margin="0,0,8,0"/>
                                     <StackPanel Grid.Column="1" Margin="8,0,0,0">
-                                        <TextBlock x:Name="TxtForceWindowLabel" Text="Force Window (--force-window):" FontSize="12" Foreground="#9AA3B2" Margin="0,0,0,4"/>
+                                        <TextBlock x:Name="TxtForceWindowLabel" Text="Force Window (--force-window):" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,4"/>
                                         <ComboBox x:Name="CmbForceWindow" VerticalAlignment="Center">
                                             <ComboBoxItem Content="immediate (Fastest / Hemen Aç)" Tag="immediate" IsSelected="True"/>
                                             <ComboBoxItem Content="yes (On Media Loaded)" Tag="yes"/>
@@ -627,45 +843,45 @@
                                         <ColumnDefinition Width="*"/>
                                     </Grid.ColumnDefinitions>
                                     <StackPanel Grid.Column="0" Margin="0,0,8,0">
-                                        <TextBlock x:Name="TxtMpvGeometryLabel" Text="Window Geometry (--geometry):" FontSize="12" Foreground="#9AA3B2" Margin="0,0,0,4"/>
-                                        <TextBox x:Name="TxtMpvGeometry" Background="#33000000" Foreground="White" FontSize="12" Padding="10,8" BorderBrush="#33FFFFFF" BorderThickness="1" Text="960x540"/>
+                                        <TextBlock x:Name="TxtMpvGeometryLabel" Text="Window Geometry (--geometry):" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,4"/>
+                                        <TextBox x:Name="TxtMpvGeometry" Background="{DynamicResource InputBrush}" Foreground="White" FontSize="12" Padding="10,4" BorderBrush="{DynamicResource CardBorderBrush}" BorderThickness="1" Text="960x540"/>
                                     </StackPanel>
                                     <StackPanel Grid.Column="1" Margin="8,0,0,0">
-                                        <TextBlock x:Name="TxtMpvProfileLabel" Text="MPV Profile (--profile):" FontSize="12" Foreground="#9AA3B2" Margin="0,0,0,4"/>
-                                        <TextBox x:Name="TxtMpvProfile" Background="#33000000" Foreground="White" FontSize="12" Padding="10,8" BorderBrush="#33FFFFFF" BorderThickness="1"/>
+                                        <TextBlock x:Name="TxtMpvProfileLabel" Text="MPV Profile (--profile):" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,4"/>
+                                        <TextBox x:Name="TxtMpvProfile" Background="{DynamicResource InputBrush}" Foreground="White" FontSize="12" Padding="10,4" BorderBrush="{DynamicResource CardBorderBrush}" BorderThickness="1"/>
                                     </StackPanel>
                                 </Grid>
 
-                                <TextBlock x:Name="TxtMpvExtraArgsLabel" Text="Extra MPV Parameters (e.g. --hwdec=auto):" FontSize="12" Foreground="#9AA3B2" Margin="0,0,0,4"/>
-                                <TextBox x:Name="TxtMpvExtraArgs" Background="#33000000" Foreground="White" FontSize="12" Padding="10,8" BorderBrush="#33FFFFFF" BorderThickness="1" Margin="0,0,0,16"/>
+                                <TextBlock x:Name="TxtMpvExtraArgsLabel" Text="Extra MPV Parameters (e.g. --hwdec=auto):" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,4"/>
+                                <TextBox x:Name="TxtMpvExtraArgs" Background="{DynamicResource InputBrush}" Foreground="White" FontSize="12" Padding="10,4" BorderBrush="{DynamicResource CardBorderBrush}" BorderThickness="1" Margin="0,0,0,16"/>
 
                                 <Button x:Name="BtnSaveMpvSettings" Style="{StaticResource ModernButton}" Content="Save Settings" Click="BtnSaveMpvSettings_Click" HorizontalAlignment="Left"/>
                             </StackPanel>
                         </Border>
 
-                        <Border x:Name="CardTorrentSettings" Background="#CC1E222D" CornerRadius="12" BorderBrush="#1FFFFFFF" BorderThickness="1" Padding="20" Margin="0,0,0,16">
+                        <Border x:Name="CardTorrentSettings" Background="{DynamicResource CardBrush}" CornerRadius="12" BorderBrush="{DynamicResource HairlineBrush}" BorderThickness="1" Padding="20" Margin="0,0,0,16">
                             <StackPanel>
                                 <TextBlock x:Name="TxtTorrentSettingsTitle" Text="Torrent streaming (optional)" FontSize="15" FontWeight="SemiBold" Margin="0,0,0,6"/>
-                                <TextBlock x:Name="TxtTorrentSettingsDesc" Text="Off by default. When enabled, torrent links, .torrent files and info hashes are streamed through a local helper." FontSize="12" Foreground="#9AA3B2" TextWrapping="Wrap" Margin="0,0,0,12"/>
+                                <TextBlock x:Name="TxtTorrentSettingsDesc" Text="Off by default. When enabled, torrent links, .torrent files and info hashes are streamed through a local helper." FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,0,0,12"/>
 
-                                <CheckBox x:Name="ChkTorrentEnabled" Content="Enable torrent streaming" Foreground="#F0F2F5" FontSize="12" Margin="0,0,0,8" Checked="ChkTorrentEnabled_Changed" Unchecked="ChkTorrentEnabled_Changed"/>
-                                <TextBlock x:Name="TxtTorrentPrivacy" Text="Your IP address is visible to peers and trackers while a torrent is open. Only use content you own or that is legal to share. Nothing is seeded after you stop." FontSize="11" Foreground="#F59E0B" TextWrapping="Wrap" Margin="0,0,0,12"/>
+                                <CheckBox x:Name="ChkTorrentEnabled" Content="Enable torrent streaming" Foreground="{DynamicResource TextPrimaryBrush}" FontSize="12" Margin="0,0,0,8" Checked="ChkTorrentEnabled_Changed" Unchecked="ChkTorrentEnabled_Changed"/>
+                                <TextBlock x:Name="TxtTorrentPrivacy" Text="Your IP address is visible to peers and trackers while a torrent is open. Only use content you own or that is legal to share. Nothing is seeded after you stop." FontSize="11" Foreground="{DynamicResource WarningBrush}" TextWrapping="Wrap" Margin="0,0,0,12"/>
 
-                                <TextBlock x:Name="TxtTorrentDownloadDirLabel" Text="Temporary download folder:" FontSize="12" Foreground="#9AA3B2" Margin="0,0,0,4"/>
+                                <TextBlock x:Name="TxtTorrentDownloadDirLabel" Text="Temporary download folder:" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,4"/>
                                 <Grid Margin="0,0,0,10">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="*"/>
                                         <ColumnDefinition Width="Auto"/>
                                         <ColumnDefinition Width="Auto"/>
                                     </Grid.ColumnDefinitions>
-                                    <TextBox x:Name="TxtTorrentDownloadDir" Background="#33000000" Foreground="White" FontSize="12" Padding="10,8" BorderBrush="#33FFFFFF" BorderThickness="1" VerticalContentAlignment="Center" Margin="0,0,10,0"/>
+                                    <TextBox x:Name="TxtTorrentDownloadDir" Background="{DynamicResource InputBrush}" Foreground="White" FontSize="12" Padding="10,4" BorderBrush="{DynamicResource CardBorderBrush}" BorderThickness="1" VerticalContentAlignment="Center" Margin="0,0,10,0"/>
                                     <Button x:Name="BtnBrowseTorrentDir" Grid.Column="1" Style="{StaticResource SecondaryButton}" Content="Browse" Click="BtnBrowseTorrentDir_Click" Margin="0,0,8,0"/>
                                     <Button x:Name="BtnResetTorrentDir" Grid.Column="2" Style="{StaticResource SecondaryButton}" Content="Default" Tag="dir" Click="BtnTorrentResetField_Click"/>
                                 </Grid>
 
-                                <CheckBox x:Name="ChkTorrentRememberFile" Content="Remember the last played file in multi-file torrents" Foreground="#F0F2F5" FontSize="12" Margin="0,0,0,12"/>
+                                <CheckBox x:Name="ChkTorrentRememberFile" Content="Remember the last played file in multi-file torrents" Foreground="{DynamicResource TextPrimaryBrush}" FontSize="12" Margin="0,0,0,12"/>
 
-                                <Border Background="#22000000" CornerRadius="8" Padding="14" Margin="0,0,0,12">
+                                <Border Background="{DynamicResource SurfaceBrush}" CornerRadius="8" Padding="14" Margin="0,0,0,12">
                                     <Grid>
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="*"/>
@@ -673,15 +889,15 @@
                                         </Grid.ColumnDefinitions>
                                         <StackPanel Grid.Column="0" Margin="0,0,12,0">
                                             <TextBlock x:Name="TxtTorrentHelperTitle" Text="Helper program (mpvtorrent)" FontSize="12" FontWeight="SemiBold"/>
-                                            <TextBlock x:Name="TxtTorrentHelperStatus" Text="" FontSize="11" Foreground="#9AA3B2" TextWrapping="Wrap" Margin="0,3,0,0"/>
+                                            <TextBlock x:Name="TxtTorrentHelperStatus" Text="" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,3,0,0"/>
                                         </StackPanel>
                                         <Button x:Name="BtnInstallTorrentHelper" Grid.Column="1" Style="{StaticResource ModernButton}" Content="Download &amp; Install" Click="BtnInstallTorrentHelper_Click" Padding="12,7" FontSize="12" VerticalAlignment="Center"/>
                                     </Grid>
                                 </Border>
 
-                                <Expander x:Name="ExpTorrentAdvanced" Header="Advanced" Foreground="#F0F2F5" FontSize="12" Margin="0,0,0,10">
+                                <Expander x:Name="ExpTorrentAdvanced" Header="Advanced" Foreground="{DynamicResource TextPrimaryBrush}" FontSize="12" Margin="0,0,0,10">
                                     <StackPanel Margin="0,10,0,0">
-                                        <TextBlock x:Name="TxtTorrentAdvancedNote" Text="Values are clamped to safe limits. Upload is off at 0 KiB/s." FontSize="11" Foreground="#64748B" Margin="0,0,0,10" TextWrapping="Wrap"/>
+                                        <TextBlock x:Name="TxtTorrentAdvancedNote" Text="Values are clamped to safe limits. Upload is off at 0 KiB/s." FontSize="11" Foreground="{DynamicResource TextMutedBrush}" Margin="0,0,0,10" TextWrapping="Wrap"/>
 
                                         <Grid Margin="0,0,0,8">
                                             <Grid.ColumnDefinitions>
@@ -689,8 +905,8 @@
                                                 <ColumnDefinition Width="90"/>
                                                 <ColumnDefinition Width="Auto"/>
                                             </Grid.ColumnDefinitions>
-                                            <TextBlock x:Name="TxtTorrentWindowLabel" Grid.Column="0" Text="Forward window (MiB)" FontSize="12" Foreground="#9AA3B2" VerticalAlignment="Center"/>
-                                            <TextBox x:Name="TxtTorrentWindow" Grid.Column="1" Background="#33000000" Foreground="White" FontSize="12" Padding="8,6" BorderBrush="#33FFFFFF" BorderThickness="1" Margin="0,0,8,0"/>
+                                            <TextBlock x:Name="TxtTorrentWindowLabel" Grid.Column="0" Text="Forward window (MiB)" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center"/>
+                                            <TextBox x:Name="TxtTorrentWindow" Grid.Column="1" Background="{DynamicResource InputBrush}" Foreground="White" FontSize="12" Padding="8,4" BorderBrush="{DynamicResource CardBorderBrush}" BorderThickness="1" Margin="0,0,8,0"/>
                                             <Button Grid.Column="2" Style="{StaticResource SecondaryButton}" Content="Reset" Tag="window" Click="BtnTorrentResetField_Click" Padding="10,6" FontSize="11"/>
                                         </Grid>
 
@@ -700,8 +916,8 @@
                                                 <ColumnDefinition Width="90"/>
                                                 <ColumnDefinition Width="Auto"/>
                                             </Grid.ColumnDefinitions>
-                                            <TextBlock x:Name="TxtTorrentBufferLabel" Grid.Column="0" Text="mpv forward buffer (MiB)" FontSize="12" Foreground="#9AA3B2" VerticalAlignment="Center"/>
-                                            <TextBox x:Name="TxtTorrentBuffer" Grid.Column="1" Background="#33000000" Foreground="White" FontSize="12" Padding="8,6" BorderBrush="#33FFFFFF" BorderThickness="1" Margin="0,0,8,0"/>
+                                            <TextBlock x:Name="TxtTorrentBufferLabel" Grid.Column="0" Text="mpv forward buffer (MiB)" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center"/>
+                                            <TextBox x:Name="TxtTorrentBuffer" Grid.Column="1" Background="{DynamicResource InputBrush}" Foreground="White" FontSize="12" Padding="8,4" BorderBrush="{DynamicResource CardBorderBrush}" BorderThickness="1" Margin="0,0,8,0"/>
                                             <Button Grid.Column="2" Style="{StaticResource SecondaryButton}" Content="Reset" Tag="buffer" Click="BtnTorrentResetField_Click" Padding="10,6" FontSize="11"/>
                                         </Grid>
 
@@ -711,8 +927,8 @@
                                                 <ColumnDefinition Width="90"/>
                                                 <ColumnDefinition Width="Auto"/>
                                             </Grid.ColumnDefinitions>
-                                            <TextBlock x:Name="TxtTorrentUploadLabel" Grid.Column="0" Text="Upload limit (KiB/s, 0 = off)" FontSize="12" Foreground="#9AA3B2" VerticalAlignment="Center"/>
-                                            <TextBox x:Name="TxtTorrentUpload" Grid.Column="1" Background="#33000000" Foreground="White" FontSize="12" Padding="8,6" BorderBrush="#33FFFFFF" BorderThickness="1" Margin="0,0,8,0"/>
+                                            <TextBlock x:Name="TxtTorrentUploadLabel" Grid.Column="0" Text="Upload limit (KiB/s, 0 = off)" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center"/>
+                                            <TextBox x:Name="TxtTorrentUpload" Grid.Column="1" Background="{DynamicResource InputBrush}" Foreground="White" FontSize="12" Padding="8,4" BorderBrush="{DynamicResource CardBorderBrush}" BorderThickness="1" Margin="0,0,8,0"/>
                                             <Button Grid.Column="2" Style="{StaticResource SecondaryButton}" Content="Reset" Tag="upload" Click="BtnTorrentResetField_Click" Padding="10,6" FontSize="11"/>
                                         </Grid>
 
@@ -722,8 +938,8 @@
                                                 <ColumnDefinition Width="90"/>
                                                 <ColumnDefinition Width="Auto"/>
                                             </Grid.ColumnDefinitions>
-                                            <TextBlock x:Name="TxtTorrentConnsLabel" Grid.Column="0" Text="Maximum connections" FontSize="12" Foreground="#9AA3B2" VerticalAlignment="Center"/>
-                                            <TextBox x:Name="TxtTorrentMaxConns" Grid.Column="1" Background="#33000000" Foreground="White" FontSize="12" Padding="8,6" BorderBrush="#33FFFFFF" BorderThickness="1" Margin="0,0,8,0"/>
+                                            <TextBlock x:Name="TxtTorrentConnsLabel" Grid.Column="0" Text="Maximum connections" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center"/>
+                                            <TextBox x:Name="TxtTorrentMaxConns" Grid.Column="1" Background="{DynamicResource InputBrush}" Foreground="White" FontSize="12" Padding="8,4" BorderBrush="{DynamicResource CardBorderBrush}" BorderThickness="1" Margin="0,0,8,0"/>
                                             <Button Grid.Column="2" Style="{StaticResource SecondaryButton}" Content="Reset" Tag="conns" Click="BtnTorrentResetField_Click" Padding="10,6" FontSize="11"/>
                                         </Grid>
 
@@ -733,8 +949,8 @@
                                                 <ColumnDefinition Width="90"/>
                                                 <ColumnDefinition Width="Auto"/>
                                             </Grid.ColumnDefinitions>
-                                            <TextBlock x:Name="TxtTorrentHalfOpenLabel" Grid.Column="0" Text="Simultaneous connection attempts" FontSize="12" Foreground="#9AA3B2" VerticalAlignment="Center"/>
-                                            <TextBox x:Name="TxtTorrentHalfOpen" Grid.Column="1" Background="#33000000" Foreground="White" FontSize="12" Padding="8,6" BorderBrush="#33FFFFFF" BorderThickness="1" Margin="0,0,8,0"/>
+                                            <TextBlock x:Name="TxtTorrentHalfOpenLabel" Grid.Column="0" Text="Simultaneous connection attempts" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center"/>
+                                            <TextBox x:Name="TxtTorrentHalfOpen" Grid.Column="1" Background="{DynamicResource InputBrush}" Foreground="White" FontSize="12" Padding="8,4" BorderBrush="{DynamicResource CardBorderBrush}" BorderThickness="1" Margin="0,0,8,0"/>
                                             <Button Grid.Column="2" Style="{StaticResource SecondaryButton}" Content="Reset" Tag="halfopen" Click="BtnTorrentResetField_Click" Padding="10,6" FontSize="11"/>
                                         </Grid>
 
@@ -744,25 +960,25 @@
                                                 <ColumnDefinition Width="90"/>
                                                 <ColumnDefinition Width="Auto"/>
                                             </Grid.ColumnDefinitions>
-                                            <TextBlock x:Name="TxtTorrentTailWaitLabel" Grid.Column="0" Text="Wait for the end of the file before starting (s, 0 = start at once)" FontSize="12" Foreground="#9AA3B2" VerticalAlignment="Center" TextWrapping="Wrap"/>
-                                            <TextBox x:Name="TxtTorrentTailWait" Grid.Column="1" Background="#33000000" Foreground="White" FontSize="12" Padding="8,6" BorderBrush="#33FFFFFF" BorderThickness="1" Margin="0,0,8,0"/>
+                                            <TextBlock x:Name="TxtTorrentTailWaitLabel" Grid.Column="0" Text="Wait for the end of the file before starting (s, 0 = start at once)" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center" TextWrapping="Wrap"/>
+                                            <TextBox x:Name="TxtTorrentTailWait" Grid.Column="1" Background="{DynamicResource InputBrush}" Foreground="White" FontSize="12" Padding="8,4" BorderBrush="{DynamicResource CardBorderBrush}" BorderThickness="1" Margin="0,0,8,0"/>
                                             <Button Grid.Column="2" Style="{StaticResource SecondaryButton}" Content="Reset" Tag="tailwait" Click="BtnTorrentResetField_Click" Padding="10,6" FontSize="11"/>
                                         </Grid>
 
-                                        <TextBlock x:Name="TxtTorrentTrackersLabel" Text="Tracker list (one URL per line):" FontSize="12" Foreground="#9AA3B2" Margin="0,4,0,4"/>
-                                        <TextBox x:Name="TxtTorrentTrackers" Background="#33000000" Foreground="White" FontSize="11" Padding="8,6" BorderBrush="#33FFFFFF" BorderThickness="1" Height="92" AcceptsReturn="True" TextWrapping="NoWrap" VerticalScrollBarVisibility="Auto" FontFamily="Consolas"/>
+                                        <TextBlock x:Name="TxtTorrentTrackersLabel" Text="Tracker list (one URL per line):" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,4,0,4"/>
+                                        <TextBox x:Name="TxtTorrentTrackers" Background="{DynamicResource InputBrush}" Foreground="White" FontSize="11" Padding="8,4" BorderBrush="{DynamicResource CardBorderBrush}" BorderThickness="1" Height="92" AcceptsReturn="True" TextWrapping="NoWrap" VerticalScrollBarVisibility="Auto" FontFamily="Consolas"/>
                                         <Button Style="{StaticResource SecondaryButton}" Content="Restore verified trackers" Tag="trackers" Click="BtnTorrentResetField_Click" HorizontalAlignment="Left" Margin="0,6,0,0" Padding="10,6" FontSize="11"/>
                                     </StackPanel>
                                 </Expander>
 
                                 <StackPanel Orientation="Horizontal">
                                     <Button x:Name="BtnSaveTorrentSettings" Style="{StaticResource ModernButton}" Content="Save torrent settings" Click="BtnSaveTorrentSettings_Click" HorizontalAlignment="Left"/>
-                                    <TextBlock x:Name="TxtTorrentSettingsStatus" Text="" FontSize="11" Foreground="#64748B" VerticalAlignment="Center" Margin="12,0,0,0" TextWrapping="Wrap"/>
+                                    <TextBlock x:Name="TxtTorrentSettingsStatus" Text="" FontSize="11" Foreground="{DynamicResource TextMutedBrush}" VerticalAlignment="Center" Margin="12,0,0,0" TextWrapping="Wrap"/>
                                 </StackPanel>
                             </StackPanel>
                         </Border>
 
-                        <Border x:Name="CardLang" Background="#CC1E222D" CornerRadius="12" BorderBrush="#1FFFFFFF" BorderThickness="1" Padding="20" Margin="0,0,0,16">
+                        <Border x:Name="CardLang" Background="{DynamicResource CardBrush}" CornerRadius="12" BorderBrush="{DynamicResource HairlineBrush}" BorderThickness="1" Padding="20" Margin="0,0,0,16">
                             <Grid>
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*"/>
@@ -770,27 +986,27 @@
                                 </Grid.ColumnDefinitions>
                                 <StackPanel Grid.Column="0" VerticalAlignment="Center" Margin="0,0,18,0">
                                     <TextBlock x:Name="TxtLangTitle" Text="Language" FontSize="15" FontWeight="SemiBold"/>
-                                    <TextBlock x:Name="TxtLangDesc" Text="Application display language" FontSize="12" Foreground="#9AA3B2" Margin="0,4,0,0"/>
+                                    <TextBlock x:Name="TxtLangDesc" Text="Application display language" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,4,0,0"/>
                                 </StackPanel>
                                 <ComboBox x:Name="CmbLanguage" Grid.Column="1" VerticalAlignment="Center" SelectionChanged="CmbLanguage_SelectionChanged"/>
                             </Grid>
                         </Border>
 
-                        <Border x:Name="CardUpdates" Background="#CC1E222D" CornerRadius="12" BorderBrush="#1FFFFFFF" BorderThickness="1" Padding="20" Margin="0,16,0,0">
+                        <Border x:Name="CardUpdates" Background="{DynamicResource CardBrush}" CornerRadius="12" BorderBrush="{DynamicResource HairlineBrush}" BorderThickness="1" Padding="20" Margin="0,16,0,0">
                             <StackPanel>
                                 <TextBlock x:Name="TxtUpdateTitle" Text="Updates" FontSize="15" FontWeight="SemiBold" Margin="0,0,0,6"/>
-                                <TextBlock x:Name="TxtUpdateVersion" Text="" FontSize="12" Foreground="#9AA3B2" Margin="0,0,0,12" TextWrapping="Wrap"/>
+                                <TextBlock x:Name="TxtUpdateVersion" Text="" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,12" TextWrapping="Wrap"/>
                                 <StackPanel Orientation="Horizontal">
-                                    <CheckBox x:Name="ChkAutoUpdate" Grid.Column="0" Content="Download new versions automatically" Foreground="#F0F2F5" FontSize="12" VerticalAlignment="Center" Margin="0,0,12,0" Checked="ChkAutoUpdate_Changed" Unchecked="ChkAutoUpdate_Changed"/>
+                                    <CheckBox x:Name="ChkAutoUpdate" Grid.Column="0" Content="Download new versions automatically" Foreground="{DynamicResource TextPrimaryBrush}" FontSize="12" VerticalAlignment="Center" Margin="0,0,12,0" Checked="ChkAutoUpdate_Changed" Unchecked="ChkAutoUpdate_Changed"/>
                                     <Button x:Name="BtnCheckUpdate" Style="{StaticResource ModernButton}" Content="Check now" Click="BtnCheckUpdate_Click" Padding="14,8"/>
                                 </StackPanel>
                             </StackPanel>
                         </Border>
 
-                        <Border x:Name="CardDataFolder" Background="#CC1E222D" CornerRadius="12" BorderBrush="#1FFFFFFF" BorderThickness="1" Padding="20" Margin="0,16,0,0">
+                        <Border x:Name="CardDataFolder" Background="{DynamicResource CardBrush}" CornerRadius="12" BorderBrush="{DynamicResource HairlineBrush}" BorderThickness="1" Padding="20" Margin="0,16,0,0">
                             <StackPanel>
                                 <TextBlock x:Name="TxtDataFolderTitle" Text="Application data folder" FontSize="15" FontWeight="SemiBold" Margin="0,0,0,8"/>
-                                <TextBlock x:Name="TxtDataFolderPath" Text="" FontSize="12" Foreground="#9AA3B2" Margin="0,0,0,12" TextWrapping="Wrap"/>
+                                <TextBlock x:Name="TxtDataFolderPath" Text="" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,12" TextWrapping="Wrap"/>
                                 <Button x:Name="BtnShowDataFolder" Style="{StaticResource SecondaryButton}" Content="Show folder" Click="BtnShowDataFolder_Click" HorizontalAlignment="Left"/>
                             </StackPanel>
                         </Border>
@@ -799,12 +1015,12 @@
                     <StackPanel x:Name="PanelThemes" Visibility="Collapsed">
                         <TextBlock x:Name="TxtThemeTitle" Text="Themes &amp; UI Customization" FontSize="22" FontWeight="Bold" Margin="0,0,0,20"/>
 
-                        <Border x:Name="CardThemes" Background="#CC1E222D" CornerRadius="12" BorderBrush="#1FFFFFFF" BorderThickness="1" Padding="20" Margin="0,0,0,16">
+                        <Border x:Name="CardThemes" Background="{DynamicResource CardBrush}" CornerRadius="12" BorderBrush="{DynamicResource HairlineBrush}" BorderThickness="1" Padding="20" Margin="0,0,0,16">
                             <StackPanel>
                                 <TextBlock x:Name="TxtThemesTitle" Text="Available themes" FontSize="15" FontWeight="SemiBold" Margin="0,0,0,12"/>
                                 <WrapPanel x:Name="PanelThemesWrap" Margin="0,0,0,16"/>
 
-                                <Border BorderBrush="#1FFFFFFF" BorderThickness="0,1,0,0" Padding="0,14,0,0">
+                                <Border BorderBrush="{DynamicResource HairlineBrush}" BorderThickness="0,1,0,0" Padding="0,14,0,0">
                                     <StackPanel>
                                         <TextBlock x:Name="TxtThemeImport" Text="Import theme from URL (GitHub / Pastebin RAW JSON)" FontSize="13" FontWeight="SemiBold" Margin="0,0,0,8"/>
                                         <Grid>
@@ -812,7 +1028,7 @@
                                                 <ColumnDefinition Width="*"/>
                                                 <ColumnDefinition Width="Auto"/>
                                             </Grid.ColumnDefinitions>
-                                            <TextBox x:Name="TxtThemeUrl" Background="#33000000" Foreground="White" FontSize="12" Padding="10,8" BorderBrush="#33FFFFFF" BorderThickness="1" VerticalContentAlignment="Center" Margin="0,0,10,0"/>
+                                            <TextBox x:Name="TxtThemeUrl" Background="{DynamicResource InputBrush}" Foreground="White" FontSize="12" Padding="10,4" BorderBrush="{DynamicResource CardBorderBrush}" BorderThickness="1" VerticalContentAlignment="Center" Margin="0,0,10,0"/>
                                             <Button x:Name="BtnImportTheme" Grid.Column="1" Style="{StaticResource SecondaryButton}" Content="Download &amp; Apply" Click="BtnImportTheme_Click"/>
                                         </Grid>
                                     </StackPanel>
@@ -820,19 +1036,19 @@
                             </StackPanel>
                         </Border>
 
-                        <Border x:Name="CardThemeCustomizer" Background="#CC1E222D" CornerRadius="12" BorderBrush="#1FFFFFFF" BorderThickness="1" Padding="20" Margin="0,0,0,16">
+                        <Border x:Name="CardThemeCustomizer" Background="{DynamicResource CardBrush}" CornerRadius="12" BorderBrush="{DynamicResource HairlineBrush}" BorderThickness="1" Padding="20" Margin="0,0,0,16">
                             <StackPanel>
                                 <TextBlock x:Name="TxtThemeCustomTitle" Text="Advanced UI Appearance Customization" FontSize="15" FontWeight="SemiBold" Margin="0,0,0,16"/>
 
                                 <!-- Frosted Glass (Blur) -->
-                                <TextBlock x:Name="TxtGlassShadowSection" Text="Frosted Glass (Blur) / Buzlu Cam" FontSize="13" FontWeight="SemiBold" Foreground="#6366F1" Margin="0,0,0,10"/>
+                                <TextBlock x:Name="TxtGlassShadowSection" Text="Frosted Glass (Blur) / Buzlu Cam" FontSize="13" FontWeight="SemiBold" Foreground="{DynamicResource AccentBrush}" Margin="0,0,0,10"/>
                                 <Grid Margin="0,0,0,16">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="*"/>
                                     </Grid.ColumnDefinitions>
                                     <StackPanel Grid.Column="0" Margin="0,0,6,0">
                                         <DockPanel Margin="0,0,0,6">
-                                            <TextBlock x:Name="TxtBlurLabel" Text="Frosted Glass (Blur):" FontSize="12" Foreground="#9AA3B2"/>
+                                            <TextBlock x:Name="TxtBlurLabel" Text="Frosted Glass (Blur):" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}"/>
                                             <TextBlock x:Name="TxtBlurVal" Text="8px" FontSize="12" HorizontalAlignment="Right"/>
                                         </DockPanel>
                                         <Slider x:Name="SliderBlur" Minimum="0" Maximum="40" Value="8" ValueChanged="SliderBlur_ValueChanged"/>
@@ -840,7 +1056,7 @@
                                 </Grid>
 
                                 <!-- Section Opacities -->
-                                <TextBlock x:Name="TxtOpacitySection" Text="Section Opacities / Bölüm Şeffaflıkları" FontSize="13" FontWeight="SemiBold" Foreground="#6366F1" Margin="0,0,0,10"/>
+                                <TextBlock x:Name="TxtOpacitySection" Text="Section Opacities / Bölüm Şeffaflıkları" FontSize="13" FontWeight="SemiBold" Foreground="{DynamicResource AccentBrush}" Margin="0,0,0,10"/>
                                 <Grid Margin="0,0,0,16">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="*"/>
@@ -850,35 +1066,35 @@
                                     </Grid.ColumnDefinitions>
                                     <StackPanel Grid.Column="0" Margin="0,0,6,0">
                                         <DockPanel Margin="0,0,0,6">
-                                            <TextBlock x:Name="TxtOpacityLabel" Text="Card:" FontSize="12" Foreground="#9AA3B2"/>
+                                            <TextBlock x:Name="TxtOpacityLabel" Text="Card:" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}"/>
                                             <TextBlock x:Name="TxtOpacityVal" Text="85%" FontSize="12" HorizontalAlignment="Right"/>
                                         </DockPanel>
                                         <Slider x:Name="SliderOpacity" Minimum="10" Maximum="100" Value="85" ValueChanged="SliderOpacity_ValueChanged"/>
                                     </StackPanel>
                                     <StackPanel Grid.Column="1" Margin="6,0,6,0">
                                         <DockPanel Margin="0,0,0,6">
-                                            <TextBlock x:Name="TxtSidebarOpacityLabel" Text="Sidebar:" FontSize="12" Foreground="#9AA3B2"/>
+                                            <TextBlock x:Name="TxtSidebarOpacityLabel" Text="Sidebar:" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}"/>
                                             <TextBlock x:Name="TxtSidebarOpacityVal" Text="65%" FontSize="12" HorizontalAlignment="Right"/>
                                         </DockPanel>
                                         <Slider x:Name="SliderSidebarOpacity" Minimum="10" Maximum="100" Value="65" ValueChanged="SliderSidebarOpacity_ValueChanged"/>
                                     </StackPanel>
                                     <StackPanel Grid.Column="2" Margin="6,0,6,0">
                                         <DockPanel Margin="0,0,0,6">
-                                            <TextBlock x:Name="TxtInputOpacityLabel" Text="Inputs:" FontSize="12" Foreground="#9AA3B2"/>
+                                            <TextBlock x:Name="TxtInputOpacityLabel" Text="Inputs:" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}"/>
                                             <TextBlock x:Name="TxtInputOpacityVal" Text="20%" FontSize="12" HorizontalAlignment="Right"/>
                                         </DockPanel>
                                         <Slider x:Name="SliderInputOpacity" Minimum="5" Maximum="100" Value="20" ValueChanged="SliderInputOpacity_ValueChanged"/>
                                     </StackPanel>
                                     <StackPanel Grid.Column="3" Margin="6,0,0,0">
                                         <DockPanel Margin="0,0,0,6">
-                                            <TextBlock x:Name="TxtButtonOpacityLabel" Text="Buttons:" FontSize="12" Foreground="#9AA3B2"/>
+                                            <TextBlock x:Name="TxtButtonOpacityLabel" Text="Buttons:" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}"/>
                                             <TextBlock x:Name="TxtButtonOpacityVal" Text="100%" FontSize="12" HorizontalAlignment="Right"/>
                                         </DockPanel>
                                         <Slider x:Name="SliderButtonOpacity" Minimum="20" Maximum="100" Value="100" ValueChanged="SliderButtonOpacity_ValueChanged"/>
                                     </StackPanel>
                                 </Grid>
 
-                                <TextBlock x:Name="TxtColorPaletteSection" Text="Colors &amp; Accents / Renk Paleti" FontSize="13" FontWeight="SemiBold" Foreground="#6366F1" Margin="0,0,0,10"/>
+                                <TextBlock x:Name="TxtColorPaletteSection" Text="Colors &amp; Accents / Renk Paleti" FontSize="13" FontWeight="SemiBold" Foreground="{DynamicResource AccentBrush}" Margin="0,0,0,10"/>
                                 <Grid Margin="0,0,0,10">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="*"/>
@@ -887,47 +1103,63 @@
                                         <ColumnDefinition Width="*"/>
                                     </Grid.ColumnDefinitions>
                                     <StackPanel Grid.Column="0" Margin="0,0,6,0">
-                                        <TextBlock x:Name="TxtColorBgLabel" Text="Background:" FontSize="11" Foreground="#9AA3B2" Margin="0,0,0,4"/>
+                                        <TextBlock x:Name="TxtColorBgLabel" Text="Background:" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,4"/>
                                         <Grid>
                                             <Grid.ColumnDefinitions>
                                                 <ColumnDefinition Width="*"/>
                                                 <ColumnDefinition Width="34"/>
                                             </Grid.ColumnDefinitions>
-                                            <TextBox x:Name="TxtColorBg" Background="#33000000" Foreground="White" FontSize="12" Padding="8,6" BorderBrush="#33FFFFFF" BorderThickness="1"/>
-                                            <Button Grid.Column="1" Content="🎨" Click="BtnPickColor_Click" Tag="TxtColorBg" Style="{StaticResource SecondaryButton}" Padding="0" Margin="4,0,0,0" ToolTip="Renk ve Saydamlık Paletini Aç"/>
+                                            <TextBox x:Name="TxtColorBg" Background="{DynamicResource InputBrush}" Foreground="White" FontSize="12" Padding="8,4" BorderBrush="{DynamicResource CardBorderBrush}" BorderThickness="1"/>
+                                            <Button Grid.Column="1" Click="BtnPickColor_Click" Tag="TxtColorBg" Style="{StaticResource SecondaryButton}" Padding="0" Margin="4,0,0,0" ToolTip="{DynamicResource PickColorTip}">
+                                                <Viewbox Width="14" Height="14">
+                                                    <Path Fill="{DynamicResource TextPrimaryBrush}" Data="M20.7,3.3a2.4,2.4 0 0 0-3.4,0l-2.6,2.6-1.2-1.2-1.4,1.4 1.2,1.2L5,15.6V19h3.4l8.3-8.3 1.2,1.2 1.4-1.4-1.2-1.2 2.6-2.6a2.4,2.4 0 0 0 0-3.4Z"/>
+                                                </Viewbox>
+                                            </Button>
                                         </Grid>
                                     </StackPanel>
                                     <StackPanel Grid.Column="1" Margin="6,0,6,0">
-                                        <TextBlock x:Name="TxtColorSidebarLabel" Text="Sidebar:" FontSize="11" Foreground="#9AA3B2" Margin="0,0,0,4"/>
+                                        <TextBlock x:Name="TxtColorSidebarLabel" Text="Sidebar:" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,4"/>
                                         <Grid>
                                             <Grid.ColumnDefinitions>
                                                 <ColumnDefinition Width="*"/>
                                                 <ColumnDefinition Width="34"/>
                                             </Grid.ColumnDefinitions>
-                                            <TextBox x:Name="TxtColorSidebar" Background="#33000000" Foreground="White" FontSize="12" Padding="8,6" BorderBrush="#33FFFFFF" BorderThickness="1"/>
-                                            <Button Grid.Column="1" Content="🎨" Click="BtnPickColor_Click" Tag="TxtColorSidebar" Style="{StaticResource SecondaryButton}" Padding="0" Margin="4,0,0,0" ToolTip="Renk ve Saydamlık Paletini Aç"/>
+                                            <TextBox x:Name="TxtColorSidebar" Background="{DynamicResource InputBrush}" Foreground="White" FontSize="12" Padding="8,4" BorderBrush="{DynamicResource CardBorderBrush}" BorderThickness="1"/>
+                                            <Button Grid.Column="1" Click="BtnPickColor_Click" Tag="TxtColorSidebar" Style="{StaticResource SecondaryButton}" Padding="0" Margin="4,0,0,0" ToolTip="{DynamicResource PickColorTip}">
+                                                <Viewbox Width="14" Height="14">
+                                                    <Path Fill="{DynamicResource TextPrimaryBrush}" Data="M20.7,3.3a2.4,2.4 0 0 0-3.4,0l-2.6,2.6-1.2-1.2-1.4,1.4 1.2,1.2L5,15.6V19h3.4l8.3-8.3 1.2,1.2 1.4-1.4-1.2-1.2 2.6-2.6a2.4,2.4 0 0 0 0-3.4Z"/>
+                                                </Viewbox>
+                                            </Button>
                                         </Grid>
                                     </StackPanel>
                                     <StackPanel Grid.Column="2" Margin="6,0,6,0">
-                                        <TextBlock x:Name="TxtColorCardLabel" Text="Cards:" FontSize="11" Foreground="#9AA3B2" Margin="0,0,0,4"/>
+                                        <TextBlock x:Name="TxtColorCardLabel" Text="Cards:" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,4"/>
                                         <Grid>
                                             <Grid.ColumnDefinitions>
                                                 <ColumnDefinition Width="*"/>
                                                 <ColumnDefinition Width="34"/>
                                             </Grid.ColumnDefinitions>
-                                            <TextBox x:Name="TxtColorCard" Background="#33000000" Foreground="White" FontSize="12" Padding="8,6" BorderBrush="#33FFFFFF" BorderThickness="1"/>
-                                            <Button Grid.Column="1" Content="🎨" Click="BtnPickColor_Click" Tag="TxtColorCard" Style="{StaticResource SecondaryButton}" Padding="0" Margin="4,0,0,0" ToolTip="Renk ve Saydamlık Paletini Aç"/>
+                                            <TextBox x:Name="TxtColorCard" Background="{DynamicResource InputBrush}" Foreground="White" FontSize="12" Padding="8,4" BorderBrush="{DynamicResource CardBorderBrush}" BorderThickness="1"/>
+                                            <Button Grid.Column="1" Click="BtnPickColor_Click" Tag="TxtColorCard" Style="{StaticResource SecondaryButton}" Padding="0" Margin="4,0,0,0" ToolTip="{DynamicResource PickColorTip}">
+                                                <Viewbox Width="14" Height="14">
+                                                    <Path Fill="{DynamicResource TextPrimaryBrush}" Data="M20.7,3.3a2.4,2.4 0 0 0-3.4,0l-2.6,2.6-1.2-1.2-1.4,1.4 1.2,1.2L5,15.6V19h3.4l8.3-8.3 1.2,1.2 1.4-1.4-1.2-1.2 2.6-2.6a2.4,2.4 0 0 0 0-3.4Z"/>
+                                                </Viewbox>
+                                            </Button>
                                         </Grid>
                                     </StackPanel>
                                     <StackPanel Grid.Column="3" Margin="6,0,0,0">
-                                        <TextBlock x:Name="TxtColorAccentLabel" Text="Accent:" FontSize="11" Foreground="#9AA3B2" Margin="0,0,0,4"/>
+                                        <TextBlock x:Name="TxtColorAccentLabel" Text="Accent:" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,4"/>
                                         <Grid>
                                             <Grid.ColumnDefinitions>
                                                 <ColumnDefinition Width="*"/>
                                                 <ColumnDefinition Width="34"/>
                                             </Grid.ColumnDefinitions>
-                                            <TextBox x:Name="TxtColorAccent" Background="#33000000" Foreground="White" FontSize="12" Padding="8,6" BorderBrush="#33FFFFFF" BorderThickness="1"/>
-                                            <Button Grid.Column="1" Content="🎨" Click="BtnPickColor_Click" Tag="TxtColorAccent" Style="{StaticResource SecondaryButton}" Padding="0" Margin="4,0,0,0" ToolTip="Renk ve Saydamlık Paletini Aç"/>
+                                            <TextBox x:Name="TxtColorAccent" Background="{DynamicResource InputBrush}" Foreground="White" FontSize="12" Padding="8,4" BorderBrush="{DynamicResource CardBorderBrush}" BorderThickness="1"/>
+                                            <Button Grid.Column="1" Click="BtnPickColor_Click" Tag="TxtColorAccent" Style="{StaticResource SecondaryButton}" Padding="0" Margin="4,0,0,0" ToolTip="{DynamicResource PickColorTip}">
+                                                <Viewbox Width="14" Height="14">
+                                                    <Path Fill="{DynamicResource TextPrimaryBrush}" Data="M20.7,3.3a2.4,2.4 0 0 0-3.4,0l-2.6,2.6-1.2-1.2-1.4,1.4 1.2,1.2L5,15.6V19h3.4l8.3-8.3 1.2,1.2 1.4-1.4-1.2-1.2 2.6-2.6a2.4,2.4 0 0 0 0-3.4Z"/>
+                                                </Viewbox>
+                                            </Button>
                                         </Grid>
                                     </StackPanel>
                                 </Grid>
@@ -940,68 +1172,87 @@
                                         <ColumnDefinition Width="*"/>
                                     </Grid.ColumnDefinitions>
                                     <StackPanel Grid.Column="0" Margin="0,0,6,0">
-                                        <TextBlock x:Name="TxtColorBorderLabel" Text="Border:" FontSize="11" Foreground="#9AA3B2" Margin="0,0,0,4"/>
+                                        <TextBlock x:Name="TxtColorBorderLabel" Text="Border:" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,4"/>
                                         <Grid>
                                             <Grid.ColumnDefinitions>
                                                 <ColumnDefinition Width="*"/>
                                                 <ColumnDefinition Width="34"/>
                                             </Grid.ColumnDefinitions>
-                                            <TextBox x:Name="TxtColorBorder" Background="#33000000" Foreground="White" FontSize="12" Padding="8,6" BorderBrush="#33FFFFFF" BorderThickness="1"/>
-                                            <Button Grid.Column="1" Content="🎨" Click="BtnPickColor_Click" Tag="TxtColorBorder" Style="{StaticResource SecondaryButton}" Padding="0" Margin="4,0,0,0" ToolTip="Renk ve Saydamlık Paletini Aç"/>
+                                            <TextBox x:Name="TxtColorBorder" Background="{DynamicResource InputBrush}" Foreground="White" FontSize="12" Padding="8,4" BorderBrush="{DynamicResource CardBorderBrush}" BorderThickness="1"/>
+                                            <Button Grid.Column="1" Click="BtnPickColor_Click" Tag="TxtColorBorder" Style="{StaticResource SecondaryButton}" Padding="0" Margin="4,0,0,0" ToolTip="{DynamicResource PickColorTip}">
+                                                <Viewbox Width="14" Height="14">
+                                                    <Path Fill="{DynamicResource TextPrimaryBrush}" Data="M20.7,3.3a2.4,2.4 0 0 0-3.4,0l-2.6,2.6-1.2-1.2-1.4,1.4 1.2,1.2L5,15.6V19h3.4l8.3-8.3 1.2,1.2 1.4-1.4-1.2-1.2 2.6-2.6a2.4,2.4 0 0 0 0-3.4Z"/>
+                                                </Viewbox>
+                                            </Button>
                                         </Grid>
                                     </StackPanel>
                                     <StackPanel Grid.Column="1" Margin="6,0,6,0">
-                                        <TextBlock x:Name="TxtColorTextPrimaryLabel" Text="Primary Text:" FontSize="11" Foreground="#9AA3B2" Margin="0,0,0,4"/>
+                                        <TextBlock x:Name="TxtColorTextPrimaryLabel" Text="Primary Text:" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,4"/>
                                         <Grid>
                                             <Grid.ColumnDefinitions>
                                                 <ColumnDefinition Width="*"/>
                                                 <ColumnDefinition Width="34"/>
                                             </Grid.ColumnDefinitions>
-                                            <TextBox x:Name="TxtColorTextPrimary" Background="#33000000" Foreground="White" FontSize="12" Padding="8,6" BorderBrush="#33FFFFFF" BorderThickness="1"/>
-                                            <Button Grid.Column="1" Content="🎨" Click="BtnPickColor_Click" Tag="TxtColorTextPrimary" Style="{StaticResource SecondaryButton}" Padding="0" Margin="4,0,0,0" ToolTip="Renk ve Saydamlık Paletini Aç"/>
+                                            <TextBox x:Name="TxtColorTextPrimary" Background="{DynamicResource InputBrush}" Foreground="White" FontSize="12" Padding="8,4" BorderBrush="{DynamicResource CardBorderBrush}" BorderThickness="1"/>
+                                            <Button Grid.Column="1" Click="BtnPickColor_Click" Tag="TxtColorTextPrimary" Style="{StaticResource SecondaryButton}" Padding="0" Margin="4,0,0,0" ToolTip="{DynamicResource PickColorTip}">
+                                                <Viewbox Width="14" Height="14">
+                                                    <Path Fill="{DynamicResource TextPrimaryBrush}" Data="M20.7,3.3a2.4,2.4 0 0 0-3.4,0l-2.6,2.6-1.2-1.2-1.4,1.4 1.2,1.2L5,15.6V19h3.4l8.3-8.3 1.2,1.2 1.4-1.4-1.2-1.2 2.6-2.6a2.4,2.4 0 0 0 0-3.4Z"/>
+                                                </Viewbox>
+                                            </Button>
                                         </Grid>
                                     </StackPanel>
                                     <StackPanel Grid.Column="2" Margin="6,0,6,0">
-                                        <TextBlock x:Name="TxtColorTextSecondaryLabel" Text="Secondary Text:" FontSize="11" Foreground="#9AA3B2" Margin="0,0,0,4"/>
+                                        <TextBlock x:Name="TxtColorTextSecondaryLabel" Text="Secondary Text:" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,4"/>
                                         <Grid>
                                             <Grid.ColumnDefinitions>
                                                 <ColumnDefinition Width="*"/>
                                                 <ColumnDefinition Width="34"/>
                                             </Grid.ColumnDefinitions>
-                                            <TextBox x:Name="TxtColorTextSecondary" Background="#33000000" Foreground="White" FontSize="12" Padding="8,6" BorderBrush="#33FFFFFF" BorderThickness="1"/>
-                                            <Button Grid.Column="1" Content="🎨" Click="BtnPickColor_Click" Tag="TxtColorTextSecondary" Style="{StaticResource SecondaryButton}" Padding="0" Margin="4,0,0,0" ToolTip="Renk ve Saydamlık Paletini Aç"/>
+                                            <TextBox x:Name="TxtColorTextSecondary" Background="{DynamicResource InputBrush}" Foreground="White" FontSize="12" Padding="8,4" BorderBrush="{DynamicResource CardBorderBrush}" BorderThickness="1"/>
+                                            <Button Grid.Column="1" Click="BtnPickColor_Click" Tag="TxtColorTextSecondary" Style="{StaticResource SecondaryButton}" Padding="0" Margin="4,0,0,0" ToolTip="{DynamicResource PickColorTip}">
+                                                <Viewbox Width="14" Height="14">
+                                                    <Path Fill="{DynamicResource TextPrimaryBrush}" Data="M20.7,3.3a2.4,2.4 0 0 0-3.4,0l-2.6,2.6-1.2-1.2-1.4,1.4 1.2,1.2L5,15.6V19h3.4l8.3-8.3 1.2,1.2 1.4-1.4-1.2-1.2 2.6-2.6a2.4,2.4 0 0 0 0-3.4Z"/>
+                                                </Viewbox>
+                                            </Button>
                                         </Grid>
                                     </StackPanel>
                                     <!-- Logo Color -->
                                     <StackPanel Grid.Column="3" Margin="6,0,0,0">
-                                        <TextBlock x:Name="TxtColorLogoLabel" Text="Logo Color:" FontSize="11" Foreground="#9AA3B2" Margin="0,0,0,4"/>
+                                        <TextBlock x:Name="TxtColorLogoLabel" Text="Logo Color:" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,4"/>
                                         <Grid>
                                             <Grid.ColumnDefinitions>
                                                 <ColumnDefinition Width="*"/>
                                                 <ColumnDefinition Width="34"/>
                                             </Grid.ColumnDefinitions>
-                                            <TextBox x:Name="TxtColorLogo" Background="#33000000" Foreground="White" FontSize="12" Padding="8,6" BorderBrush="#33FFFFFF" BorderThickness="1"/>
-                                            <Button Grid.Column="1" Content="🎨" Click="BtnPickColor_Click" Tag="TxtColorLogo" Style="{StaticResource SecondaryButton}" Padding="0" Margin="4,0,0,0" ToolTip="Logo rengini seç"/>
+                                            <TextBox x:Name="TxtColorLogo" Background="{DynamicResource InputBrush}" Foreground="White" FontSize="12" Padding="8,4" BorderBrush="{DynamicResource CardBorderBrush}" BorderThickness="1"/>
+                                            <Button Grid.Column="1" Click="BtnPickColor_Click" Tag="TxtColorLogo" Style="{StaticResource SecondaryButton}" Padding="0" Margin="4,0,0,0" ToolTip="{DynamicResource PickColorTip}">
+                                                <Viewbox Width="14" Height="14">
+                                                    <Path Fill="{DynamicResource TextPrimaryBrush}" Data="M20.7,3.3a2.4,2.4 0 0 0-3.4,0l-2.6,2.6-1.2-1.2-1.4,1.4 1.2,1.2L5,15.6V19h3.4l8.3-8.3 1.2,1.2 1.4-1.4-1.2-1.2 2.6-2.6a2.4,2.4 0 0 0 0-3.4Z"/>
+                                                </Viewbox>
+                                            </Button>
                                         </Grid>
                                     </StackPanel>
                                 </Grid>
 
-                                <Button x:Name="BtnApplyColors" Style="{StaticResource ModernButton}" Content="Apply Colors" Click="BtnApplyColors_Click" HorizontalAlignment="Left" Margin="0,0,0,16"/>
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,16">
+                                    <Button x:Name="BtnApplyColors" Style="{StaticResource ModernButton}" Content="Apply Colors" Click="BtnApplyColors_Click" Margin="0,0,10,0"/>
+                                    <Button x:Name="BtnSaveTheme" Style="{StaticResource SecondaryButton}" Content="Save as theme" Click="BtnSaveTheme_Click"/>
+                                </StackPanel>
 
-                                <TextBlock x:Name="TxtCustomBgTitle" Text="Custom Background Image" FontSize="13" FontWeight="SemiBold" Foreground="#6366F1" Margin="0,0,0,6"/>
+                                <TextBlock x:Name="TxtCustomBgTitle" Text="Custom Background Image" FontSize="13" FontWeight="SemiBold" Foreground="{DynamicResource AccentBrush}" Margin="0,0,0,6"/>
                                 <Grid Margin="0,0,0,20">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="*"/>
                                         <ColumnDefinition Width="Auto"/>
                                         <ColumnDefinition Width="Auto"/>
                                     </Grid.ColumnDefinitions>
-                                    <TextBox x:Name="TxtCustomBgUrl" Background="#33000000" Foreground="White" FontSize="12" Padding="10,8" BorderBrush="#33FFFFFF" BorderThickness="1" VerticalContentAlignment="Center" Margin="0,0,10,0"/>
+                                    <TextBox x:Name="TxtCustomBgUrl" Background="{DynamicResource InputBrush}" Foreground="White" FontSize="12" Padding="10,4" BorderBrush="{DynamicResource CardBorderBrush}" BorderThickness="1" VerticalContentAlignment="Center" Margin="0,0,10,0"/>
                                     <Button x:Name="BtnBrowseBgImage" Grid.Column="1" Style="{StaticResource SecondaryButton}" Content="Browse" Click="BtnBrowseBgImage_Click" Margin="0,0,10,0"/>
                                     <Button x:Name="BtnApplyCustomBg" Grid.Column="2" Style="{StaticResource SecondaryButton}" Content="Apply" Click="BtnApplyCustomBg_Click"/>
                                 </Grid>
 
-                                <Border BorderBrush="#33FFFFFF" BorderThickness="0,1,0,0" Padding="0,16,0,0">
-                                    <Button x:Name="BtnResetThemeDefaults" Style="{StaticResource ModernButton}" Background="#DC2626" Content="Varsayılana Döndür" Click="BtnResetThemeDefaults_Click" HorizontalAlignment="Left" Padding="18,10"/>
+                                <Border BorderBrush="{DynamicResource CardBorderBrush}" BorderThickness="0,1,0,0" Padding="0,16,0,0">
+                                    <Button x:Name="BtnResetThemeDefaults" Style="{StaticResource ModernButton}" Background="{DynamicResource DangerBrush}" Content="Varsayılana Döndür" Click="BtnResetThemeDefaults_Click" HorizontalAlignment="Left" Padding="18,10"/>
                                 </Border>
                             </StackPanel>
                         </Border>
@@ -1010,43 +1261,43 @@
                     <StackPanel x:Name="PanelGuide" Visibility="Collapsed">
                         <TextBlock x:Name="TxtGuideTitle" Text="User Guide &amp; Information" FontSize="22" FontWeight="Bold" Margin="0,0,0,20"/>
 
-                        <Border Background="#CC1E222D" CornerRadius="12" BorderBrush="#1FFFFFFF" BorderThickness="1" Padding="20" Margin="0,0,0,16">
+                        <Border Background="{DynamicResource CardBrush}" CornerRadius="12" BorderBrush="{DynamicResource HairlineBrush}" BorderThickness="1" Padding="20" Margin="0,0,0,16">
                             <StackPanel>
-                                <TextBlock x:Name="TxtGuideQuickStartTitle" Text="🎬 Hızlı Başlangıç &amp; Video Oynatma" FontSize="16" FontWeight="SemiBold" Foreground="#6366F1" Margin="0,0,0,8"/>
-                                <TextBlock x:Name="TxtGuideQuickStartSub" Text="MPV Launcher, internet akışlarını ve yerel medya dosyalarını yüksek performanslı MPV oynatıcı ile sorunsuz izlemenizi sağlar." FontSize="13" Foreground="#F0F2F5" Margin="0,0,0,8" TextWrapping="Wrap"/>
-                                <TextBlock x:Name="TxtGuideQuickStartBody" Text="• URL Oynatma: YouTube, Twitch, Vimeo, Twitter/X ve yüzlerce desteklenen siteden video bağlantısını 'Player' sekmesindeki kutuya yapıştırıp 'MPV ile Oynat' butonuna basın veya Enter'a tıklayın.&#x0a;• Sürükle &amp; Bırak: Bilgisayarınızdaki video dosyalarını (.mp4, .mkv, .webm vb.) doğrudan pencerenin içerisine sürükleyip bırakabilirsiniz.&#x0a;• Oynatma Geçmişi: Daha önce oynattığınız son 50 medya kaydı geçmiş listesinde saklanır; listedeki bir öğeye çift tıklayarak tekrar izleyebilirsiniz." FontSize="12" Foreground="#9AA3B2" LineHeight="20" TextWrapping="Wrap"/>
+                                <TextBlock x:Name="TxtGuideQuickStartTitle" Text="🎬 Hızlı Başlangıç &amp; Video Oynatma" FontSize="16" FontWeight="SemiBold" Foreground="{DynamicResource AccentBrush}" Margin="0,0,0,8"/>
+                                <TextBlock x:Name="TxtGuideQuickStartSub" Text="MPV Launcher, internet akışlarını ve yerel medya dosyalarını yüksek performanslı MPV oynatıcı ile sorunsuz izlemenizi sağlar." FontSize="13" Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,8" TextWrapping="Wrap"/>
+                                <TextBlock x:Name="TxtGuideQuickStartBody" Text="• URL Oynatma: YouTube, Twitch, Vimeo, Twitter/X ve yüzlerce desteklenen siteden video bağlantısını 'Player' sekmesindeki kutuya yapıştırıp 'MPV ile Oynat' butonuna basın veya Enter'a tıklayın.&#x0a;• Sürükle &amp; Bırak: Bilgisayarınızdaki video dosyalarını (.mp4, .mkv, .webm vb.) doğrudan pencerenin içerisine sürükleyip bırakabilirsiniz.&#x0a;• Oynatma Geçmişi: Daha önce oynattığınız son 50 medya kaydı geçmiş listesinde saklanır; listedeki bir öğeye çift tıklayarak tekrar izleyebilirsiniz." FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" LineHeight="20" TextWrapping="Wrap"/>
                             </StackPanel>
                         </Border>
 
-                        <Border Background="#CC1E222D" CornerRadius="12" BorderBrush="#1FFFFFFF" BorderThickness="1" Padding="20" Margin="0,0,0,16">
+                        <Border Background="{DynamicResource CardBrush}" CornerRadius="12" BorderBrush="{DynamicResource HairlineBrush}" BorderThickness="1" Padding="20" Margin="0,0,0,16">
                             <StackPanel>
-                                <TextBlock x:Name="TxtGuideDepsTitle" Text="📦 Bağımlılıklar (MPV, yt-dlp, FFmpeg)" FontSize="16" FontWeight="SemiBold" Foreground="#6366F1" Margin="0,0,0,8"/>
-                                <TextBlock x:Name="TxtGuideDepsSub" Text="Programın tam performansla çalışması için üç temel araç gereklidir:" FontSize="13" Foreground="#F0F2F5" Margin="0,0,0,8" TextWrapping="Wrap"/>
-                                <TextBlock x:Name="TxtGuideDepsBody" Text="1. MPV: Modern ve donanım hızlandırmalı video oynatıcı motorudur.&#x0a;2. yt-dlp: YouTube ve diğer sitelerden canlı akış ve video verilerini çeken yardımcı programdır. Sitelerin güncellemeleri nedeniyle yt-dlp sık sık güncellenir; akış açılmadığında 'Program güncellemelerini denetle' düğmesini kullanabilirsiniz.&#x0a;3. FFmpeg: Medya akışlarını ayrıştırma ve birleştirme motorudur.&#x0a;&#x0a;Tüm bu araçları 'Bağımlılıklar' sekmesinden tek tıkla otomatik indirebilir ve kurabilirsiniz." FontSize="12" Foreground="#9AA3B2" LineHeight="20" TextWrapping="Wrap"/>
+                                <TextBlock x:Name="TxtGuideDepsTitle" Text="📦 Bağımlılıklar (MPV, yt-dlp, FFmpeg)" FontSize="16" FontWeight="SemiBold" Foreground="{DynamicResource AccentBrush}" Margin="0,0,0,8"/>
+                                <TextBlock x:Name="TxtGuideDepsSub" Text="Programın tam performansla çalışması için üç temel araç gereklidir:" FontSize="13" Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,8" TextWrapping="Wrap"/>
+                                <TextBlock x:Name="TxtGuideDepsBody" Text="1. MPV: Modern ve donanım hızlandırmalı video oynatıcı motorudur.&#x0a;2. yt-dlp: YouTube ve diğer sitelerden canlı akış ve video verilerini çeken yardımcı programdır. Sitelerin güncellemeleri nedeniyle yt-dlp sık sık güncellenir; akış açılmadığında 'Program güncellemelerini denetle' düğmesini kullanabilirsiniz.&#x0a;3. FFmpeg: Medya akışlarını ayrıştırma ve birleştirme motorudur.&#x0a;&#x0a;Tüm bu araçları 'Bağımlılıklar' sekmesinden tek tıkla otomatik indirebilir ve kurabilirsiniz." FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" LineHeight="20" TextWrapping="Wrap"/>
                             </StackPanel>
                         </Border>
 
-                        <Border Background="#CC1E222D" CornerRadius="12" BorderBrush="#1FFFFFFF" BorderThickness="1" Padding="20" Margin="0,0,0,16">
+                        <Border Background="{DynamicResource CardBrush}" CornerRadius="12" BorderBrush="{DynamicResource HairlineBrush}" BorderThickness="1" Padding="20" Margin="0,0,0,16">
                             <StackPanel>
-                                <TextBlock x:Name="TxtGuideBrowserTitle" Text="🌐 Tarayıcı Entegrasyonu (Browser Extensions)" FontSize="16" FontWeight="SemiBold" Foreground="#6366F1" Margin="0,0,0,8"/>
-                                <TextBlock x:Name="TxtGuideBrowserSub" Text="Tarayıcınızda gezinirken videoları tek tıkla doğrudan MPV'de açabilirsiniz:" FontSize="13" Foreground="#F0F2F5" Margin="0,0,0,8" TextWrapping="Wrap"/>
-                                <TextBlock x:Name="TxtGuideBrowserBody" Text="• Chrome / Edge / Brave / Opera: 'chrome://extensions' sayfasında sağ üstteki 'Geliştirici Modu'nu açın. 'Paketlenmemiş öge yükle' butonuna basarak 'Eklenti Klasörünü Aç' ile açılan klasörü seçin.&#x0a;• Firefox: 'Firefox Eklentisi' butonuna tıklayarak Mozilla resmi eklenti mağazasından tek tıkla kurabilirsiniz.&#x0a;• Native Messaging Host: Uygulama ilk çalıştığında kayıt defteri ve protokol bağlantılarını otomatik olarak hazırlar." FontSize="12" Foreground="#9AA3B2" LineHeight="20" TextWrapping="Wrap"/>
+                                <TextBlock x:Name="TxtGuideBrowserTitle" Text="🌐 Tarayıcı Entegrasyonu (Browser Extensions)" FontSize="16" FontWeight="SemiBold" Foreground="{DynamicResource AccentBrush}" Margin="0,0,0,8"/>
+                                <TextBlock x:Name="TxtGuideBrowserSub" Text="Tarayıcınızda gezinirken videoları tek tıkla doğrudan MPV'de açabilirsiniz:" FontSize="13" Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,8" TextWrapping="Wrap"/>
+                                <TextBlock x:Name="TxtGuideBrowserBody" Text="• Chrome / Edge / Brave / Opera: 'chrome://extensions' sayfasında sağ üstteki 'Geliştirici Modu'nu açın. 'Paketlenmemiş öge yükle' butonuna basarak 'Eklenti Klasörünü Aç' ile açılan klasörü seçin.&#x0a;• Firefox: 'Firefox Eklentisi' butonuna tıklayarak Mozilla resmi eklenti mağazasından tek tıkla kurabilirsiniz.&#x0a;• Native Messaging Host: Uygulama ilk çalıştığında kayıt defteri ve protokol bağlantılarını otomatik olarak hazırlar." FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" LineHeight="20" TextWrapping="Wrap"/>
                             </StackPanel>
                         </Border>
 
-                        <Border Background="#CC1E222D" CornerRadius="12" BorderBrush="#1FFFFFFF" BorderThickness="1" Padding="20" Margin="0,0,0,16">
+                        <Border Background="{DynamicResource CardBrush}" CornerRadius="12" BorderBrush="{DynamicResource HairlineBrush}" BorderThickness="1" Padding="20" Margin="0,0,0,16">
                             <StackPanel>
-                                <TextBlock x:Name="TxtGuideAnime4kTitle" Text="✨ Anime4K &amp; ModernZ Teması" FontSize="16" FontWeight="SemiBold" Foreground="#6366F1" Margin="0,0,0,8"/>
-                                <TextBlock x:Name="TxtGuideAnime4kSub" Text="Anime4K, anime ve çizim içeriklerini gerçek zamanlı olarak 1080p / 4K çözünürlüğe yükselten ve kenarları netleştiren yapay zeka algoritmasıdır." FontSize="13" Foreground="#F0F2F5" Margin="0,0,0,8" TextWrapping="Wrap"/>
-                                <TextBlock x:Name="TxtGuideAnime4kBody" Text="• 'Tema' sekmesindeki 'Tema+Anime4K Kur' butonu ile ModernZ arayüzünü ve Anime4K GLSL shader dosyalarını %APPDATA%\mpv dizinine yükleyebilirsiniz.&#x0a;• MPV Klavye Kısayolları:&#x0a;   - CTRL+0: Anime4K'yı Devre Dışı Bırak&#x0a;   - CTRL+1: Anime4K Mode A (Hızlı / Fast)&#x0a;   - CTRL+2: Anime4K Mode B (Yüksek Kalite / HQ)&#x0a;   - CTRL+3: Anime4K Mode C (Çok Hızlı / Very Fast)&#x0a;   - CTRL+4: Anime4K Mode A+A (Gelişmiş)&#x0a;   - CTRL+5: Anime4K Mode B+B (Maksimum Keskinlik)&#x0a;   - CTRL+6: Anime4K Mode C+A" FontSize="12" Foreground="#9AA3B2" LineHeight="20" TextWrapping="Wrap"/>
+                                <TextBlock x:Name="TxtGuideAnime4kTitle" Text="✨ Anime4K &amp; ModernZ Teması" FontSize="16" FontWeight="SemiBold" Foreground="{DynamicResource AccentBrush}" Margin="0,0,0,8"/>
+                                <TextBlock x:Name="TxtGuideAnime4kSub" Text="Anime4K, anime ve çizim içeriklerini gerçek zamanlı olarak 1080p / 4K çözünürlüğe yükselten ve kenarları netleştiren yapay zeka algoritmasıdır." FontSize="13" Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,8" TextWrapping="Wrap"/>
+                                <TextBlock x:Name="TxtGuideAnime4kBody" Text="• 'Tema' sekmesindeki 'Tema+Anime4K Kur' butonu ile ModernZ arayüzünü ve Anime4K GLSL shader dosyalarını %APPDATA%\mpv dizinine yükleyebilirsiniz.&#x0a;• MPV Klavye Kısayolları:&#x0a;   - CTRL+0: Anime4K'yı Devre Dışı Bırak&#x0a;   - CTRL+1: Anime4K Mode A (Hızlı / Fast)&#x0a;   - CTRL+2: Anime4K Mode B (Yüksek Kalite / HQ)&#x0a;   - CTRL+3: Anime4K Mode C (Çok Hızlı / Very Fast)&#x0a;   - CTRL+4: Anime4K Mode A+A (Gelişmiş)&#x0a;   - CTRL+5: Anime4K Mode B+B (Maksimum Keskinlik)&#x0a;   - CTRL+6: Anime4K Mode C+A" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" LineHeight="20" TextWrapping="Wrap"/>
                             </StackPanel>
                         </Border>
 
-                        <Border Background="#CC1E222D" CornerRadius="12" BorderBrush="#1FFFFFFF" BorderThickness="1" Padding="20">
+                        <Border Background="{DynamicResource CardBrush}" CornerRadius="12" BorderBrush="{DynamicResource HairlineBrush}" BorderThickness="1" Padding="20">
                             <StackPanel>
-                                <TextBlock x:Name="TxtGuideCustomTitle" Text="🎨 Arayüz &amp; Tema Kişiselleştirme İpuçları" FontSize="16" FontWeight="SemiBold" Foreground="#6366F1" Margin="0,0,0,8"/>
-                                <TextBlock x:Name="TxtGuideCustomSub" Text="Uygulamanın tüm görsel detaylarını 'Tema' sekmesinden dilediğiniz gibi özelleştirebilirsiniz:" FontSize="13" Foreground="#F0F2F5" Margin="0,0,0,8" TextWrapping="Wrap"/>
-                                <TextBlock x:Name="TxtGuideCustomBody" Text="• Pencere ve Kart Köşeleri: Köşe yuvarlaklıklarını 0px (keskin köşeler) ile 24px (tam yuvarlak) arasında ayarlayın.&#x0a;• Bağımsız Şeffaflık: Kartlar, sol sidebar, yazı kutuları ve butonlar için ayrı ayrı şeffaflık seviyesi belirleyin.&#x0a;• Buzlu Cam &amp; Gölge: Arka plan bulanıklığını ve pencere gölgesinin belirginliğini kaydırıcılarla anlık olarak önizleyin.&#x0a;• Varsayılana Dönüş: Yaptığınız değişiklikleri istediğiniz an sayfa altındaki kırmızı 'Varsayılana Döndür' butonuna basarak orijinal ayarlara döndürebilirsiniz." FontSize="12" Foreground="#9AA3B2" LineHeight="20" TextWrapping="Wrap"/>
+                                <TextBlock x:Name="TxtGuideCustomTitle" Text="🎨 Arayüz &amp; Tema Kişiselleştirme İpuçları" FontSize="16" FontWeight="SemiBold" Foreground="{DynamicResource AccentBrush}" Margin="0,0,0,8"/>
+                                <TextBlock x:Name="TxtGuideCustomSub" Text="Uygulamanın tüm görsel detaylarını 'Tema' sekmesinden dilediğiniz gibi özelleştirebilirsiniz:" FontSize="13" Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,8" TextWrapping="Wrap"/>
+                                <TextBlock x:Name="TxtGuideCustomBody" Text="• Pencere ve Kart Köşeleri: Köşe yuvarlaklıklarını 0px (keskin köşeler) ile 24px (tam yuvarlak) arasında ayarlayın.&#x0a;• Bağımsız Şeffaflık: Kartlar, sol sidebar, yazı kutuları ve butonlar için ayrı ayrı şeffaflık seviyesi belirleyin.&#x0a;• Buzlu Cam &amp; Gölge: Arka plan bulanıklığını ve pencere gölgesinin belirginliğini kaydırıcılarla anlık olarak önizleyin.&#x0a;• Varsayılana Dönüş: Yaptığınız değişiklikleri istediğiniz an sayfa altındaki kırmızı 'Varsayılana Döndür' butonuna basarak orijinal ayarlara döndürebilirsiniz." FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" LineHeight="20" TextWrapping="Wrap"/>
                             </StackPanel>
                         </Border>
                     </StackPanel>

@@ -1,0 +1,31 @@
+{
+  "id": "new_year",
+  "name": "New Year Gold",
+  "author": "MPV Launcher",
+  "version": "1.1",
+  "background": {
+    "type": "image",
+    "color": "#070A14",
+    "image": "backgrounds/new_year.png",
+    "blur_radius": 3,
+    "overlay_color": "rgba(6, 8, 20, 0.42)"
+  },
+  "colors": {
+    "card_bg": "#131C36",
+    "card_border": "rgba(255, 209, 102, 0.26)",
+    "accent": "#FFD166",
+    "accent_hover": "#E6B94D",
+    "logo": "#FFD166",
+    "text_primary": "#F7F9FF",
+    "text_secondary": "#C9D3EE",
+    "text_muted": "#8695B8",
+    "success": "#4ADE80",
+    "warning": "#FBBF24",
+    "danger": "#F87171"
+  },
+  "opacity": {
+    "cards": 0.82,
+    "inputs": 0.55,
+    "buttons": 1.0
+  }
+}

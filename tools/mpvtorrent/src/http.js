@@ -37,8 +37,12 @@ export function contentTypeFor (name) {
  * @param {(start:number,end:number) => import('node:stream').Readable} options.openStream  end inclusive
  * @param {number} [options.timeoutMs]    destroy a read that yields no bytes for this long
  * @param {(absoluteOffset:number) => void} [options.onProgress]
+ * @param {(absoluteOffset:number) => void} [options.onReadStart]  fires before
+ *   the stream waits for its first piece, i.e. as soon as the range is known
+ * @param {number} [options.timeoutMs]
+ * @param {object} [options.log]
  */
-export function createStreamServer ({ token, getFileInfo, openStream, timeoutMs = 60_000, log, onProgress }) {
+export function createStreamServer ({ token, getFileInfo, openStream, timeoutMs = 60_000, log, onProgress, onReadStart }) {
   let port = 0
   const sockets = new Set()
 
@@ -101,6 +105,8 @@ export function createStreamServer ({ token, getFileInfo, openStream, timeoutMs 
 
     if (req.method === 'HEAD' || info.size === 0) return res.end()
 
+    onReadStart?.(start)
+
     let stream
     try {
       stream = await openStream(start, end)
@@ -154,7 +160,12 @@ export function createStreamServer ({ token, getFileInfo, openStream, timeoutMs 
 
   return {
     get port () { return port },
-    get url () { return `http://127.0.0.1:${port}/s/${token}` },
+    get url () {
+      // mpv derives its displayed title from the URL when the container has no
+      // title tag, so the name rides along as a decorative last segment. The
+      // token still does the authorizing; isAuthorizedPath ignores this part.
+      return `http://127.0.0.1:${port}/s/${token}${urlName(getFileInfo())}`
+    },
     async listen (host = '127.0.0.1') {
       await new Promise((resolve, reject) => {
         server.once('error', reject)
@@ -177,6 +188,21 @@ export function createStreamServer ({ token, getFileInfo, openStream, timeoutMs 
       })
     }
   }
+}
+
+/**
+ * The decorative file-name segment for the stream URL.
+ *
+ * Players show this when the file itself carries no title tag, which is how
+ * mpv ended up showing the bare token. Only the basename is used, control
+ * characters are dropped and the length is capped so a hostile torrent name
+ * cannot produce an absurd URL.
+ */
+function urlName (info) {
+  const name = info && typeof info.name === 'string' ? info.name : ''
+  const base = name.split(/[\\/]/).pop() || ''
+  const cleaned = base.replace(/[\u0000-\u001f\u007f]/g, '').slice(0, 200)
+  return cleaned ? '/' + encodeURIComponent(cleaned) : ''
 }
 
 function sendText (res, status, text) {

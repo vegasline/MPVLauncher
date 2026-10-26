@@ -142,6 +142,7 @@
     "label_text_secondary": "Teks Sekunder:",
     "btn_apply_colors": "Terapkan Warna",
     "btn_reset_defaults": "Kembalikan ke Default",
+    "theme_applied": "Tema diterapkan.",
     "theme_reset_success": "Pengaturan tema dan tampilan telah dikembalikan ke default.",
     "guide_title": "Panduan Pengguna & Informasi",
     "guide_quickstart_title": "🎬 Mulai Cepat & Pemutaran Video",
@@ -254,6 +255,12 @@
     "torrent_conns_label": "Koneksi maksimum",
     "torrent_halfopen_label": "Percobaan koneksi bersamaan",
     "torrent_tailwait_label": "Tunggu akhir berkas sebelum mulai (dtk, 0 = langsung mulai)",
-    "torrent_trackers_label": "Daftar tracker (satu URL per baris):"
+    "torrent_trackers_label": "Daftar tracker (satu URL per baris):",
+    "save_theme": "Simpan sebagai tema",
+    "theme_name": "Nama tema",
+    "theme_name_label": "Nama tema",
+    "theme_name_default": "Tema saya",
+    "theme_saved": "Tema disimpan: {0}",
+    "pick_color": "Pilih warna"
   }
 }

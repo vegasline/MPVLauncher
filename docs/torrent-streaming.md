@@ -59,7 +59,10 @@ https://cdimage.debian.org/debian-cd/current/amd64/bt-cd/debian-13.7.0-amd64-net
    Expected: playback resumes after a short refill, no "unseekable" error, and
    the session folder under `%APPDATA%\MPVLauncher\cache\torrent\sessions`
    stays close to the configured forward window instead of growing to the full
-   ISO size.
+   ISO size. Pause mpv (or let the buffer fill) and watch the download counter:
+   it must stop, not keep climbing to the size of the file. On a multi-file
+   torrent, check that only the selected file (plus piece-boundary spill on its
+   neighbours) grows.
 10. Close mpv normally. Expected: the helper exits within the grace period
     (about 8 s worst case), the session folder is removed and no
     `mpvtorrent.exe` remains.

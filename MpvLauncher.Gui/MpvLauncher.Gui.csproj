@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
@@ -16,12 +16,17 @@
     <!-- App version. Deliberately separate from extension/manifest.json: the
          extension ships through addons.mozilla.org on its own schedule, and
          the two must not be bumped together. Keep this in step with the git tag. -->
-    <Version>1.9.14</Version>
+    <Version>1.9.15</Version>
   </PropertyGroup>
 
   <ItemGroup>
     <EmbeddedResource Include="..\themes\*.json">
       <LogicalName>embedded.themes.%(Filename)%(Extension)</LogicalName>
+    </EmbeddedResource>
+    <!-- Artwork a theme paints behind its cards. Kept out of the themes folder
+         itself so the JSON glob above stays a list of theme files. -->
+    <EmbeddedResource Include="..\themes\backgrounds\*.*">
+      <LogicalName>embedded.backgrounds.%(Filename)%(Extension)</LogicalName>
     </EmbeddedResource>
     <EmbeddedResource Include="..\locales\*.json">
       <LogicalName>embedded.languages.%(Filename)%(Extension)</LogicalName>

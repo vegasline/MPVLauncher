@@ -19,11 +19,15 @@ test('DNS names, other ports and missing ports are rejected', () => {
   assert.equal(isAllowedHost('127.0.0.1:8080', 0), false)
 })
 
-test('only the exact token path is authorised', () => {
+test('only the token path and one decorative name segment are authorised', () => {
   const token = 'a'.repeat(48)
   assert.equal(isAuthorizedPath(`/s/${token}`, token), true)
   assert.equal(isAuthorizedPath(`/s/${'b'.repeat(48)}`, token), false)
-  assert.equal(isAuthorizedPath(`/s/${token}/extra`, token), false)
+  assert.equal(isAuthorizedPath(`/s/${token}/movie.mkv`, token), true)
+  assert.equal(isAuthorizedPath(`/s/${token}/%5BSubsPlease%5D%20show.mkv`, token), true)
+  assert.equal(isAuthorizedPath(`/s/${token}/`, token), false)
+  assert.equal(isAuthorizedPath(`/s/${token}/a/b`, token), false)
+  assert.equal(isAuthorizedPath(`/s/${token}/..%2Fsecret`, token), false)
   assert.equal(isAuthorizedPath('/', token), false)
   assert.equal(isAuthorizedPath(`/s/${token}`, 'short'), false)
 })

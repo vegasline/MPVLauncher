@@ -142,6 +142,7 @@
     "label_text_secondary": "サブ文字色：",
     "btn_apply_colors": "色を適用",
     "btn_reset_defaults": "デフォルトに戻す",
+    "theme_applied": "テーマを適用しました。",
     "theme_reset_success": "テーマと外観設定を初期値に戻しました。",
     "guide_title": "ユーザーガイドとヘルプ",
     "guide_quickstart_title": "🎬 クイックスタートと再生",
@@ -254,6 +255,12 @@
     "torrent_conns_label": "最大接続数",
     "torrent_halfopen_label": "同時接続試行数",
     "torrent_tailwait_label": "開始前にファイル末尾を待つ（秒、0 = すぐ開始）",
-    "torrent_trackers_label": "トラッカー一覧 (1 行に 1 URL):"
+    "torrent_trackers_label": "トラッカー一覧 (1 行に 1 URL):",
+    "save_theme": "テーマとして保存",
+    "theme_name": "テーマ名",
+    "theme_name_label": "テーマ名",
+    "theme_name_default": "マイテーマ",
+    "theme_saved": "テーマを保存しました: {0}",
+    "pick_color": "色を選択"
   }
 }

@@ -142,6 +142,7 @@
     "label_text_secondary": "Secondary Text Color:",
     "btn_apply_colors": "Apply Colors",
     "btn_reset_defaults": "Reset to Defaults",
+    "theme_applied": "Theme applied.",
     "theme_reset_success": "Theme and UI settings reset to defaults.",
     "guide_title": "User Guide & Information",
     "guide_quickstart_title": "🎬 Quick Start & Video Playback",
@@ -254,6 +255,12 @@
     "torrent_conns_label": "Maximum connections",
     "torrent_halfopen_label": "Simultaneous connection attempts",
     "torrent_tailwait_label": "Wait for the end of the file before starting (s, 0 = start at once)",
-    "torrent_trackers_label": "Tracker list (one URL per line):"
+    "torrent_trackers_label": "Tracker list (one URL per line):",
+    "save_theme": "Save as theme",
+    "theme_name": "Theme name",
+    "theme_name_label": "Theme name",
+    "theme_name_default": "My theme",
+    "theme_saved": "Theme saved: {0}",
+    "pick_color": "Pick a colour"
   }
 }

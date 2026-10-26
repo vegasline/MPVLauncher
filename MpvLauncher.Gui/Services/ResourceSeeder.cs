@@ -25,6 +25,7 @@ namespace MpvLauncher.Gui.Services
         // Manifest resource names are prefixed so the four sets can be told apart
         // in one pass over Assembly.GetManifestResourceNames().
         private const string PrefixThemes = "embedded.themes.";
+        private const string PrefixBackgrounds = "embedded.backgrounds.";
         private const string PrefixLanguages = "embedded.languages.";
         private const string PrefixExtension = "embedded.extension.";
         private const string PrefixAnime4k = "embedded.anime4k.";
@@ -44,7 +45,11 @@ namespace MpvLauncher.Gui.Services
             foreach (string name in asm.GetManifestResourceNames())
             {
                 if (name.StartsWith(PrefixThemes, StringComparison.Ordinal))
-                    Write(asm, name, Path.Combine(AppPaths.ThemesDir, name[PrefixThemes.Length..]), overwrite: false);
+                    Write(asm, name, Path.Combine(AppPaths.ThemesDir, name[PrefixThemes.Length..]),
+                          overwrite: false, upgradeTheme: true);
+                else if (name.StartsWith(PrefixBackgrounds, StringComparison.Ordinal))
+                    Write(asm, name, Path.Combine(AppPaths.ThemesDir, "backgrounds", name[PrefixBackgrounds.Length..]),
+                          overwrite: false);
                 else if (name.StartsWith(PrefixLanguages, StringComparison.Ordinal))
                     Write(asm, name, Path.Combine(AppPaths.LanguagesDir, name[PrefixLanguages.Length..]),
                           overwrite: false, mergeForward: true);
@@ -149,7 +154,7 @@ namespace MpvLauncher.Gui.Services
         /// already have is kept; what they could not have is filled in.
         /// </param>
         private static void Write(Assembly asm, string resourceName, string destPath,
-                                  bool overwrite, bool mergeForward = false)
+                                  bool overwrite, bool mergeForward = false, bool upgradeTheme = false)
         {
             try
             {
@@ -158,7 +163,8 @@ namespace MpvLauncher.Gui.Services
 
                 if (!overwrite && File.Exists(destPath))
                 {
-                    if (!mergeForward || HasAllKeys(src, destPath)) return;
+                    bool upgrade = upgradeTheme && ShippedVersionHigher(src, destPath);
+                    if (!upgrade && (!mergeForward || HasAllKeys(src, destPath))) return;
                 }
 
                 Directory.CreateDirectory(Path.GetDirectoryName(destPath)!);
@@ -167,6 +173,37 @@ namespace MpvLauncher.Gui.Services
                 src.CopyTo(dst);
             }
             catch { }
+        }
+
+        /// <summary>
+        /// Reports whether the shipped theme file is newer than the copy on disk.
+        ///
+        /// Themes are written once so a hand-edited copy survives, which would
+        /// otherwise leave a machine that ran an older build showing the older
+        /// palette forever. Bumping "version" in the file is the signal that the
+        /// shipped one should replace it; files without a version keep the
+        /// write-once behaviour.
+        /// </summary>
+        private static bool ShippedVersionHigher(Stream embedded, string destPath)
+        {
+            try
+            {
+                using var shipped = JsonDocument.Parse(embedded);
+                using var onDisk = JsonDocument.Parse(File.ReadAllBytes(destPath));
+
+                if (!shipped.RootElement.TryGetProperty("version", out var want) ||
+                    !onDisk.RootElement.TryGetProperty("version", out var have) ||
+                    want.ValueKind != JsonValueKind.String || have.ValueKind != JsonValueKind.String)
+                    return false;
+
+                return Version.TryParse(want.GetString(), out var shippedVersion) &&
+                       Version.TryParse(have.GetString(), out var placedVersion) &&
+                       shippedVersion > placedVersion;
+            }
+            catch
+            {
+                return false;
+            }
         }
 
         /// <summary>

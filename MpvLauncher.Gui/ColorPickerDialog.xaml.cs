@@ -1,8 +1,9 @@
-using System;
+﻿using System;
 using System.Globalization;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
+using MpvLauncher.Gui.Services;
 
 namespace MpvLauncher.Gui
 {
@@ -53,6 +54,9 @@ namespace MpvLauncher.Gui
             SetInitialColor(initialColor ?? "#6366F1");
             _isUpdating = false;
             SyncColor();
+
+            DialogTheme.Apply(this);
+            Loaded += (_, _) => DialogTheme.Apply(this);
         }
 
         /**

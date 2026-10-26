@@ -1,10 +1,12 @@
-// Original implementation, MIT licensed.
+﻿// Original implementation, MIT licensed.
 
+using System;
 using System.Collections.Generic;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
+using MpvLauncher.Gui.Services;
 
 namespace MpvLauncher.Gui
 {
@@ -35,9 +37,8 @@ namespace MpvLauncher.Gui
             Height = 480;
             MinWidth = 520;
             MinHeight = 320;
+            MaxHeight = Math.Max(360, SystemParameters.WorkArea.Height * 0.86);
             WindowStartupLocation = WindowStartupLocation.CenterOwner;
-            Background = new SolidColorBrush(Color.FromRgb(0x1E, 0x22, 0x2D));
-            Foreground = Brushes.White;
             ShowInTaskbar = false;
 
             var root = new Grid { Margin = new Thickness(18) };
@@ -50,6 +51,7 @@ namespace MpvLauncher.Gui
                 Text = torrentName,
                 FontSize = 15,
                 FontWeight = FontWeights.SemiBold,
+                Foreground = UiTheme.Current.TextPrimary,
                 TextTrimming = TextTrimming.CharacterEllipsis,
                 Margin = new Thickness(0, 0, 0, 12)
             };
@@ -57,9 +59,9 @@ namespace MpvLauncher.Gui
 
             _list = new ListView
             {
-                Background = new SolidColorBrush(Color.FromRgb(0x1A, 0x1D, 0x25)),
-                Foreground = new SolidColorBrush(Color.FromRgb(0xE8, 0xEB, 0xF2)),
-                BorderBrush = new SolidColorBrush(Color.FromRgb(0x2E, 0x34, 0x40)),
+                Background = UiTheme.Current.Surface,
+                Foreground = UiTheme.Current.TextPrimary,
+                BorderBrush = UiTheme.Current.CardBorder,
                 BorderThickness = new Thickness(1),
                 Margin = new Thickness(0, 0, 0, 12),
                 ItemContainerStyle = BuildRowStyle()
@@ -102,7 +104,8 @@ namespace MpvLauncher.Gui
             var cancel = new Button
             {
                 Content = L("torrent_picker_cancel", "Cancel"),
-                Padding = new Thickness(16, 8, 16, 8),
+                Style = DialogTheme.Style(this, "SecondaryButton"),
+                Padding = new Thickness(18, 8, 18, 8),
                 Margin = new Thickness(0, 0, 8, 0),
                 IsCancel = true
             };
@@ -110,7 +113,8 @@ namespace MpvLauncher.Gui
             var select = new Button
             {
                 Content = L("torrent_picker_play", "Play selected file"),
-                Padding = new Thickness(16, 8, 16, 8),
+                Style = DialogTheme.Style(this, "ModernButton"),
+                Padding = new Thickness(18, 8, 18, 8),
                 IsDefault = true
             };
             select.Click += (_, _) => Accept();
@@ -124,6 +128,12 @@ namespace MpvLauncher.Gui
             {
                 if (e.Key == Key.Escape) { DialogResult = false; Close(); }
             };
+
+            // The owner is assigned after construction, so the palette is
+            // applied twice: once now for the brushes, once when the styles
+            // become reachable through the owner.
+            DialogTheme.Apply(this);
+            Loaded += (_, _) => DialogTheme.Apply(this);
         }
 
         private static SolidColorBrush Brush(byte r, byte g, byte b)
@@ -140,26 +150,26 @@ namespace MpvLauncher.Gui
             var style = new Style(typeof(ListViewItem));
 
             style.Setters.Add(new Setter(Control.BackgroundProperty, Brushes.Transparent));
-            style.Setters.Add(new Setter(Control.ForegroundProperty, Brush(0xE8, 0xEB, 0xF2)));
+            style.Setters.Add(new Setter(Control.ForegroundProperty, UiTheme.Current.TextPrimary));
             style.Setters.Add(new Setter(Control.BorderThicknessProperty, new Thickness(0)));
             style.Setters.Add(new Setter(Control.PaddingProperty, new Thickness(6, 4, 6, 4)));
             style.Setters.Add(new Setter(Control.HorizontalContentAlignmentProperty, HorizontalAlignment.Stretch));
 
             var hover = new Trigger { Property = IsMouseOverProperty, Value = true };
-            hover.Setters.Add(new Setter(Control.BackgroundProperty, Brush(0x2A, 0x31, 0x42)));
-            hover.Setters.Add(new Setter(Control.ForegroundProperty, Brush(0xF2, 0xF5, 0xFA)));
+            hover.Setters.Add(new Setter(Control.BackgroundProperty, UiTheme.Current.Surface));
+            hover.Setters.Add(new Setter(Control.ForegroundProperty, UiTheme.Current.TextPrimary));
             style.Triggers.Add(hover);
 
             var selected = new Trigger { Property = ListViewItem.IsSelectedProperty, Value = true };
-            selected.Setters.Add(new Setter(Control.BackgroundProperty, Brush(0x33, 0x50, 0x7A)));
-            selected.Setters.Add(new Setter(Control.ForegroundProperty, Brushes.White));
+            selected.Setters.Add(new Setter(Control.BackgroundProperty, UiTheme.Current.Accent));
+            selected.Setters.Add(new Setter(Control.ForegroundProperty, UiTheme.Current.OnAccent));
             style.Triggers.Add(selected);
 
             var selectedHover = new MultiTrigger();
             selectedHover.Conditions.Add(new Condition(ListViewItem.IsSelectedProperty, true));
             selectedHover.Conditions.Add(new Condition(IsMouseOverProperty, true));
-            selectedHover.Setters.Add(new Setter(Control.BackgroundProperty, Brush(0x3B, 0x5C, 0x8C)));
-            selectedHover.Setters.Add(new Setter(Control.ForegroundProperty, Brushes.White));
+            selectedHover.Setters.Add(new Setter(Control.BackgroundProperty, UiTheme.Current.AccentHover));
+            selectedHover.Setters.Add(new Setter(Control.ForegroundProperty, UiTheme.Current.OnAccent));
             style.Triggers.Add(selectedHover);
 
             return style;
@@ -169,9 +179,9 @@ namespace MpvLauncher.Gui
         {
             var style = new Style(typeof(GridViewColumnHeader));
 
-            style.Setters.Add(new Setter(Control.BackgroundProperty, Brush(0x25, 0x2A, 0x35)));
-            style.Setters.Add(new Setter(Control.ForegroundProperty, Brush(0xAE, 0xB7, 0xC6)));
-            style.Setters.Add(new Setter(Control.BorderBrushProperty, Brush(0x3A, 0x41, 0x50)));
+            style.Setters.Add(new Setter(Control.BackgroundProperty, UiTheme.Current.Surface));
+            style.Setters.Add(new Setter(Control.ForegroundProperty, UiTheme.Current.TextSecondary));
+            style.Setters.Add(new Setter(Control.BorderBrushProperty, UiTheme.Current.CardBorder));
             style.Setters.Add(new Setter(Control.BorderThicknessProperty, new Thickness(0, 0, 0, 1)));
             style.Setters.Add(new Setter(Control.PaddingProperty, new Thickness(8, 6, 8, 6)));
             style.Setters.Add(new Setter(Control.FontWeightProperty, FontWeights.SemiBold));

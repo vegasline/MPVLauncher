@@ -4,7 +4,7 @@
 
 <p align="center">
 <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="MIT Lisansı"></a>
-<a href="https://github.com/vegasline/MPVLauncher/releases/latest"><img src="https://img.shields.io/badge/app-1.9.14-blue.svg" alt="Uygulama sürümü 1.9.14"></a>
+<a href="https://github.com/vegasline/MPVLauncher/releases/latest"><img src="https://img.shields.io/badge/app-1.9.15-blue.svg" alt="Uygulama sürümü 1.9.15"></a>
 <a href="https://addons.mozilla.org/firefox/addon/mpv-launcher/"><img src="https://img.shields.io/badge/Firefox_Eklentisi-FF7139FF?logo=firefox-browser&logoColor=white" alt="Firefox eklentisi"></a>
 </p>
 
@@ -38,8 +38,14 @@ bir yöntem gerekir. Bu proje bunu tek tıkla hâle getirir.
   sürüm sayfalarıyla karşılaştırır ve yalnızca eski olanı günceller.
 - 🔌 **Eklentiyi kurar** — Chrome, Edge, Brave, Opera, Vivaldi, Yandex ve Firefox
   için; uygulama klasörü taşınırsa onarır.
-- 🎨 **Temalar ve görünüm düzenleyici** — 4 tema, özel renkler, bulanıklık, köşe
-  yuvarlaklığı ve arka plan görseli.
+- 🎨 **Temalar ve görünüm düzenleyici** — Cadılar Bayramı ve Yılbaşı dahil 7
+  tema; özel renkler, bulanıklık, köşe yuvarlaklığı ve arka plan görseli.
+- 💾 **Tema olarak kaydet** — düzenleyicide oluşturduğunuz görünüm
+  `%APPDATA%\MPVLauncher\themes` altına tema dosyası olarak yazılır ve listede
+  görünür.
+- 🏷️ **Kendi simgeniz** — herhangi bir `.ico` dosyasını
+  `%APPDATA%\MPVLauncher\icons` içine atın ve Temalar sekmesinden seçin; pencere
+  ve masaüstü kısayolu bu simgeyi kullanır.
 - ✨ **Anime4K ve ModernZ** — anime yükseltme ve daha güzel ekran üstü kontrol.
 - 🗂️ **Oynatma geçmişi** — son 50 kayıt, eklentiyle paylaşılır.
 - 🌍 **12 dil** uygulamada, **13 dil** eklentide.
