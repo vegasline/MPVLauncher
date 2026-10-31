@@ -128,6 +128,11 @@ geçmişte kalır ve iki yol arasında ortaktır.
 adresinden kurun — en kolay yol bu ve doğrudan çalışır. Firefox 140+ gerekir:
 Manifest V3 ve AMO veri toplama bildirimi bu sürümden itibaren destekleniyor.
 
+**Eklentileri hazırla / onar** ayrıca paketlenmemiş kopyayı, Firefox manifestini
+ve `%APPDATA%\MPVLauncher\extensions\MPVLauncher-firefox.xpi` dosyasını üretir;
+AMO'ya yükleyeceğiniz ya da `about:debugging` ile geçici olarak yükleyeceğiniz
+dosya budur.
+
 ### 🌐 Chrome, Edge, Brave, Opera, Vivaldi, Yandex
 
 > ✅ **Chromium tarafında elle yüklemek önerilen yoldur.** Tarayıcı profilinde

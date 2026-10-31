@@ -62,17 +62,15 @@ public class AppLayoutTests : IDisposable
     }
 
     /// <summary>
-    /// The Firefox add-on file name is keyed on the add-on id, which is a
-    /// constant rather than a path, so it stays static.
+    /// The packaged add-on has a name a person can find: the add-on id is what
+    /// the browser uses, not something to look for in a folder.
     /// </summary>
     [Fact]
-    public void The_firefox_xpi_is_named_for_the_addon_id()
+    public void The_firefox_xpi_is_named_for_the_user()
     {
         var layout = new AppLayout(_root);
 
-        Assert.Equal(
-            Path_("extensions", AppPaths.FirefoxAddonId + ".xpi"),
-            layout.FirefoxXpi);
+        Assert.Equal(Path_("extensions", "MPVLauncher-firefox.xpi"), layout.FirefoxXpi);
     }
 
     /// <summary>

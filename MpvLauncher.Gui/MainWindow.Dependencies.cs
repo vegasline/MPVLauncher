@@ -342,7 +342,9 @@ namespace MpvLauncher.Gui
                         "In Chrome / Edge / Brave: open chrome://extensions, turn on Developer mode, and choose 'Load unpacked' then select the Chromium folder above.");
             }
 
-            return message;
+            return message + Environment.NewLine
+                + _locService.Get("install_hint_firefox",
+                    "In Firefox: open about:debugging, choose 'This Firefox', and load the temporary add-on from the XPI path above.");
         }
 
         /// <summary>

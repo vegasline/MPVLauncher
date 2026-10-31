@@ -128,6 +128,11 @@ Install the signed add-on from
 it is the easiest path and works out of the box. Firefox 140+ is required: it
 needs Manifest V3 and the AMO data-collection declaration.
 
+**Install / repair** also writes the unpacked copy, the Firefox manifest and a
+packaged add-on to `%APPDATA%\MPVLauncher\extensions\MPVLauncher-firefox.xpi`,
+which is the file to upload to AMO or to load temporarily from
+`about:debugging`.
+
 ### 🌐 Chrome, Edge, Brave, Opera, Vivaldi, Yandex
 
 > ✅ **Loading it by hand is the recommended path on Chromium.** One unpacked

@@ -62,9 +62,10 @@ namespace MpvLauncher.Gui.Services
     }
 
     /// <summary>
-    /// Installs and removes the browser extension on both browser families.
+    /// Writes the extension files for both browser families, and removes them
+    /// again on uninstall.
     ///
-    /// The two need completely different mechanisms:
+    /// The two need different delivery:
     ///
     ///   - Chromium has no sideload concept for a released extension, and from
     ///     Chrome 137 the --load-extension switch is refused outright. The
@@ -73,14 +74,18 @@ namespace MpvLauncher.Gui.Services
     ///     launch commands; that broke normal launches and is undone by
     ///     <see cref="RemoveLegacyLaunchOverrides"/>.
     ///
-    ///   - Firefox accepts an unsigned XPI directly. The XPI is dropped into
-    ///     each profile's extensions folder and user.js is given the preferences
-    ///     that allow sideloading.
+    ///   - Firefox gets the same files with its own manifest, plus an XPI packed
+    ///     from that folder. The XPI is what the user loads or uploads; it is
+    ///     never written into a Firefox profile, because the signed add-on on
+    ///     addons.mozilla.org owns the id and a second local copy used to fight
+    ///     with it.
     ///
     /// Everything is written under HKCU and under %APPDATA%, so no part of this
     /// needs administrator rights. Uninstall is the exact inverse, and is
     /// deliberately conservative: it removes only what a matching install
-    /// created, verified by <see cref="RequiredFiles"/> and by the FirefoxPrefsMarker.
+    /// created, verified by <see cref="RequiredFiles"/> and by
+    /// <see cref="FirefoxPrefsMarker"/> - the latter only for profiles an older
+    /// build edited.
     /// </summary>
     public class ExtensionInstallService
     {
@@ -101,14 +106,13 @@ namespace MpvLauncher.Gui.Services
         };
 
         /// <summary>
-        /// Runs the full install for Chromium, in the only order that works:
-        /// the files and manifest have to exist before the launch commands can
-        /// name the folder, and the Chromium id has to exist before the manifest
-        /// can carry its key.
+        /// Runs the full install, in the only order that works: the files and
+        /// manifest have to exist before they can be packed or named, and the
+        /// Chromium id has to exist before the manifest can carry its key.
         ///
-        /// Firefox is not installed from here: its add-on is signed and lives on
-        /// addons.mozilla.org, so the only thing it needs locally is the native
-        /// messaging host, which <see cref="BrowserIntegrationService"/> writes.
+        /// Both browser folders are written, and Firefox also gets an XPI packed
+        /// from its folder. No browser profile is touched - the user loads the
+        /// Chromium folder by hand and either loads or uploads the XPI.
         ///
         /// Idempotent - running it again is what the repair button does, and it
         /// rewrites rather than duplicates.
@@ -133,7 +137,16 @@ namespace MpvLauncher.Gui.Services
                 // 2. Chromium carries the key that pins the extension id.
                 WriteChromiumManifest(AppPaths.ChromiumExtensionDir, publicKey);
 
-                // 3. Chromium needs no registration step: the folder written
+                // 3. Firefox gets the same files with its own manifest, and the
+                //    same files packed into the XPI the user loads or uploads.
+                //    Nothing is written into a Firefox profile: the signed
+                //    add-on on addons.mozilla.org owns that id, and a second
+                //    local copy used to fight with it.
+                EnsureExtensionFiles(AppPaths.FirefoxExtensionDir);
+                WriteFirefoxManifest(AppPaths.FirefoxExtensionDir);
+                PackFirefoxXpi();
+
+                // 4. Chromium needs no registration step: the folder written
                 //    above is the whole install, and the user loads it once from
                 //    chrome://extensions. Nothing is written into the browser's
                 //    own configuration - see the class remarks for why.
@@ -147,6 +160,12 @@ namespace MpvLauncher.Gui.Services
                             Args = new object[] { AppPaths.ChromiumExtensionDir,
                                                   CountFiles(AppPaths.ChromiumExtensionDir) } },
                     new() { Key = "install_item_chromium_id",   Args = new object[] { chromiumId } },
+                    new() { Key = "install_item_firefox_dir",
+                            Args = new object[] { AppPaths.FirefoxExtensionDir,
+                                                  CountFiles(AppPaths.FirefoxExtensionDir) } },
+                    new() { Key = "install_item_firefox_xpi",
+                            Args = new object[] { AppPaths.FirefoxXpi,
+                                                  new FileInfo(AppPaths.FirefoxXpi).Length } },
                 };
 
                 // What the browsers themselves report, one line each. Without
@@ -284,6 +303,8 @@ namespace MpvLauncher.Gui.Services
                     removed.Add(new UninstallItem { Key = "uninstall_item_firefox_dir", Count = 1 });
                 if (TryDeleteFile(AppPaths.FirefoxXpi))
                     removed.Add(new UninstallItem { Key = "uninstall_item_firefox_xpi", Count = 1 });
+                // A build from before the rename left the add-on id as the name.
+                TryDeleteFile(Path.Combine(AppPaths.ExtensionsDir, AppPaths.FirefoxAddonId + ".xpi"));
 
                 return new UninstallResult { Success = true, Items = removed };
             }
@@ -848,6 +869,12 @@ namespace MpvLauncher.Gui.Services
                 // id, so it is rebuilt rather than copied from the bundle.
                 WriteChromiumManifest(AppPaths.ChromiumExtensionDir, publicKey);
 
+                // Same for the Firefox folder and the XPI packed from it: an
+                // app update must not leave the user an older package to load.
+                EnsureExtensionFiles(AppPaths.FirefoxExtensionDir);
+                WriteFirefoxManifest(AppPaths.FirefoxExtensionDir);
+                PackFirefoxXpi();
+
                 return shipped;
             }
             catch
@@ -1079,6 +1106,38 @@ namespace MpvLauncher.Gui.Services
                 }
             };
             WriteJson(Path.Combine(dir, "manifest.json"), manifest);
+        }
+
+        /// <summary>
+        /// Packs the Firefox folder into the XPI the user installs or uploads.
+        ///
+        /// Firefox cannot load an unpacked folder the way Chromium does, so the
+        /// file is the deliverable: it opens through about:debugging as a
+        /// temporary add-on, and it is what gets uploaded to addons.mozilla.org.
+        /// The archive is rebuilt on every install so it never lags behind the
+        /// folder next to it, and it carries exactly the folder's files - no
+        /// developer leftovers, no nested top directory, since an XPI with one
+        /// of those loads as "corrupt".
+        /// </summary>
+        private static void PackFirefoxXpi()
+        {
+            string source = AppPaths.FirefoxExtensionDir;
+            string target = AppPaths.FirefoxXpi;
+
+            Directory.CreateDirectory(AppPaths.ExtensionsDir);
+            if (File.Exists(target)) File.Delete(target);
+
+            using var archive = ZipFile.Open(target, ZipArchiveMode.Create);
+            foreach (string file in Directory.EnumerateFiles(source, "*", SearchOption.AllDirectories))
+            {
+                string entryName = Path.GetRelativePath(source, file).Replace('\\', '/');
+                archive.CreateEntryFromFile(file, entryName, CompressionLevel.Optimal);
+            }
+
+            // Builds before the rename left the add-on id as the file name; a
+            // second copy in the same folder only makes the right one harder to
+            // find.
+            TryDeleteFile(Path.Combine(AppPaths.ExtensionsDir, AppPaths.FirefoxAddonId + ".xpi"));
         }
 
         internal static void WriteFirefoxManifest(string dir)

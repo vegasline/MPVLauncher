@@ -6,14 +6,12 @@ using Xunit;
 namespace MpvLauncher.Gui.Tests
 {
     /// <summary>
-    /// What "Install / repair" is allowed to touch.
+    /// What "Install / repair" writes.
     ///
-    /// Firefox's add-on is signed and installed from addons.mozilla.org, so the
-    /// app must not plant a second, unsigned copy in the profile: the two fight
-    /// over the same add-on id. Chromium has no store listing, so its unpacked
-    /// folder is still written - and the native messaging host, which is the
-    /// only thing the browser actually needs to reach the app, is kept alive on
-    /// every launch instead of only when the button is pressed.
+    /// Both browser folders are delivered as files: Chromium's unpacked folder
+    /// and Firefox's folder plus an XPI packed from it. What must never come
+    /// back is a write into a Firefox profile - the signed add-on on
+    /// addons.mozilla.org owns that id, and the two copies fight.
     /// </summary>
     public class ExtensionInstallScopeTests
     {
@@ -24,15 +22,25 @@ namespace MpvLauncher.Gui.Tests
             Path.Combine("MpvLauncher.Gui", "Services", "BrowserIntegrationService.cs"));
 
         [Fact]
-        public void FirefoxIsLeftToTheStore()
+        public void FirefoxProfileIsLeftAlone()
         {
             string src = InstallService;
 
             Assert.DoesNotContain("SideloadFirefoxXpi", src, System.StringComparison.Ordinal);
             Assert.DoesNotContain("WriteFirefoxProfilePrefs", src, System.StringComparison.Ordinal);
-            Assert.DoesNotContain("EnsureExtensionFiles(AppPaths.FirefoxExtensionDir)",
-                src, System.StringComparison.Ordinal);
-            Assert.DoesNotContain("\"install_item_firefox", src, System.StringComparison.Ordinal);
+        }
+
+        [Fact]
+        public void FirefoxFolderAndXpiAreWritten()
+        {
+            string src = InstallService;
+
+            Assert.Contains("EnsureExtensionFiles(AppPaths.FirefoxExtensionDir)", src,
+                System.StringComparison.Ordinal);
+            Assert.Contains("WriteFirefoxManifest(AppPaths.FirefoxExtensionDir)", src,
+                System.StringComparison.Ordinal);
+            Assert.Contains("PackFirefoxXpi();", src, System.StringComparison.Ordinal);
+            Assert.Contains("\"install_item_firefox_xpi\"", src, System.StringComparison.Ordinal);
         }
 
         [Fact]

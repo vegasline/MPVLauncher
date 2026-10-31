@@ -83,8 +83,11 @@ namespace MpvLauncher.Gui.Services
         public string HostLogFile => Path.Combine(LogsDir, "host.log");
         public string FirefoxManifest => Path.Combine(NativeDir, "com.mpv.launcher.firefox.json");
         public string ChromeManifest => Path.Combine(NativeDir, "com.mpv.launcher.chrome.json");
-        public string FirefoxXpi =>
-            Path.Combine(ExtensionsDir, AppPaths.FirefoxAddonId + ".xpi");
+        /// <summary>
+        /// The packaged add-on, named for people rather than for the browser:
+        /// this is the file someone opens to install it by hand, or uploads.
+        /// </summary>
+        public string FirefoxXpi => Path.Combine(ExtensionsDir, "MPVLauncher-firefox.xpi");
 
         public string MpvExe => Path.Combine(BinDir, "mpv.exe");
         public string YtDlpExe => Path.Combine(BinDir, "yt-dlp.exe");
