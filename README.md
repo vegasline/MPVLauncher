@@ -148,7 +148,8 @@ choose **Load unpacked** and pick:
 %APPDATA%\MPVLauncher\extensions\chromium
 ```
 
-The **Extension folder** button in the app opens that \r
+The **Extension folder** button in the app opens that folder for you.
+
 ---
 
 ## 🔒 Privacy

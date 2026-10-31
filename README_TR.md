@@ -150,7 +150,8 @@ klasörü gösterin:
 %APPDATA%\MPVLauncher\extensions\chromium
 ```
 
-Uygulamadaki **Eklenti Klasörünü Aç** düğmesi bu \r
+Uygulamadaki **Eklenti Klasörünü Aç** düğmesi bu klasörü sizin için açar.
+
 ---
 
 ## 🔒 Gizlilik
