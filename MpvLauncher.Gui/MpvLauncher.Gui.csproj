@@ -16,7 +16,7 @@
     <!-- App version. Deliberately separate from extension/manifest.json: the
          extension ships through addons.mozilla.org on its own schedule, and
          the two must not be bumped together. Keep this in step with the git tag. -->
-    <Version>1.9.15</Version>
+    <Version>1.9.16</Version>
   </PropertyGroup>
 
   <ItemGroup>
@@ -31,8 +31,8 @@
     <EmbeddedResource Include="..\locales\*.json">
       <LogicalName>embedded.languages.%(Filename)%(Extension)</LogicalName>
     </EmbeddedResource>
-    <EmbeddedResource Include="..\extension\*.*">
-      <LogicalName>embedded.extension.%(Filename)%(Extension)</LogicalName>
+    <EmbeddedResource Include="..\extension\**\*.*">
+      <LogicalName>embedded.extension.%(RecursiveDir)%(Filename)%(Extension)</LogicalName>
     </EmbeddedResource>
     <EmbeddedResource Include="anime4k\**\*.*">
       <LogicalName>embedded.anime4k.%(RecursiveDir)%(Filename)%(Extension)</LogicalName>

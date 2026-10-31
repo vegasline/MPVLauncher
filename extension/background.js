@@ -6,7 +6,7 @@
 // files through manifest background.scripts, where importScripts is absent.
 if (typeof importScripts === "function" && typeof MPV_MEDIA_TYPES === "undefined") {
   try {
-    importScripts("media_types.js", "network_capture.js");
+    importScripts("media_types.js", "network_capture.js", "themes.js");
   } catch (e) {
     // Firefox path - files already loaded by the manifest.
   }
@@ -16,6 +16,49 @@ const HOST_NAME = "com.mpv.launcher";
 const api = (typeof browser !== "undefined" && browser.runtime && browser.runtime.sendNativeMessage)
   ? browser
   : chrome;
+
+// The toolbar icon is tinted with the theme's accent, and that tint used to be
+// rebuilt only while the popup was open: a browser restart dropped it and the
+// packaged colour came back until the extension was clicked once.
+//
+// A top-level call is not enough on Chromium. The MV3 service worker is not
+// started when the browser starts - it starts on the first event - so at launch
+// nothing runs and the toolbar keeps manifest's default icon. runtime.onStartup
+// is that first event: it fires once per browser start, which is exactly when
+// the icon has to be repainted. The other two cover the rest: a worker restart
+// mid-session (top level) and a fresh install or update (onInstalled).
+function repaintToolbarIcon() {
+  if (typeof MPV_Themes === "undefined") return;
+  try {
+    MPV_Themes.restoreIcon();
+  } catch (e) {
+    // A browser that refuses the repaint keeps the packaged icon.
+  }
+}
+
+repaintToolbarIcon();
+
+for (const event of [api.runtime && api.runtime.onStartup,
+                      api.runtime && api.runtime.onInstalled]) {
+  try {
+    if (event && typeof event.addListener === "function") event.addListener(repaintToolbarIcon);
+  } catch (e) {
+    // An event this browser does not implement is not worth failing over.
+  }
+}
+
+// Belt and braces: a restored session can deliver a window event before
+// onStartup arrives. The first focus repaints once, then stays quiet.
+let iconChecked = false;
+try {
+  api.windows.onFocusChanged.addListener(function () {
+    if (iconChecked) return;
+    iconChecked = true;
+    repaintToolbarIcon();
+  });
+} catch (e) {
+  // No windows API in this browser: onStartup is enough.
+}
 
 /**
  * Finds the headers of the request that actually fetched this media URL.
@@ -50,8 +93,13 @@ function headerValue(headers, name) {
   return "";
 }
 
-function sendNative(url, referrer) {
+function sendNative(url, referrer, title) {
   const payload = { url: url, referrer: referrer || "" };
+
+  // The tab title is the site's own heading ("Paws & Palaces 4. Bölüm İzle"),
+  // which is what the launcher's history should show - the media URL is a
+  // stream behind a player and says nothing about what was being watched.
+  if (title) payload.title = String(title).slice(0, 300);
 
   // Attach whatever the capture layer recorded for this exact URL.
   const captured = findCapturedRequest(url);
@@ -99,12 +147,16 @@ api.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.action === "open_in_mpv") {
     const targetUrl = message.url;
     const referrer = message.referrer || (sender && sender.tab ? sender.tab.url : "");
+    // Prefer the title the caller measured (the popup knows its tab); fall back
+    // to the sender's tab. A content-script message has both, a popup message
+    // only the first.
+    const pageTitle = message.title || (sender && sender.tab ? sender.tab.title : "");
     if (!targetUrl) {
       sendResponse({ success: false, error: "Invalid or empty URL." });
       return false;
     }
 
-    sendNative(targetUrl, referrer)
+    sendNative(targetUrl, referrer, pageTitle)
       .then((response) => {
         if (response && response.status === "error") {
           sendResponse({ success: false, error: response.message || "Unknown host error." });

@@ -1,0 +1,8 @@
+{
+  "extensionName": {
+    "message": "MPV Launcher"
+  },
+  "extensionDescription": {
+    "message": "ページの動画・iframe・ストリームを MPV で直接再生します。"
+  }
+}

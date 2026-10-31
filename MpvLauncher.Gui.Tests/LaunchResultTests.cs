@@ -124,8 +124,7 @@ public class LaunchResultTests
     [Fact]
     public void The_window_resolves_the_key_rather_than_using_the_message()
     {
-        string source = File.ReadAllText(FindRepoFile(Path.Combine(
-            "MpvLauncher.Gui", "MainWindow.xaml.cs")));
+        string source = RepoSource.MainWindow();
 
         // res.Message used to be written straight into the status line.
         Assert.DoesNotContain(": res.Message;", source);

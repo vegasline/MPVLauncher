@@ -1,0 +1,8 @@
+{
+  "extensionName": {
+    "message": "MPV Launcher"
+  },
+  "extensionDescription": {
+    "message": "Sayfadaki videoları, iframe ve akışları doğrudan MPV ile aç."
+  }
+}

@@ -160,12 +160,21 @@ namespace MpvLauncher.Gui.Services
                     if (msg.TryGetValue("userAgent", out var uaVal))
                         userAgent = uaVal?.ToString() ?? "";
 
+                    // The tab title, which is the site's title rather than the
+                    // media URL's. Written to history so the row reads like the
+                    // page it came from, and handed to mpv so the window says
+                    // the same thing as the browser tab instead of a signed CDN
+                    // path full of tokens.
+                    string pageTitle = "";
+                    if (msg.TryGetValue("title", out var titleVal))
+                        pageTitle = (titleVal?.ToString() ?? "").Trim();
+
                     if (!string.IsNullOrWhiteSpace(url))
                     {
-                        Log($"Message received, URL: {RedactUrl(url)} | Audio: {RedactUrl(audioUrl)} | Sub: {RedactUrl(subUrl)} | Referrer: {referrer} | UA: {userAgent}");
+                        Log($"Message received, URL: {RedactUrl(url)} | Audio: {RedactUrl(audioUrl)} | Sub: {RedactUrl(subUrl)} | Referrer: {referrer} | UA: {userAgent} | Title: {pageTitle}");
                         SendMessage(stdout, new { status = "ok", url });
-                        ConfigService.AddHistoryStatic(url);
-                        LaunchMpv(url, referrer, audioUrl, subUrl, userAgent);
+                        ConfigService.AddHistoryStatic(url, pageTitle);
+                        LaunchMpv(url, referrer, audioUrl, subUrl, userAgent, pageTitle);
                         System.Threading.Thread.Sleep(50);
                     }
                     else
@@ -325,7 +334,8 @@ namespace MpvLauncher.Gui.Services
         }
 
         private static void LaunchMpv(string url, string? referrer = null, string? audioUrl = null,
-                                      string? subUrl = null, string? userAgent = null)
+                                      string? subUrl = null, string? userAgent = null,
+                                      string? pageTitle = null)
         {
             string? mpv = FindMpvPath();
             Log($"launch_mpv url: {RedactUrl(url)} | Referrer: {referrer} | MPV: {mpv}");
@@ -383,6 +393,28 @@ namespace MpvLauncher.Gui.Services
                 return;
             }
 
+            // The browser's own User-Agent when the extension captured one: some
+            // CDNs fingerprint the client and reject a hardcoded value. The page
+            // walk uses the same string, because a wrapper behind a WAF can
+            // answer a different page (or 403) for every other UA.
+            string ua = !string.IsNullOrWhiteSpace(userAgent)
+                ? userAgent.Trim()
+                : MediaPageResolver.BrowserUserAgent;
+
+            // What the popup offered may be a player page rather than a stream:
+            // the site wraps vidmoly and friends in one or two pages before an
+            // .m3u8 appears. Follow that chain here, once, so mpv is handed the
+            // file it can actually open. Nothing resolvable means the original
+            // URL goes through unchanged, exactly as before.
+            string? resolved = MediaPageResolver.Resolve(safeUrl, referrer, ua);
+            if (!string.IsNullOrWhiteSpace(resolved) &&
+                !string.Equals(resolved, safeUrl, StringComparison.Ordinal) &&
+                TryValidateMediaUrl(resolved, out string resolvedUrl))
+            {
+                Log($"Resolved player page to media: {RedactUrl(resolvedUrl)}");
+                safeUrl = resolvedUrl;
+            }
+
             var args = new List<string>();
             if (!string.IsNullOrWhiteSpace(forceWindowArg)) args.Add(forceWindowArg);
             if (!string.IsNullOrWhiteSpace(ontopArg)) args.Add(ontopArg);
@@ -394,15 +426,23 @@ namespace MpvLauncher.Gui.Services
 
             // Prefer the browser's own User-Agent: some CDNs fingerprint the
             // client and reject a hardcoded one that disagrees with the request.
-            string ua = !string.IsNullOrWhiteSpace(userAgent)
-                ? userAgent.Trim()
-                : "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36";
             args.Add($"--user-agent={ua}");
 
             // Only what the browser actually sent. An empty referrer means no
             // --referrer argument at all, which is what several sites need: a
             // made-up origin makes yt-dlp reject the URL outright.
             args.AddRange(BuildReferrerArgs(referrer ?? ""));
+
+            // The tab title, if the extension sent one. mpv otherwise shows the
+            // last segment of the media URL, which on a signed CDN link is a
+            // token, not a name. Both options are set so the window title and
+            // the on-screen title agree.
+            string? windowTitle = NormaliseTitle(pageTitle);
+            if (windowTitle != null)
+            {
+                args.Add($"--force-media-title={windowTitle}");
+                args.Add($"--title={windowTitle}");
+            }
 
             args.Add(safeUrl);
             Log("launch_args: " + string.Join(" ", args.Select(RedactArg)));
@@ -477,6 +517,30 @@ namespace MpvLauncher.Gui.Services
             {
                 Log($"Launch error: {exProc.Message}");
             }
+        }
+
+        /// <summary>
+        /// A tab title mpv can be given on the command line: one line, no
+        /// control characters, bounded length. Null when nothing is left.
+        /// </summary>
+        private static string? NormaliseTitle(string? title)
+        {
+            if (string.IsNullOrWhiteSpace(title)) return null;
+
+            var sb = new StringBuilder(title.Length);
+            foreach (char c in title)
+            {
+                // Newlines would split the title across the window and the log,
+                // and other control characters are not text at all.
+                sb.Append(char.IsControl(c) ? ' ' : c);
+            }
+
+            string clean = string.Join(" ", sb.ToString()
+                .Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries));
+
+            if (clean.Length == 0) return null;
+            if (clean.Length > 200) clean = clean[..197].TrimEnd() + "...";
+            return clean;
         }
 
         /// <summary>

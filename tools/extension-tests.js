@@ -400,6 +400,247 @@ function runContentScript({ url, videos = [], widgets = [], innerText = "", hasM
     check("blacklist keeps others", p.mpvPassesFilter(file, { ...base, blacklist: ["ads.t.com"] }) === true);
   }
 
+  section("list order");
+  {
+    const p = typesCtx();
+    const measured = { category: "stream", typeId: "hls", url: "https://x/a.m3u8", meta: { height: 900, bandwidth: 2525000 } };
+    const bare = { category: "stream", typeId: "hls", url: "https://x/b.m3u8" };
+    const iframe = { category: "iframe", typeId: "iframe", url: "https://x/embed.html" };
+    const file = { category: "files", typeId: "mp4", url: "https://x/v.mp4" };
+    const input = [iframe, file, bare, measured];
+    const ordered = p.mpvSortForDisplay(input).map((i) => i.url);
+
+    check("a stream with bitrate and resolution is first", ordered[0] === measured.url);
+    check("an unprobed stream follows", ordered[1] === bare.url);
+    check("the rest keep the merge order", ordered.slice(2).join() === [iframe.url, file.url].join());
+    check("the merged list itself is not reordered",
+      input.map((i) => i.url).join() === [iframe.url, file.url, bare.url, measured.url].join());
+    check("a dead row does not gain the measured rank",
+      p.mpvSortWeight({ category: "stream", meta: { dead: true } }) === 1);
+    check("metadata alone is enough, no category needed",
+      p.mpvSortWeight({ url: "https://x/c.m3u8", meta: { bandwidth: 800000 } }) === 0);
+  }
+
+  section("stream metadata");
+  {
+    const meta = read("stream_meta.js");
+
+    /** A context whose fetch answers with one canned response. */
+    function metaCtx(response) {
+      const ctx = { Promise, console, parseInt, fetch: async () => response };
+      vm.createContext(ctx);
+      vm.runInContext(meta, ctx, { filename: "stream_meta.js" });
+      return ctx;
+    }
+
+    const hls = [
+      "#EXTM3U",
+      "#EXT-X-STREAM-INF:BANDWIDTH=800000,RESOLUTION=640x360",
+      "low/index.m3u8",
+      "#EXT-X-STREAM-INF:BANDWIDTH=5200000,AVERAGE-BANDWIDTH=4800000,RESOLUTION=1920x1080",
+      "high/index.m3u8",
+    ].join("\n");
+
+    const a = metaCtx({ ok: true, status: 200, text: async () => hls });
+    const best = await a.MPV_StreamMeta.probe({ url: "https://x.com/master.m3u8" });
+    check("highest variant wins", best.bandwidth === 5200000, JSON.stringify(best));
+    check("resolution kept", best.height === 1080 && best.width === 1920, JSON.stringify(best));
+    check("label reads as resolution and rate", a.MPV_StreamMeta.describe(best) === "1080p · 5.2 Mbps",
+      a.MPV_StreamMeta.describe(best));
+
+    const dash = metaCtx({
+      ok: true,
+      status: 200,
+      text: async () =>
+        '<AdaptationSet><Representation id="1" bandwidth="900000" width="1280" height="720"/>' +
+        '<Representation id="2" bandwidth="4300000" width="1920" height="1080"/></AdaptationSet>',
+    });
+    const dashBest = await dash.MPV_StreamMeta.probe({ url: "https://x.com/manifest.mpd" });
+    check("dash variant parsed", dashBest.bandwidth === 4300000 && dashBest.height === 1080,
+      JSON.stringify(dashBest));
+
+    const gone = metaCtx({ ok: false, status: 404, text: async () => "" });
+    check("404 is dead", (await gone.MPV_StreamMeta.probe({ url: "https://x.com/gone.mp4" })).dead === true);
+
+    // 403 usually means the CDN wanted the page's Referer, which this fetch
+    // cannot send. Calling that dead would be a lie the user acts on.
+    const forbidden = metaCtx({ ok: false, status: 403, text: async () => "" });
+    check("403 is not dead", (await forbidden.MPV_StreamMeta.probe({ url: "https://x.com/private.mp4" })).dead !== true);
+
+    check("no metadata means no label", metaCtx({}).MPV_StreamMeta.describe({}) === "");
+    check("kbps below one megabit", metaCtx({}).MPV_StreamMeta.formatBitrate(520000) === "520 kbps");
+  }
+
+  section("theme palettes");
+  {
+    const source = read("themes.js");
+
+    /** A context with just enough DOM and storage for a palette switch. */
+    function themeCtx(saved) {
+      const vars = {};
+      const ctx = {
+        Map,
+        Math,
+        Promise,
+        console,
+        document: {
+          documentElement: { style: { setProperty: (k, v) => { vars[k] = v; } } },
+          createElement: () => ({ width: 0, height: 0, getContext: () => null })
+        },
+        chrome: {
+          storage: { local: { set: (o) => { saved.push(o); }, get: async () => ({ uiTheme: "ocean" }) } },
+          action: { setIcon: () => { } }
+        }
+      };
+      vm.createContext(ctx);
+      vm.runInContext(source, ctx, { filename: "themes.js" });
+      return { ctx, vars };
+    }
+
+    const saved = [];
+    const { ctx, vars } = themeCtx(saved);
+    const themes = ctx.MPV_Themes.list;
+
+    check("eight palettes ship", themes.length === 8, String(themes.length));
+    check("palette ids are unique",
+      new Set(themes.map((x) => x.id)).size === themes.length);
+    check("every palette names its colours",
+      themes.every((x) => ["accent", "accentHover", "accentEnd", "bgPrimary", "bgSecondary",
+                           "bgCard", "bgCardHover", "border"]
+        .every((k) => typeof x[k] === "string" && x[k].startsWith("#"))));
+    check("the dark base stays dark",
+      themes.every((x) => parseInt(x.bgPrimary.slice(1, 3), 16) < 64));
+
+    ctx.MPV_Themes.apply("ocean");
+    check("applying a palette repaints the variables",
+      vars["--accent-color"] === "#0ea5e9" && vars["--border-color"] === "#254653",
+      JSON.stringify(vars));
+    check("the gradient follows the two accents",
+      vars["--accent-gradient"].includes("#0ea5e9") && vars["--accent-gradient"].includes("#6366f1"));
+    check("the choice is stored", saved.length === 1 && saved[0].uiTheme === "ocean");
+
+    ctx.MPV_Themes.apply("does-not-exist");
+    check("an unknown id falls back to the default", ctx.MPV_Themes.current() === "midnight");
+
+    const beforeAccent = vars["--accent-color"];
+    const picked = ctx.MPV_Themes.random();
+    check("random generates a palette instead of picking a preset",
+      picked === "random" && vars["--accent-color"] !== beforeAccent,
+      picked + " " + vars["--accent-color"]);
+
+    const remembered = saved[saved.length - 1];
+    check("a generated palette is remembered in full",
+      remembered.uiTheme === "random" &&
+      /^#[0-9a-f]{6}$/i.test(remembered.uiThemeRandom.accent) &&
+      /^#[0-9a-f]{6}$/i.test(remembered.uiThemeRandom.bgPrimary),
+      JSON.stringify(remembered));
+
+    const accents = new Set();
+    for (let i = 0; i < 12; i++) {
+      ctx.MPV_Themes.random();
+      accents.add(vars["--accent-color"]);
+    }
+    check("each press generates a different palette", accents.size > 6, String(accents.size));
+  }
+
+  section("toolbar icon keeps the theme after a restart");
+  {
+    const source = read("themes.js");
+
+    /**
+     * A background context: no document at all, only the APIs a service worker
+     * really has. This is the case that regressed - the tint used to be built
+     * with document.createElement, so a restart fell back to the packaged icon
+     * until the popup was opened once.
+     */
+    function workerCtx(savedTheme) {
+      const paints = [];
+      const setIcons = [];
+      const ctx = {
+        Map,
+        Math,
+        Promise,
+        console,
+        OffscreenCanvas: class {
+          constructor() { this.width = 0; this.height = 0; }
+          getContext() {
+            return {
+              globalCompositeOperation: "source-over",
+              clearRect() { },
+              drawImage() { },
+              fillRect() { paints.push(this.fillStyle); },
+              getImageData: () => ({ data: [1, 2, 3] })
+            };
+          }
+        },
+        createImageBitmap: async () => ({ width: 32, height: 32 }),
+        fetch: async () => ({ blob: async () => ({ size: 1 }) }),
+        chrome: {
+          storage: { local: { get: async () => savedTheme, set: () => { } } },
+          action: { setIcon: (icon) => setIcons.push(icon) }
+        }
+      };
+      vm.createContext(ctx);
+      vm.runInContext(source, ctx, { filename: "themes.js" });
+      return { ctx, paints, setIcons };
+    }
+
+    const preset = workerCtx({ uiTheme: "ocean" });
+    await preset.ctx.MPV_Themes.restoreIcon();
+    await new Promise((resolve) => setImmediate(resolve));
+    check("a restart repaints the icon without a popup",
+      preset.setIcons.length === 1 && Array.isArray(preset.setIcons[0].imageData.data),
+      JSON.stringify(preset.setIcons));
+    check("the repaint uses the saved accent, not the default palette",
+      preset.paints.includes("#0ea5e9"), JSON.stringify(preset.paints));
+
+    const generated = workerCtx({
+      uiTheme: "random",
+      uiThemeRandom: {
+        id: "random", name: "Random", accent: "#123456", accentHover: "#111111",
+        accentEnd: "#654321", bgPrimary: "#101010", bgSecondary: "#121212",
+        bgCard: "#141414", bgCardHover: "#161616", border: "#202020"
+      }
+    });
+    await generated.ctx.MPV_Themes.restoreIcon();
+    await new Promise((resolve) => setImmediate(resolve));
+    check("a generated palette keeps its own colour after a restart",
+      generated.paints.includes("#123456"), JSON.stringify(generated.paints));
+
+    check("the background repaints at startup", /MPV_Themes\.restoreIcon\(\)/.test(background));
+    // Chromium does not start the MV3 worker at browser launch, so the
+    // top-level call alone left the packaged icon until the popup was opened.
+    check("the repaint is tied to runtime.onStartup",
+      /onStartup[\s\S]{0,400}?addListener\(repaintToolbarIcon\)/.test(background),
+      "onStartup listener missing");
+    check("an install or update repaints too",
+      /onInstalled[\s\S]{0,400}?addListener\(repaintToolbarIcon\)/.test(background));
+    check("a restored session still gets one repaint on first focus",
+      /onFocusChanged[\s\S]{0,400}?repaintToolbarIcon\(\)/.test(background));
+    check("the background loads the theme script",
+      /importScripts\([^)]*"themes\.js"/.test(background));
+    check("the shipped Firefox manifest also loads it",
+      JSON.parse(read("manifest.json")).background.scripts.includes("themes.js"));
+  }
+
+  section("url identity");
+  {
+    const p = typesCtx();
+    const a = "https://cdn.x.com/a/seg.ts?token=aaa&expires=1";
+    const b = "https://cdn.x.com/a/seg.ts?expires=2&token=bbb";
+    check("signed params dropped", p.mpvNormalizeUrl(a) === p.mpvNormalizeUrl(b),
+      p.mpvNormalizeUrl(a) + " vs " + p.mpvNormalizeUrl(b));
+    check("order ignored", p.mpvNormalizeUrl("https://x.com/v.mp4?b=2&a=1") ===
+      p.mpvNormalizeUrl("https://x.com/v.mp4?a=1&b=2"));
+    check("fragment ignored", p.mpvNormalizeUrl("https://x.com/v.mp4#t=30") ===
+      p.mpvNormalizeUrl("https://x.com/v.mp4"));
+    check("real params kept", p.mpvNormalizeUrl("https://x.com/v.mp4?itag=22") !==
+      p.mpvNormalizeUrl("https://x.com/v.mp4?itag=18"));
+    check("distinct paths stay distinct", p.mpvNormalizeUrl("https://x.com/a.mp4") !==
+      p.mpvNormalizeUrl("https://x.com/b.mp4"));
+    check("unparseable still compares", p.mpvNormalizeUrl("not a url#x") === "not a url");
+  }
+
   section("content script: captcha handling");
   {
     const a = runContentScript({
@@ -1112,6 +1353,28 @@ function runContentScript({ url, videos = [], widgets = [], innerText = "", hasM
     const popupSource = read("popup.js");
     const popupHtml = read("popup.html");
 
+    /* The scrollbar used to be the browser's own: always visible, full width,
+       and loud against a dark card. It now matches the launcher's panels -
+       nothing at rest, a thin thumb while the list is being used - which is
+       two declarations per rendering engine, so both are pinned here. */
+    const block = (selector) => {
+      const start = css.indexOf(selector + " {");
+      if (start < 0) return "";
+      const end = css.indexOf("}", start);
+      return end < 0 ? "" : css.slice(start, end);
+    };
+
+    check("the list scrolls with a thin bar", /scrollbar-width:\s*thin/.test(block(".container")));
+    check("and it is invisible until the list is used",
+      /scrollbar-color:\s*transparent transparent/.test(block(".container")));
+    check("hover reveals a soft thumb",
+      /\.container:hover,\s*[\r\n]+\.container:focus-within \{[^}]*scrollbar-color:\s*rgba\(255, 255, 255, 0\.24\) transparent/.test(css));
+    check("Chromium gets the same treatment for the list",
+      /\.container::-webkit-scrollbar-thumb\s*\{[^}]*background-color:\s*transparent/.test(css) &&
+      /\.container:hover::-webkit-scrollbar-thumb/.test(css));
+    check("the window itself does not show a second, loud bar",
+      /body \{\s*[\r\n]+  scrollbar-width:\s*thin/.test(css));
+
     check("media_types.js can look a type up by id", typeof ctx.mpvTypeById === "function");
     check("media_types.js can project a badge", typeof ctx.mpvTypeBadge === "function");
     check("media_types.js can resolve a category", typeof ctx.mpvTypeCategory === "function");
@@ -1314,6 +1577,11 @@ function runContentScript({ url, videos = [], widgets = [], innerText = "", hasM
       `found ${implementations.length}`);
     check("the popup's filter is a delegation, not a second decision",
       /function\s+passesFilter\s*\([^)]*\)\s*\{\s*return\s+mpvPassesFilter\([^)]*\);\s*\}/.test(read("popup.js")));
+
+    check("list order has one implementation",
+      (sources.match(/function\s+mpvSortForDisplay\s*\([^)]*\)\s*\{/g) || []).length === 1);
+    check("the popup draws the sorted copy, not the merged array",
+      /mpvSortForDisplay\(mediaItems\)\.forEach/.test(read("popup.js")));
   }
 
   console.log(`\nRESULT: ${pass} passed, ${fail} failed`);

@@ -22,6 +22,8 @@
 const I18N = {
   "en": {
     "language_name": "English",
+    "theme": "Theme",
+    "theme_random": "Random colours",
     "active_page": "Active page:",
     "loading": "Loading...",
     "open_page_mpv": "⚡ Open page in MPV",
@@ -72,10 +74,14 @@ const I18N = {
     "capture_off_hint": "Reload the extension, then reopen the page. Until then only the page scan runs.",
     "diag_dom": "page",
     "diag_net": "network",
-    "filter_iframes": "Iframes"
+    "filter_iframes": "Iframes",
+    "filter_hide_dead": "Hide dead links",
+    "dead_hidden": "All detected links are dead."
   },
   "tr": {
     "language_name": "Türkçe",
+    "theme": "Tema",
+    "theme_random": "Rastgele renkler",
     "active_page": "Aktif sayfa:",
     "loading": "Yükleniyor...",
     "open_page_mpv": "⚡ Sayfayı MPV ile Aç",
@@ -126,10 +132,14 @@ const I18N = {
     "capture_off_hint": "Eklentiyi yeniden yükleyip sayfayı tekrar açın. O ana kadar yalnızca sayfa taraması çalışır.",
     "diag_dom": "page",
     "diag_net": "network",
-    "filter_iframes": "Iframes"
+    "filter_iframes": "Iframes",
+    "filter_hide_dead": "Ölü bağlantıları gizle",
+    "dead_hidden": "Bulunan tüm bağlantılar ölü."
   },
   "de": {
     "language_name": "Deutsch",
+    "theme": "Design",
+    "theme_random": "Zufällige Farben",
     "active_page": "Aktive Seite:",
     "loading": "Laden...",
     "open_page_mpv": "⚡ Seite in MPV öffnen",
@@ -180,10 +190,14 @@ const I18N = {
     "capture_off_hint": "Erweiterung neu laden und Seite erneut öffnen. Bis dahin läuft nur die Seitenprüfung.",
     "diag_dom": "page",
     "diag_net": "network",
-    "filter_iframes": "Iframes"
+    "filter_iframes": "Iframes",
+    "filter_hide_dead": "Tote Links ausblenden",
+    "dead_hidden": "Alle gefundenen Links sind tot."
   },
   "es": {
     "language_name": "Español",
+    "theme": "Tema",
+    "theme_random": "Colores aleatorios",
     "active_page": "Página activa:",
     "loading": "Cargando...",
     "open_page_mpv": "⚡ Abrir página en MPV",
@@ -234,10 +248,14 @@ const I18N = {
     "capture_off_hint": "Recarga la extensión y vuelve a abrir la página. Mientras tanto solo se ejecuta el escaneo.",
     "diag_dom": "page",
     "diag_net": "network",
-    "filter_iframes": "Iframes"
+    "filter_iframes": "Iframes",
+    "filter_hide_dead": "Ocultar enlaces muertos",
+    "dead_hidden": "Todos los enlaces detectados están muertos."
   },
   "fr": {
     "language_name": "Français",
+    "theme": "Thème",
+    "theme_random": "Couleurs aléatoires",
     "active_page": "Page active :",
     "loading": "Chargement...",
     "open_page_mpv": "⚡ Ouvrir la page dans MPV",
@@ -288,10 +306,14 @@ const I18N = {
     "capture_off_hint": "Rechargez l'extension puis rouvrez la page. D'ici là, seul l'analyse de page s'exécute.",
     "diag_dom": "page",
     "diag_net": "network",
-    "filter_iframes": "Iframes"
+    "filter_iframes": "Iframes",
+    "filter_hide_dead": "Masquer les liens morts",
+    "dead_hidden": "Tous les liens détectés sont morts."
   },
   "id": {
     "language_name": "Bahasa Indonesia",
+    "theme": "Tema",
+    "theme_random": "Warna acak",
     "active_page": "Halaman aktif:",
     "loading": "Memuat...",
     "open_page_mpv": "⚡ Buka halaman di MPV",
@@ -342,10 +364,14 @@ const I18N = {
     "capture_off_hint": "Muat ulang ekstensi lalu buka kembali halaman._SELURUHNYA hanya pemindaian halaman.",
     "diag_dom": "page",
     "diag_net": "network",
-    "filter_iframes": "Iframes"
+    "filter_iframes": "Iframes",
+    "filter_hide_dead": "Sembunyikan tautan mati",
+    "dead_hidden": "Semua tautan yang ditemukan mati."
   },
   "ja": {
     "language_name": "日本語",
+    "theme": "テーマ",
+    "theme_random": "ランダムな色",
     "active_page": "アクティブなページ:",
     "loading": "読み込み中...",
     "open_page_mpv": "⚡ MPVで開く",
@@ -396,10 +422,14 @@ const I18N = {
     "capture_off_hint": "拡張機能を再読み込みし、ページを開き直してください。それまではページスキャンのみです。",
     "diag_dom": "page",
     "diag_net": "network",
-    "filter_iframes": "Iframes"
+    "filter_iframes": "Iframes",
+    "filter_hide_dead": "死んでいるリンクを隠す",
+    "dead_hidden": "検出されたリンクはすべて死んでいます。"
   },
   "ko": {
     "language_name": "한국어",
+    "theme": "테마",
+    "theme_random": "무작위 색상",
     "active_page": "현재 페이지:",
     "loading": "로딩 중...",
     "open_page_mpv": "⚡ MPV로 열기",
@@ -450,10 +480,14 @@ const I18N = {
     "capture_off_hint": "확장 프로그램을 다시 로드하고 페이지를 다시 여세요. 그전에는 페이지 스캔만 실행됩니다.",
     "diag_dom": "page",
     "diag_net": "network",
-    "filter_iframes": "Iframes"
+    "filter_iframes": "Iframes",
+    "filter_hide_dead": "죽은 링크 숨기기",
+    "dead_hidden": "감지된 모든 링크가 죽어 있습니다."
   },
   "pl": {
     "language_name": "Polski",
+    "theme": "Motyw",
+    "theme_random": "Losowe kolory",
     "active_page": "Aktywna strona:",
     "loading": "Ładowanie...",
     "open_page_mpv": "⚡ Otwórz stronę w MPV",
@@ -504,10 +538,14 @@ const I18N = {
     "capture_off_hint": "Przeładuj rozszerzenie i otwórz stronę ponownie. Do tego czasu działa tylko skanowanie strony.",
     "diag_dom": "page",
     "diag_net": "network",
-    "filter_iframes": "Iframes"
+    "filter_iframes": "Iframes",
+    "filter_hide_dead": "Ukryj martwe linki",
+    "dead_hidden": "Wszystkie wykryte linki są martwe."
   },
   "pt-BR": {
     "language_name": "Português (Brasil)",
+    "theme": "Tema",
+    "theme_random": "Cores aleatórias",
     "active_page": "Página ativa:",
     "loading": "Carregando...",
     "open_page_mpv": "⚡ Abrir página no MPV",
@@ -558,10 +596,14 @@ const I18N = {
     "capture_off_hint": "Recarregue a extensão e reabra a página. Até lá, apenas a varredura da página roda.",
     "diag_dom": "page",
     "diag_net": "network",
-    "filter_iframes": "Iframes"
+    "filter_iframes": "Iframes",
+    "filter_hide_dead": "Ocultar links mortos",
+    "dead_hidden": "Todos os links detectados estão mortos."
   },
   "ru": {
     "language_name": "Русский",
+    "theme": "Тема",
+    "theme_random": "Случайные цвета",
     "active_page": "Активная страница:",
     "loading": "Загрузка...",
     "open_page_mpv": "⚡ Открыть в MPV",
@@ -612,10 +654,14 @@ const I18N = {
     "capture_off_hint": "Перезагрузите расширение и снова откройте страницу. До этого работает только сканирование страницы.",
     "diag_dom": "page",
     "diag_net": "network",
-    "filter_iframes": "Iframes"
+    "filter_iframes": "Iframes",
+    "filter_hide_dead": "Скрыть мёртвые ссылки",
+    "dead_hidden": "Все найденные ссылки мертвы."
   },
   "vi": {
     "language_name": "Tiếng Việt",
+    "theme": "Giao diện",
+    "theme_random": "Màu ngẫu nhiên",
     "active_page": "Trang hiện tại:",
     "loading": "Đang tải...",
     "open_page_mpv": "⚡ Mở trang trong MPV",
@@ -666,10 +712,14 @@ const I18N = {
     "capture_off_hint": "Tải lại tiện ích rồi mở lại trang. Trước đó chỉ quét trang hoạt động.",
     "diag_dom": "page",
     "diag_net": "network",
-    "filter_iframes": "Iframes"
+    "filter_iframes": "Iframes",
+    "filter_hide_dead": "Ẩn liên kết đã chết",
+    "dead_hidden": "Tất cả liên kết tìm thấy đều đã chết."
   },
   "zh-CN": {
     "language_name": "中文 (简体)",
+    "theme": "主题",
+    "theme_random": "随机配色",
     "active_page": "当前页面:",
     "loading": "加载中...",
     "open_page_mpv": "⚡ 在 MPV 中打开页面",
@@ -720,6 +770,8 @@ const I18N = {
     "capture_off_hint": "请重新加载扩展并重新打开页面。在此之前仅运行页面扫描。",
     "diag_dom": "page",
     "diag_net": "network",
-    "filter_iframes": "Iframes"
+    "filter_iframes": "Iframes",
+    "filter_hide_dead": "隐藏失效链接",
+    "dead_hidden": "检测到的链接均已失效。"
   }
 };

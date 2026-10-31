@@ -4,7 +4,7 @@
 
 <p align="center">
 <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="MIT License"></a>
-<a href="https://github.com/vegasline/MPVLauncher/releases/latest"><img src="https://img.shields.io/badge/app-1.9.15-blue.svg" alt="App version 1.9.15"></a>
+<a href="https://github.com/vegasline/MPVLauncher/releases/latest"><img src="https://img.shields.io/badge/app-1.9.16-blue.svg" alt="App version 1.9.16"></a>
 <a href="https://addons.mozilla.org/firefox/addon/mpv-launcher/"><img src="https://img.shields.io/badge/Firefox_Add--on-FF7139FF?logo=firefox-browser&logoColor=white" alt="Firefox add-on"></a>
 </p>
 
@@ -18,7 +18,7 @@
 
 ## 📸 What it looks like
 
-| 🖥️ Desktop app | 🧩 Browser extension |
+| 🖥️ Desktop app — Halloween theme | 🧩 Browser extension — Halloween theme |
 | :---: | :---: |
 | ![MPVLauncher main window](MPVLauncher.png) | ![MPVLauncher extension popup](Extension.png) |
 
@@ -38,15 +38,18 @@ site-specific workaround. This makes it one click.
   the official release pages and updates only what is out of date.
 - 🔌 **Installs the extension** for Chrome, Edge, Brave, Opera, Vivaldi, Yandex
   and Firefox, and repairs it if the app folder moves.
+- 🎬 **Opens the real stream** — when a site hides its video behind a player
+  page or an iframe, the launcher follows it to the `.m3u8` itself, and the mpv
+  window is titled with the page you clicked instead of the CDN path.
 - 🎨 **Themes + appearance editor** — 7 themes, including Halloween and New
   Year, plus custom colours, blur, corner radii and background image.
 - 💾 **Save as theme** — any look you build in the editor becomes a theme file
   under `%APPDATA%\MPVLauncher\themes` and appears in the picker.
-- 🏷️ **Your own launcher icon** — drop any `.ico` into
-  `%APPDATA%\MPVLauncher\icons` and pick it under Themes; the window and its
-  desktop shortcut follow.
 - ✨ **Anime4K and ModernZ** — anime upscaling and a nicer on-screen controller.
-- 🗂️ **Playback history** — your last 50 entries, shared with the extension.
+- 🗂️ **Playback history** — your last 50 entries with page titles, search,
+  pins and per-row delete, shared with the extension.
+- 📮 **Report** — send a suggestion, a feature request or a bug report from the
+  app itself, with screenshots attached.
 - 🌍 **12 languages** in the app, **13** in the extension.
 
 ### 🔍 What the extension finds
@@ -61,6 +64,11 @@ site-specific workaround. This makes it one click.
   on someone else's page works too.
 - **Filters** — toggle streams, files and iframes, set a minimum size, hide
   hosts you don't care about.
+- **Duplicates collapse** — the same segment behind different tokens is listed
+  once, with a `×3` badge for how many copies were seen.
+- **Bitrate and dead links** — an HLS or DASH playlist shows its best variant
+  (`1080p · 5.2 Mbps`), and a URL that answers 404/410 is tagged `dead` so you
+  can hide it.
 - **Clearer errors** — a captcha or a Cloudflare check is reported as such
   instead of as an empty page.
 
@@ -117,10 +125,16 @@ between both routes.
 
 Install the signed add-on from
 [addons.mozilla.org](https://addons.mozilla.org/firefox/addon/mpv-launcher/) —
-it is the easiest path and works out of the box. Firefox 128+ is required for
-Manifest V3.
+it is the easiest path and works out of the box. Firefox 140+ is required: it
+needs Manifest V3 and the AMO data-collection declaration.
 
 ### 🌐 Chrome, Edge, Brave, Opera, Vivaldi, Yandex
+
+> ✅ **Loading it by hand is the recommended path on Chromium.** One unpacked
+> load per browser profile is enough, and it is what keeps working after browser
+> updates — there is no store listing and nothing auto-updates behind your back.
+> The launcher keeps its half ready: the native messaging host is registered on
+> every start, so a hand-loaded copy talks to the app without another button.
 
 Run the installer, then open `chrome://extensions`, enable **Developer mode**,
 choose **Load unpacked** and pick:
@@ -129,13 +143,7 @@ choose **Load unpacked** and pick:
 %APPDATA%\MPVLauncher\extensions\chromium
 ```
 
-The **Extension folder** button in the app opens that folder for you.
-
-> 💡 Chromium requires an unpacked extension, so it has to be loaded on every
-> start. The installer handles this by writing per-user overrides of the browser
-> launch command — no administrator rights, and nothing the browser does on
-> update can undo it. Uninstall removes exactly those values again.
-
+The **Extension folder** button in the app opens that \r
 ---
 
 ## 🔒 Privacy
@@ -157,6 +165,10 @@ stating plainly:
   beside it. The download is staged and installed only when you click, and your
   settings, history and installed tools are never touched by an update. You can
   turn the check off under **Settings → Updates**.
+- 📮 **A report leaves only when you press Send.** The Report tab posts your
+  message and the files you attached to a Discord webhook, together with the
+  launcher version, the interface language and the OS name. Nothing else is
+  read, and nothing is sent in the background.
 
 Full details in [`MpvLauncher.Gui/Services/NativeHostService.cs`](MpvLauncher.Gui/Services/NativeHostService.cs).
 

@@ -92,6 +92,7 @@ var MPV_FILTER_DEFAULTS = {
   showIframes: true,
   minSizeKb: 0,
   blacklist: [],
+  hideDead: false,
   maxItems: 300
 };
 
@@ -256,4 +257,75 @@ function mpvPassesFilter(item, filters) {
     return true;
   }
   return true;
+}
+
+/**
+ * Where a row belongs in the popup list.
+ *
+ * A row the probe measured - resolution and bitrate read from the manifest - is
+ * a real rendition, not a wrapper page or a mention in the markup, so those go
+ * first. A stream that is still unprobed follows, then everything else. Ties
+ * keep the order the merge gave them (network before DOM), which is
+ * "what the page asked for first".
+ */
+function mpvSortWeight(item) {
+  var meta = item && item.meta;
+  if (meta && (meta.height || meta.bandwidth)) return 0;
+
+  var category = (item && (item.category || mpvTypeCategory(item.typeId || item.type))) || "";
+  if (category === "stream") return 1;
+  return 2;
+}
+
+/**
+ * The list as the popup should draw it. Returns a copy: the merge array is the
+ * one the probe walks and books keep their identity for the cache key.
+ */
+function mpvSortForDisplay(items) {
+  return (items || []).slice().sort(function (a, b) {
+    return mpvSortWeight(a) - mpvSortWeight(b);
+  });
+}
+
+/**
+ * Query parameters a streaming CDN reissues on every request.
+ *
+ * They say nothing about which file is meant, so leaving them in a key makes
+ * one segment look like several. Only these well-known names are dropped;
+ * everything else stays, because two renditions can differ by one value.
+ */
+var MPV_EPHEMERAL_PARAMS = /^(token|sig|signature|expires?|exp|ei|st|hdnts|hdntl|policy|key-?pair-?id|auth|auth_key|start|end|ip|timestamp|ts|cb|_)$/i;
+
+/**
+ * The URL as an identity: no fragment, no signed-URL parameters, and query
+ * parameters in a fixed order so two spellings of one request agree.
+ *
+ * Lives here rather than in the popup so the test suite can call it; the popup
+ * only ever sees a document.
+ */
+function mpvNormalizeUrl(raw) {
+  var text = String(raw || "");
+  var url;
+  try {
+    url = new URL(text);
+  } catch (e) {
+    // Unparseable: compare the text, still without the fragment, so at worst
+    // this behaves like the exact match it replaced.
+    return text.split("#")[0];
+  }
+
+  url.hash = "";
+
+  var kept = [];
+  url.searchParams.forEach(function (value, name) {
+    if (!MPV_EPHEMERAL_PARAMS.test(name)) kept.push([name, value]);
+  });
+  kept.sort(function (a, b) {
+    if (a[0] === b[0]) return a[1] < b[1] ? -1 : a[1] > b[1] ? 1 : 0;
+    return a[0] < b[0] ? -1 : 1;
+  });
+
+  url.search = "";
+  for (var i = 0; i < kept.length; i++) url.searchParams.append(kept[i][0], kept[i][1]);
+  return url.href;
 }

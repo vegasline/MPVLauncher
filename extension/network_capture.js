@@ -48,6 +48,12 @@ var MPV_Network = (function () {
   var restoreDone = false;
   var restorePromise = null;
   var saveTimer = -1;
+  // Latest moment the next write may wait for. A trailing debounce alone never
+  // fires while captures keep arriving, and a playing video produces a steady
+  // stream of segments.
+  var saveDeadline = 0;
+  var SAVE_DEBOUNCE_MS = 250;
+  var SAVE_MAX_WAIT_MS = 2000;
 
   function hasWebRequest() {
     return !!(webext && webext.webRequest && webext.webRequest.onHeadersReceived);
@@ -155,20 +161,41 @@ var MPV_Network = (function () {
     return null;
   }
 
-  /** Mirrors the in-memory map into storage so it survives an event-page restart. */
+  /** Writes the in-memory map into storage once. */
+  function flushPersist() {
+    saveTimer = -1;
+    saveDeadline = 0;
+
+    var store = sessionStore();
+    if (!store || typeof store.set !== "function") return;
+    try {
+      var plain = {};
+      byTab.forEach(function (items, tabId) { plain[tabId] = items; });
+      var result = store.set({ [STORAGE_KEY]: plain });
+      if (result && typeof result.catch === "function") result.catch(function () {});
+    } catch (e) { /* storage full or unavailable: memory still works */ }
+  }
+
+  /**
+   * Mirrors the in-memory map into storage so it survives an event-page restart.
+   *
+   * Debounced, but with a ceiling: the timer restarts on every new capture, so
+   * without a deadline a site that keeps requesting segments would never write
+   * and a worker restart would lose the whole tab's list.
+   */
   function schedulePersist() {
+    var now = Date.now();
+    if (!saveDeadline) saveDeadline = now + SAVE_MAX_WAIT_MS;
+
+    var wait = Math.min(SAVE_DEBOUNCE_MS, saveDeadline - now);
+
     if (saveTimer >= 0) clearTimeout(saveTimer);
-    saveTimer = setTimeout(function () {
-      saveTimer = -1;
-      var store = sessionStore();
-      if (!store || typeof store.set !== "function") return;
-      try {
-        var plain = {};
-        byTab.forEach(function (items, tabId) { plain[tabId] = items; });
-        var result = store.set({ [STORAGE_KEY]: plain });
-        if (result && typeof result.catch === "function") result.catch(function () {});
-      } catch (e) { /* storage full or unavailable: memory still works */ }
-    }, 250);
+    if (wait <= 0) {
+      flushPersist();
+      return;
+    }
+
+    saveTimer = setTimeout(flushPersist, wait);
   }
 
   /**

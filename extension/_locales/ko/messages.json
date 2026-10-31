@@ -1,0 +1,8 @@
+{
+  "extensionName": {
+    "message": "MPV Launcher"
+  },
+  "extensionDescription": {
+    "message": "페이지의 동영상, iframe, 스트림을 MPV에서 바로 엽니다."
+  }
+}

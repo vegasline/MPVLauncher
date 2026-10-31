@@ -204,7 +204,46 @@ public class ManifestTests : IDisposable
         var written = Written(firefox: true);
 
         Assert.Equal(3, written.GetProperty("manifest_version").GetInt32());
-        Assert.Equal("MPV Launcher", written.GetProperty("name").GetString());
+
+        // The name is a placeholder the browser resolves from _locales, so the
+        // placeholder is what the manifest must carry, and the locale files it
+        // points at have to define it - a missing messages.json loads the
+        // extension with a raw __MSG_extensio... string in the toolbar.
+        Assert.Equal("__MSG_extensionName__", written.GetProperty("name").GetString());
+        Assert.Equal("__MSG_extensionDescription__", written.GetProperty("description").GetString());
+
+        string locale = written.GetProperty("default_locale").GetString()!;
+        string messages = FindRepoFile(Path.Combine("extension", "_locales", locale, "messages.json"));
+        using var doc = JsonDocument.Parse(File.ReadAllText(messages));
+        Assert.True(doc.RootElement.TryGetProperty("extensionName", out _));
+        Assert.True(doc.RootElement.TryGetProperty("extensionDescription", out _));
+    }
+
+    /// <summary>
+    /// The installer copies the extension tree into the browser profile, and a
+    /// flat copy dropped every subfolder silently - so the placeholders above
+    /// resolved to nothing in the installed copy. Every shipped locale has to
+    /// define both keys for the localized name to work at all.
+    /// </summary>
+    [Fact]
+    public void Every_shipped_locale_defines_the_name_and_description()
+    {
+        string root = Path.Combine(
+            Path.GetDirectoryName(FindRepoFile(Path.Combine("extension", "manifest.json")))!,
+            "_locales");
+
+        var folders = Directory.GetDirectories(root);
+        Assert.NotEmpty(folders);
+
+        foreach (string folder in folders)
+        {
+            string file = Path.Combine(folder, "messages.json");
+            Assert.True(File.Exists(file), "missing " + file);
+
+            using var doc = JsonDocument.Parse(File.ReadAllText(file));
+            Assert.True(doc.RootElement.TryGetProperty("extensionName", out _), "no extensionName in " + folder);
+            Assert.True(doc.RootElement.TryGetProperty("extensionDescription", out _), "no extensionDescription in " + folder);
+        }
     }
 
     /// <summary>

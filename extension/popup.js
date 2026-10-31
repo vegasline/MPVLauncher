@@ -45,6 +45,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   const chipFiles = document.getElementById("chip-files");
   const chipIframes = document.getElementById("chip-iframes");
   const inputMinSize = document.getElementById("input-min-size");
+  const inputHideDead = document.getElementById("input-hide-dead");
   const inputBlacklist = document.getElementById("input-blacklist");
 
   // ---- Translatable labels ----
@@ -59,6 +60,9 @@ document.addEventListener("DOMContentLoaded", async () => {
   const lblMinSize = document.getElementById("lbl-min-size");
   const lblBlacklist = document.getElementById("lbl-blacklist");
   const lblFilterNote = document.getElementById("lbl-filter-note");
+  const lblTheme = document.getElementById("lbl-theme");
+  const themeSwatches = document.getElementById("theme-swatches");
+  const btnThemeRandom = document.getElementById("btn-theme-random");
 
   // ---- Session state ----
   let currentLang = "en";
@@ -84,7 +88,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   };
 
   /** The keys above, so loading and saving can loop instead of repeating them. */
-  const FILTER_KEYS = ["showStreams", "showFiles", "showIframes", "minSizeKb", "blacklist"];
+  const FILTER_KEYS = ["showStreams", "showFiles", "showIframes", "minSizeKb", "blacklist", "hideDead"];
 
   /**
    * Looks a key up in the active language, then in English.
@@ -119,6 +123,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     lblMinSize.textContent = t("filter_min_size");
     lblBlacklist.textContent = t("filter_blacklist");
     lblFilterNote.textContent = t("filter_note");
+    lblTheme.textContent = t("theme");
+    btnThemeRandom.title = t("theme_random");
     chipStreams.textContent = t("filter_streams");
     chipFiles.textContent = t("filter_files");
     chipIframes.textContent = t("filter_iframes");
@@ -199,6 +205,45 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
   }
 
+  /**
+   * Builds the palette swatches and restores the saved one.
+   *
+   * One button per palette, coloured from its accent: no images, no extra
+   * stylesheet, and clicking a swatch costs a style recalculation plus (once per
+   * colour) a 32x32 canvas draw for the toolbar icon.
+   */
+  function initThemePicker() {
+    if (typeof MPV_Themes === "undefined" || !themeSwatches) return;
+
+    const render = () => {
+      themeSwatches.innerHTML = "";
+      MPV_Themes.list.forEach((theme) => {
+        const swatch = document.createElement("button");
+        swatch.type = "button";
+        swatch.className = "theme-swatch" + (theme.id === MPV_Themes.current() ? " is-active" : "");
+        swatch.style.background = theme.accent;
+        swatch.title = theme.name;
+        swatch.setAttribute("aria-label", theme.name);
+        swatch.addEventListener("click", () => {
+          MPV_Themes.apply(theme.id);
+          render();
+        });
+        themeSwatches.appendChild(swatch);
+      });
+
+      // A generated palette has no swatch of its own, so the dice button carries
+      // the active mark instead of the row looking unselected.
+      btnThemeRandom.classList.toggle("is-active", MPV_Themes.current() === "random");
+    };
+
+    btnThemeRandom.addEventListener("click", () => {
+      MPV_Themes.random();
+      render();
+    });
+
+    MPV_Themes.restore().then(render);
+  }
+
   // ---------------------------------------------------------------- filters
 
   function parseBlacklist(raw) {
@@ -230,23 +275,36 @@ document.addEventListener("DOMContentLoaded", async () => {
    * less precisely.
    */
   function mergeResults() {
-    const seen = new Set();
+    const byKey = new Map();
     const merged = [];
 
-    // Network hits first: they are the ones the page itself cannot see.
-    for (const item of networkItems) {
-      if (!item || !item.url || seen.has(item.url)) continue;
-      if (!passesFilter(item)) continue;
-      seen.add(item.url);
+    /**
+     * Adds one candidate, or counts it against the row it duplicates.
+     *
+     * The first row is kept as-is rather than copied: the row carries the
+     * probed metadata, and a copy per render would throw that away and make the
+     * popup re-render itself forever.
+     */
+    function consider(item) {
+      if (!item || !item.url) return;
+      if (!passesFilter(item)) return;
+
+      // media_types.js owns the identity rule so the test suite can check it.
+      const key = mpvNormalizeUrl(item.url);
+      const existing = byKey.get(key);
+      if (existing) {
+        existing.copies += 1;
+        return;
+      }
+
+      item.copies = 1;
+      byKey.set(key, item);
       merged.push(item);
     }
 
-    for (const item of domItems) {
-      if (!item || !item.url || seen.has(item.url)) continue;
-      if (!passesFilter(item)) continue;
-      seen.add(item.url);
-      merged.push(item);
-    }
+    // Network hits first: they are the ones the page itself cannot see.
+    for (const item of networkItems) consider(item);
+    for (const item of domItems) consider(item);
 
     return merged;
   }
@@ -273,6 +331,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     chipStreams.classList.toggle("active", filters.showStreams);
     chipFiles.classList.toggle("active", filters.showFiles);
     chipIframes.classList.toggle("active", filters.showIframes);
+    inputHideDead.checked = !!filters.hideDead;
   }
 
   /**
@@ -300,6 +359,12 @@ document.addEventListener("DOMContentLoaded", async () => {
     inputMinSize.addEventListener("change", () => {
       const value = parseInt(inputMinSize.value, 10);
       filters.minSizeKb = isNaN(value) || value < 0 ? 0 : value;
+      saveFilters();
+      refreshView();
+    });
+
+    inputHideDead.addEventListener("change", () => {
+      filters.hideDead = inputHideDead.checked;
       saveFilters();
       refreshView();
     });
@@ -338,6 +403,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (!Array.isArray(filters.blacklist)) filters.blacklist = [];
 
     inputMinSize.value = String(filters.minSizeKb || 0);
+    inputHideDead.checked = !!filters.hideDead;
     inputBlacklist.value = filters.blacklist.join(", ");
   }
 
@@ -398,13 +464,17 @@ document.addEventListener("DOMContentLoaded", async () => {
    * filled in by the background script from the captured request; if nothing
    * was captured, no Referer is sent at all.
    */
-  async function sendToMpv(url, referrer = null) {
+  async function sendToMpv(url, referrer = null, title = "") {
     setStatus(t("starting_mpv"), "warning");
     try {
       const response = await browserApi.runtime.sendMessage({
         action: "open_in_mpv",
         url: url,
-        referrer: referrer || ""
+        referrer: referrer || "",
+        // The site's title, not the link's: the history row should read like the
+        // tab it came from ("Paws & Palaces 4. Bölüm İzle"), even when the URL
+        // handed to mpv is a bare .m3u8 on a CDN.
+        title: title || ""
       });
       if (response && response.success) {
         setStatus(t("mpv_started"), "success");
@@ -479,8 +549,16 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
   }
 
-  function renderMediaList(mediaItems, challenged) {
+  function renderMediaList(allItems, challenged) {
     mediaListEl.innerHTML = "";
+
+    // Hiding happens here, not in mergeResults, so the probe below still sees
+    // every row: an item that is never probed could never be found dead, and
+    // the filter would hide nothing on the next open.
+    const mediaItems = filters.hideDead
+      ? allItems.filter((item) => !(item.meta && item.meta.dead))
+      : allItems;
+
     currentFoundCount = mediaItems.length;
     mediaCountBadge.textContent = `${currentFoundCount} ${t("found_badge")}`;
 
@@ -493,6 +571,10 @@ document.addEventListener("DOMContentLoaded", async () => {
         // Capture is not installed: say so instead of blaming the page.
         lblMain.textContent = t("capture_off");
         lblSub.textContent = t("capture_off_hint");
+      } else if (allItems.length > 0) {
+        // Reached only when every row was dead and the user hid them.
+        lblMain.textContent = t("dead_hidden");
+        lblSub.textContent = "";
       } else if (challenged) {
         lblMain.textContent = t("captcha_page");
         lblSub.textContent = t("captcha_page_hint");
@@ -505,7 +587,9 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     emptyState.classList.add("hidden");
 
-    mediaItems.forEach((item) => {
+    // Measured renditions first, so the row that says "900p · 2.5 Mbps" is the
+    // one at the top rather than under two wrapper pages.
+    mpvSortForDisplay(mediaItems).forEach((item) => {
       const li = document.createElement("li");
       li.className = "media-item";
 
@@ -530,6 +614,33 @@ document.addEventListener("DOMContentLoaded", async () => {
 
       header.appendChild(label);
       header.appendChild(tag);
+
+      // "×3": the page asked for this same file three times. Usually a sign of
+      // the real stream rather than an advert.
+      if (item.copies > 1) {
+        const copies = document.createElement("span");
+        copies.className = "media-copies";
+        copies.textContent = "×" + item.copies;
+        header.appendChild(copies);
+      }
+
+      // How big the best variant is, and whether the URL still answers. Both
+      // arrive after the row exists: the probe must not delay the list.
+      const rateText = MPV_StreamMeta.describe(item.meta);
+      if (rateText) {
+        const rate = document.createElement("span");
+        rate.className = "media-rate";
+        rate.textContent = rateText;
+        header.appendChild(rate);
+      }
+
+      if (item.meta && item.meta.dead) {
+        li.classList.add("is-dead");
+        const dead = document.createElement("span");
+        dead.className = "media-type-tag tag-dead";
+        dead.textContent = "dead";
+        header.appendChild(dead);
+      }
 
       const urlDiv = document.createElement("div");
       urlDiv.className = "media-url";
@@ -573,7 +684,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       const btnPlay = document.createElement("button");
       btnPlay.className = "btn btn-primary btn-small";
       btnPlay.textContent = t("btn_open_mpv");
-      btnPlay.onclick = () => sendToMpv(item.url);
+      btnPlay.onclick = () => sendToMpv(item.url, null, activeTab ? activeTab.title : "");
 
       actions.appendChild(btnCopy);
       actions.appendChild(btnPlay);
@@ -583,6 +694,32 @@ document.addEventListener("DOMContentLoaded", async () => {
       li.appendChild(actions);
 
       mediaListEl.appendChild(li);
+    });
+
+    enrichMedia(allItems);
+  }
+
+  /**
+   * Probes every row once and re-renders when anything new came back.
+   *
+   * The re-render is deliberate: MPV_StreamMeta caches per URL, so the second
+   * pass costs no requests, and patching individual rows in place would need a
+   * second way of building them.
+   */
+  function enrichMedia(mediaItems) {
+    if (typeof MPV_StreamMeta === "undefined" || !mediaItems.length) return;
+
+    Promise.all(mediaItems.map((item) => MPV_StreamMeta.probe(item))).then((metas) => {
+      let changed = false;
+      metas.forEach((meta, i) => {
+        if (!meta) return;
+        if (!meta.dead && !meta.bandwidth) return;
+        if (mediaItems[i].meta && mediaItems[i].meta.dead === meta.dead &&
+            mediaItems[i].meta.bandwidth === meta.bandwidth) return;
+        mediaItems[i].meta = meta;
+        changed = true;
+      });
+      if (changed) refreshView();
     });
   }
 
@@ -686,7 +823,11 @@ document.addEventListener("DOMContentLoaded", async () => {
       if (merged.length === 0) {
         if (networkAvailable === false) {
           setStatus(t("capture_off"), "warning");
-        } else if (challenged) {
+        } else if (allItems.length > 0) {
+        // Reached only when every row was dead and the user hid them.
+        lblMain.textContent = t("dead_hidden");
+        lblSub.textContent = "";
+      } else if (challenged) {
           setStatus(t("captcha_page"), "warning");
         } else {
           setStatus(`${domCount} ${t("diag_dom")} / ${netCount} ${t("diag_net")}`);
@@ -715,13 +856,14 @@ document.addEventListener("DOMContentLoaded", async () => {
   await loadSettings();
   await loadFilters();
   initLanguageSelect();
+  initThemePicker();
   initFilterControls();
   applyTranslations();
 
   activeTab = await getActiveTab();
   if (activeTab) {
     pageTitleEl.textContent = activeTab.title || activeTab.url;
-    btnPlayPage.onclick = () => sendToMpv(activeTab.url);
+    btnPlayPage.onclick = () => sendToMpv(activeTab.url, null, activeTab.title);
     btnRescan.onclick = () => scanCurrentTab({ fresh: true });
     await scanCurrentTab();
   } else {

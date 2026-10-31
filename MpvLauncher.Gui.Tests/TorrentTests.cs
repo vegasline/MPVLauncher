@@ -462,7 +462,7 @@ public class TorrentTests
     [Fact]
     public void The_gate_is_evaluated_before_a_helper_session_can_start()
     {
-        string source = File.ReadAllText(FindRepoFile(Path.Combine("MpvLauncher.Gui", "MainWindow.xaml.cs")));
+        string source = RepoSource.MainWindow();
 
         int gate = source.IndexOf("TorrentLaunchPolicy.Check", StringComparison.Ordinal);
         int start = source.IndexOf("_torrentSession.StartAsync", StringComparison.Ordinal);

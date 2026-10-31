@@ -42,8 +42,7 @@ public class MainWindowContractTests
     private static string Xaml => File.ReadAllText(RepoFile(Path.Combine(
         "MpvLauncher.Gui", "MainWindow.xaml")));
 
-    private static string Code => File.ReadAllText(RepoFile(Path.Combine(
-        "MpvLauncher.Gui", "MainWindow.xaml.cs")));
+    private static string Code => RepoSource.MainWindow();
 
     /// <summary>Every control a colour picker button claims to edit.</summary>
     private static string[] TargetsNamedInXaml() =>

@@ -1,0 +1,8 @@
+{
+  "extensionName": {
+    "message": "MPV Launcher"
+  },
+  "extensionDescription": {
+    "message": "直接在 MPV 中打开网页视频、iframe 和流媒体。"
+  }
+}

@@ -212,6 +212,71 @@ namespace MpvLauncher.Gui.Services
         }
 
         /// <summary>
+        /// Installs into one browser the user picked from the list.
+        ///
+        /// Everything the extension needs is shared - the unpacked folder, the
+        /// native host manifest - so the only per-browser part is how the browser
+        /// is told to load it. For Chrome that answer is "it cannot be told",
+        /// because the switch is refused; the caller says so instead of pretending.
+        /// </summary>
+        public ChromiumInstallOutcome InstallChromiumFor(ChromiumBrowserInfo browser)
+        {
+            var (ok, error, manifest) = InstallChromium();
+            if (!ok) return new ChromiumInstallOutcome { Success = false, Error = error };
+
+            if (!browser.RecognisesLaunchFlag)
+            {
+                return new ChromiumInstallOutcome
+                {
+                    Success = true,
+                    ManifestPath = manifest,
+                    Loaded = browser.Loaded,
+                };
+            }
+
+            string dir = AppPaths.ChromiumExtensionDir;
+            bool command = ChromiumLaunchFlag.ApplyCommand(browser, dir);
+            // The ProgID command is the one a link or a Start-menu launch runs.
+            int progIds = ChromiumLaunchFlag.ApplyProgIds(browser, dir);
+            int shortcuts = ChromiumLaunchFlag.PatchShortcuts(browser, dir);
+
+            return new ChromiumInstallOutcome
+            {
+                Success = true,
+                ManifestPath = manifest,
+                CommandWritten = command,
+                ProgIdsPatched = progIds,
+                ShortcutsPatched = shortcuts,
+                Loaded = browser.Loaded,
+            };
+        }
+
+        /// <summary>
+        /// Makes sure both host manifests exist and name this executable.
+        ///
+        /// The Install / repair button copies extension files, but a browser
+        /// reaches the app only through these manifests - so they are kept alive
+        /// on every launch. That is what lets someone load the Chromium
+        /// extension by hand, from chrome://extensions, and still have one-click
+        /// playback: nothing else has to be pressed. A missing manifest is
+        /// written; an existing one only has its path refreshed, which is what
+        /// makes a moved app folder work again without a reinstall.
+        ///
+        /// Firefox needs the same manifest even though its add-on comes from
+        /// addons.mozilla.org: the signed add-on still calls the local host.
+        /// </summary>
+        public void EnsureNativeHost()
+        {
+            try
+            {
+                if (!File.Exists(AppPaths.FirefoxManifest)) InstallFirefox();
+                if (!File.Exists(AppPaths.ChromeManifest)) InstallChromium();
+                RepairNativeHostPath();
+            }
+            catch { }
+        }
+
+        /// <summary>
         /// Rewrites the recorded executable path in both manifests if the app has
         /// moved. Cheaper than a reinstall and enough to fix a host that fails
         /// with "specified native messaging host not found".

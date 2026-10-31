@@ -51,5 +51,30 @@ namespace MpvLauncher.Gui
 
             base.OnStartup(e);
         }
+
+        /// <summary>
+        /// Brings the existing window forward.
+        ///
+        /// A second launch of the exe finds the mutex taken and signals instead
+        /// of opening another window; the waiting first copy lands here. Only
+        /// the window object knows whether it was hidden to the tray, so the
+        /// restore happens here rather than in Program.
+        /// </summary>
+        internal void ActivateMainWindow()
+        {
+            if (MainWindow is not Window window) return;
+
+            if (window.WindowState == WindowState.Minimized)
+                window.WindowState = WindowState.Normal;
+
+            window.Show();
+
+            // Activate() alone loses to the foreground lock when the request
+            // came from another process, so topmost is toggled for one frame.
+            window.Topmost = true;
+            window.Activate();
+            window.Topmost = false;
+            window.Focus();
+        }
     }
 }

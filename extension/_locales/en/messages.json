@@ -1,0 +1,8 @@
+{
+  "extensionName": {
+    "message": "MPV Launcher"
+  },
+  "extensionDescription": {
+    "message": "Open page videos, iframes and streams directly in MPV."
+  }
+}

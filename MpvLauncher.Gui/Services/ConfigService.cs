@@ -1,7 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
+using System.Text;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace MpvLauncher.Gui.Services
 {
@@ -203,6 +206,28 @@ namespace MpvLauncher.Gui.Services
         public string Title { get; set; } = "";
         public string Url { get; set; } = "";
         public DateTime Timestamp { get; set; } = DateTime.Now;
+
+        /// <summary>
+        /// Pinned rows survive "Clear history" and sort above the rest: a link
+        /// somebody keeps coming back to should not be lost by a tidy-up.
+        /// </summary>
+        public bool Pinned { get; set; }
+
+        /// <summary>
+        /// The title without the URL fallback the host writes: a row that
+        /// repeats its own link twice reads badly in the list.
+        /// </summary>
+        [JsonIgnore]
+        public string DisplayTitle =>
+            string.IsNullOrWhiteSpace(Title) || Title == Url ? Url : Title;
+
+        /// <summary>
+        /// Whether there is a folder to reveal. A torrent or a stream has
+        /// none, so its row hides the button.
+        /// </summary>
+        [JsonIgnore]
+        public bool IsLocalFile =>
+            Url.StartsWith("file://", StringComparison.OrdinalIgnoreCase) || File.Exists(Url);
     }
 
     /// <summary>
@@ -263,19 +288,89 @@ namespace MpvLauncher.Gui.Services
         /// without rewriting the user's settings. config.json is only consulted
         /// as a fallback for installs made before the split.
         /// </summary>
+        /// <summary>
+        /// Re-reads the history file. The native host appends to it from its
+        /// own process, so a window that has been in the background is
+        /// showing a stale list until this runs.
+        /// </summary>
+        public void RefreshHistoryFromDisk() => MergeHistoryFromFile();
+
+        /// <summary>
+        /// Re-reads the history file and folds it into the in-memory list.
+        ///
+        /// The native host appends from its own process, so the file is the only
+        /// shared state. Taking the file only when memory was empty is what made
+        /// a playback started from the browser invisible until the app was
+        /// restarted: the window already had a list, so the new row was ignored.
+        ///
+        /// The union is the right answer. Rows the window has never seen are the
+        /// host's and are added; a URL present on both sides keeps the newer
+        /// timestamp and the better title; and a pin always wins, because only
+        /// this window changes pins and the file may lag a moment behind.
+        /// </summary>
         private void MergeHistoryFromFile()
         {
             if (!File.Exists(AppPaths.HistoryFile)) return;
             try
             {
                 string json = File.ReadAllText(AppPaths.HistoryFile);
-                var items = JsonSerializer.Deserialize<List<HistoryItem>>(json);
-                if (items == null || items.Count == 0) return;
-                if (Config.PlaybackHistory.Count == 0)
-                    Config.PlaybackHistory = items;
+                var fromDisk = JsonSerializer.Deserialize<List<HistoryItem>>(json);
+                if (fromDisk == null || fromDisk.Count == 0) return;
+
+                Config.PlaybackHistory = MergeHistory(Config.PlaybackHistory, fromDisk, HistoryLimit);
             }
             catch { }
         }
+
+        /// <summary>
+        /// The union of what the window holds and what the file says, newest
+        /// first and capped. Pure so the rules can be tested without touching
+        /// the user's data folder.
+        /// </summary>
+        internal static List<HistoryItem> MergeHistory(
+            IEnumerable<HistoryItem> memory, IEnumerable<HistoryItem> disk, int limit)
+        {
+            var merged = new List<HistoryItem>();
+            var byUrl = new Dictionary<string, HistoryItem>(StringComparer.Ordinal);
+
+            foreach (var item in memory)
+            {
+                if (string.IsNullOrWhiteSpace(item.Url)) continue;
+                if (byUrl.TryAdd(item.Url, item)) merged.Add(item);
+            }
+
+            foreach (var item in disk)
+            {
+                if (string.IsNullOrWhiteSpace(item.Url)) continue;
+
+                if (byUrl.TryGetValue(item.Url, out var mine))
+                {
+                    if (item.Timestamp > mine.Timestamp) mine.Timestamp = item.Timestamp;
+                    if (IsLinkTitle(mine.Title, mine.Url) && !IsLinkTitle(item.Title, item.Url))
+                        mine.Title = item.Title;
+                    mine.Pinned |= item.Pinned;
+                }
+                else
+                {
+                    byUrl[item.Url] = item;
+                    merged.Add(item);
+                }
+            }
+
+            var ordered = merged
+                .OrderByDescending(x => x.Pinned)
+                .ThenByDescending(x => x.Timestamp)
+                .ToList();
+
+            if (limit > 0 && ordered.Count > limit)
+                ordered.RemoveRange(limit, ordered.Count - limit);
+
+            return ordered;
+        }
+
+        /// <summary>True when a title says nothing more than the link does.</summary>
+        private static bool IsLinkTitle(string? title, string url) =>
+            string.IsNullOrWhiteSpace(title) || title == url;
 
         /// <summary>
         /// Writes both files. Best-effort: a read-only or locked data folder
@@ -287,10 +382,50 @@ namespace MpvLauncher.Gui.Services
             {
                 AppPaths.EnsureLayout();
                 var options = new JsonSerializerOptions { WriteIndented = true };
-                File.WriteAllText(AppPaths.ConfigFile, JsonSerializer.Serialize(Config, options));
-                File.WriteAllText(AppPaths.HistoryFile, JsonSerializer.Serialize(Config.PlaybackHistory, options));
+                WriteAtomic(AppPaths.ConfigFile, JsonSerializer.Serialize(Config, options));
+                WriteAtomic(AppPaths.HistoryFile, JsonSerializer.Serialize(Config.PlaybackHistory, options));
             }
             catch { }
+        }
+
+        /// <summary>
+        /// Writes a file by way of a temporary copy that is then swapped in.
+        ///
+        /// A direct write leaves a half-written file behind if the process dies
+        /// or the machine loses power mid-call, and that costs the user every
+        /// setting they ever changed. Replacing through a complete temporary
+        /// file means the destination is either the old content or the new one.
+        /// </summary>
+        private static void WriteAtomic(string path, string json)
+        {
+            string temp = path + ".tmp";
+
+            using (var stream = new FileStream(temp, FileMode.Create, FileAccess.Write, FileShare.None))
+            using (var writer = new StreamWriter(stream, new UTF8Encoding(false)))
+            {
+                writer.Write(json);
+                writer.Flush();
+                stream.Flush(true);
+            }
+
+            if (File.Exists(path))
+            {
+                try
+                {
+                    // Replace keeps the destination's ACLs and is atomic on NTFS.
+                    File.Replace(temp, path, null);
+                    return;
+                }
+                catch (IOException)
+                {
+                    // Different volume, or the destination is briefly locked.
+                }
+                catch (UnauthorizedAccessException)
+                {
+                }
+            }
+
+            File.Move(temp, path, overwrite: true);
         }
 
         /// <summary>
@@ -308,24 +443,61 @@ namespace MpvLauncher.Gui.Services
             Save();
         }
 
+        /// <summary>
+        /// Clears everything except the pinned rows: a tidy-up should not
+        /// throw away the links somebody asked to keep.
+        /// </summary>
         public void ClearHistory()
         {
-            Config.PlaybackHistory.Clear();
+            Config.PlaybackHistory.RemoveAll(x => !x.Pinned);
             Save();
+        }
+
+        /// <summary>Flips the pin on one row and saves.</summary>
+        public void TogglePin(string url)
+        {
+            var item = Config.PlaybackHistory.FirstOrDefault(x => x.Url == url);
+            if (item == null) return;
+
+            item.Pinned = !item.Pinned;
+            SortPinnedFirst(Config.PlaybackHistory);
+            Save();
+        }
+
+        /// <summary>Drops one row; the file it points at is left alone.</summary>
+        public void RemoveHistory(string url)
+        {
+            Config.PlaybackHistory.RemoveAll(x => x.Url == url);
+            Save();
+        }
+
+        /// <summary>
+        /// Pinned rows sit above the rest while keeping their relative order.
+        /// </summary>
+        private static void SortPinnedFirst(List<HistoryItem> items)
+        {
+            var pinned = new List<HistoryItem>();
+            var rest = new List<HistoryItem>();
+            foreach (var item in items)
+                (item.Pinned ? pinned : rest).Add(item);
+
+            items.Clear();
+            items.AddRange(pinned);
+            items.AddRange(rest);
         }
 
         /// <summary>
         /// Records a playback from native-host mode, where no ConfigService
         /// instance exists because no window was ever created.
         /// </summary>
-        public static void AddHistoryStatic(string url)
+        public static void AddHistoryStatic(string url, string title = "")
         {
             try
             {
                 AppPaths.EnsureLayout();
                 var items = ReadHistoryFromDisk(null);
 
-                AddHistoryTo(items, url, url);
+                AddHistoryTo(items, url, title);
 
                 File.WriteAllText(AppPaths.HistoryFile,
                     JsonSerializer.Serialize(items, new JsonSerializerOptions { WriteIndented = true }));
@@ -375,14 +547,54 @@ namespace MpvLauncher.Gui.Services
         /// <summary>Moves a URL to the front of the list, keeping it under the cap.</summary>
         private static void AddHistoryTo(List<HistoryItem> items, string url, string title)
         {
+            bool wasPinned = false;
+            string previousTitle = "";
+            foreach (var existing in items)
+            {
+                if (existing.Url != url) continue;
+                wasPinned = existing.Pinned;
+                previousTitle = existing.Title ?? "";
+                break;
+            }
+
             items.RemoveAll(x => x.Url == url);
-            items.Insert(0, new HistoryItem
+
+            // A known title outranks a bare link: playing the same thing again
+            // - from the launcher, where no page title was fetched yet - must not
+            // demote a row that already reads "Paws & Palaces - 4. Bölüm".
+            string effectiveTitle = string.IsNullOrEmpty(title) || title == url
+                ? (string.IsNullOrEmpty(previousTitle) ? url : previousTitle)
+                : title;
+
+            // New rows go under the pinned block, not above it.
+            int insertAt = 0;
+            while (insertAt < items.Count && items[insertAt].Pinned) insertAt++;
+
+            items.Insert(insertAt, new HistoryItem
             {
                 Url = url,
-                Title = string.IsNullOrEmpty(title) ? url : title
+                Title = effectiveTitle,
+                Pinned = wasPinned
             });
             if (items.Count > HistoryLimit)
                 items.RemoveRange(HistoryLimit, items.Count - HistoryLimit);
+        }
+
+        /// <summary>
+        /// Fills in a title the row was added without - the launcher learns it
+        /// after playback has already started, so the row exists first and is
+        /// renamed a moment later.
+        /// </summary>
+        public bool SetHistoryTitle(string url, string title)
+        {
+            if (string.IsNullOrWhiteSpace(url) || string.IsNullOrWhiteSpace(title)) return false;
+
+            var item = Config.PlaybackHistory.FirstOrDefault(x => x.Url == url);
+            if (item == null || item.Title == title) return false;
+
+            item.Title = title;
+            Save();
+            return true;
         }
     }
 }

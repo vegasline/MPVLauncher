@@ -11,6 +11,8 @@
         WindowStartupLocation="CenterScreen"
         WindowStyle="None"
         AllowsTransparency="True"
+        PreviewKeyDown="Window_PreviewKeyDown"
+        Activated="Window_Activated"
         Background="Transparent"
         Foreground="{DynamicResource TextPrimaryBrush}"
         FontFamily="Segoe UI, Inter, Arial"
@@ -589,6 +591,7 @@
                         <Button x:Name="BtnNavSettings" Style="{StaticResource NavButton}" Content="Settings" Click="BtnNavSettings_Click" Margin="0,0,0,4"/>
                         <Button x:Name="BtnNavThemes" Style="{StaticResource NavButton}" Content="Themes" Click="BtnNavThemes_Click" Margin="0,0,0,4"/>
                         <Button x:Name="BtnNavGuide" Style="{StaticResource NavButton}" Content="Guide" Click="BtnNavGuide_Click" Margin="0,0,0,4"/>
+                        <Button x:Name="BtnNavReport" Style="{StaticResource NavButton}" Content="Report" Click="BtnNavReport_Click" Margin="0,0,0,4"/>
                     </StackPanel>
 
                     <Border x:Name="StatusLogBorder" Grid.Row="2" Background="{DynamicResource SurfaceBrush}" CornerRadius="8" BorderBrush="{DynamicResource HairlineBrush}" BorderThickness="1" Padding="10,8" Margin="0,10,0,0" MinHeight="64" MaxHeight="100">
@@ -641,7 +644,7 @@
                                     <StackPanel HorizontalAlignment="Center">
                                         <Grid Width="34" Height="34" HorizontalAlignment="Center" Margin="0,0,0,8">
                                             <Border Background="{DynamicResource AccentBrush}" CornerRadius="8" Opacity="0.92"/>
-                                            <Path Fill="White" Data="M13,10 L25,17 L13,24 Z" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                            <Path Fill="White" Data="M 0,0 L 12,6.5 L 0,13 Z" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="2,0,0,0"/>
                                         </Grid>
                                         <TextBlock x:Name="TxtDropZone" Text="Drag and drop a video file here" FontSize="13" Foreground="{DynamicResource TextSecondaryBrush}" HorizontalAlignment="Center"/>
                                         <Button x:Name="BtnBrowseFile" Style="{StaticResource SecondaryButton}" Content="Select File" Click="BtnBrowseFile_Click" HorizontalAlignment="Center" Margin="0,10,0,0" Padding="12,6" FontSize="12"/>
@@ -666,14 +669,100 @@
                         <Border x:Name="CardHistory" Background="{DynamicResource CardBrush}" CornerRadius="12" BorderBrush="{DynamicResource HairlineBrush}" BorderThickness="1" Padding="20">
                             <StackPanel>
                                 <Grid Margin="0,0,0,12">
-                                    <TextBlock x:Name="TxtHistoryTitle" Text="Playback history" FontSize="15" FontWeight="SemiBold"/>
-                                    <Button x:Name="BtnClearHistory" Content="Clear history" Click="BtnClearHistory_Click" HorizontalAlignment="Right" Style="{StaticResource SecondaryButton}" Padding="12,6" FontSize="12"/>
+                                    <TextBlock x:Name="TxtHistoryTitle" Text="Playback history" FontSize="15" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                                        <TextBox x:Name="TxtHistorySearch" Width="190" FontSize="12" Padding="8,5" Margin="0,0,8,0"
+                                                 Background="{DynamicResource InputBrush}" Foreground="{DynamicResource TextPrimaryBrush}"
+                                                 BorderBrush="{DynamicResource CardBorderBrush}" BorderThickness="1"
+                                                 VerticalContentAlignment="Center" TextChanged="TxtHistorySearch_TextChanged"
+                                                 ToolTipService.ShowOnDisabled="True"/>
+                                        <Button x:Name="BtnClearHistory" Content="Clear history" Click="BtnClearHistory_Click" Style="{StaticResource SecondaryButton}" Padding="12,6" FontSize="12"/>
+                                    </StackPanel>
                                 </Grid>
                                 <ListBox x:Name="LstHistory" Background="Transparent" BorderThickness="0" Foreground="{DynamicResource TextPrimaryBrush}" MaxHeight="200" ScrollViewer.VerticalScrollBarVisibility="Auto" ScrollViewer.HorizontalScrollBarVisibility="Disabled" MouseDoubleClick="LstHistory_MouseDoubleClick">
                                     <ListBox.ItemTemplate>
                                         <DataTemplate>
-                                            <Border Background="{DynamicResource SurfaceBrush}" CornerRadius="6" Padding="10,8" Margin="0,0,0,4">
-                                                <TextBlock Text="{Binding Url}" FontSize="12" TextTrimming="CharacterEllipsis"/>
+                                            <DataTemplate.Resources>
+                                                <BooleanToVisibilityConverter x:Key="BoolToVis"/>
+                                                <Style x:Key="RowButton" TargetType="Button">
+                                                    <Setter Property="Width" Value="26"/>
+                                                    <Setter Property="Height" Value="26"/>
+                                                    <Setter Property="Background" Value="Transparent"/>
+                                                    <Setter Property="BorderThickness" Value="0"/>
+                                                    <Setter Property="Padding" Value="0"/>
+                                                    <Setter Property="Cursor" Value="Hand"/>
+                                                    <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}"/>
+                                                    <Setter Property="Template">
+                                                        <Setter.Value>
+                                                            <ControlTemplate TargetType="Button">
+                                                                <Border x:Name="Bg" Background="{TemplateBinding Background}" CornerRadius="5">
+                                                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                                </Border>
+                                                                <ControlTemplate.Triggers>
+                                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                                        <Setter TargetName="Bg" Property="Background" Value="{DynamicResource HairlineBrush}"/>
+                                                                        <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
+                                                                    </Trigger>
+                                                                </ControlTemplate.Triggers>
+                                                            </ControlTemplate>
+                                                        </Setter.Value>
+                                                    </Setter>
+                                                </Style>
+                                            </DataTemplate.Resources>
+                                            <Border CornerRadius="6" Padding="10,6" Margin="0,0,0,4">
+                                                <Border.Style>
+                                                    <Style TargetType="Border">
+                                                        <Setter Property="Background" Value="{DynamicResource SurfaceBrush}"/>
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding Pinned}" Value="True">
+                                                                <Setter Property="Background" Value="{DynamicResource CardBrush}"/>
+                                                                <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
+                                                                <Setter Property="BorderThickness" Value="0,0,3,0"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </Border.Style>
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="*"/>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                    </Grid.ColumnDefinitions>
+                                                    <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                                                        <TextBlock Text="{Binding DisplayTitle}" FontSize="12" TextTrimming="CharacterEllipsis" ToolTip="{Binding Url}"/>
+                                                        <TextBlock Text="{Binding Url}" FontSize="10.5" Foreground="{DynamicResource TextMutedBrush}" TextTrimming="CharacterEllipsis" Margin="0,1,0,0"/>
+                                                    </StackPanel>
+                                                    <Button Grid.Column="1" Style="{StaticResource RowButton}" Tag="{Binding}" Click="BtnHistoryPin_Click" ToolTip="{DynamicResource HistoryPinTip}">
+                                                        <Viewbox Width="13" Height="13">
+                                                            <Path Data="M 8,1 L 10.1,6 L 15.3,6.4 L 11.3,9.8 L 12.5,15 L 8,12.2 L 3.5,15 L 4.7,9.8 L 0.7,6.4 L 5.9,6 Z"
+                                                                  Stroke="{DynamicResource TextMutedBrush}" StrokeThickness="1">
+                                                                <Path.Style>
+                                                                    <Style TargetType="Path">
+                                                                        <Setter Property="Fill" Value="Transparent"/>
+                                                                        <Style.Triggers>
+                                                                            <DataTrigger Binding="{Binding Pinned}" Value="True">
+                                                                                <Setter Property="Fill" Value="{DynamicResource AccentBrush}"/>
+                                                                                <Setter Property="Stroke" Value="{DynamicResource AccentBrush}"/>
+                                                                            </DataTrigger>
+                                                                        </Style.Triggers>
+                                                                    </Style>
+                                                                </Path.Style>
+                                                            </Path>
+                                                        </Viewbox>
+                                                    </Button>
+                                                    <Button Grid.Column="2" Style="{StaticResource RowButton}" Tag="{Binding}" Click="BtnHistoryFolder_Click"
+                                                            Visibility="{Binding IsLocalFile, Converter={StaticResource BoolToVis}}" ToolTip="{DynamicResource HistoryFolderTip}">
+                                                        <Viewbox Width="14" Height="14">
+                                                            <Path Data="M 1,3 L 6,3 L 7.6,5 L 15,5 L 15,13 L 1,13 Z" Fill="Transparent" Stroke="{DynamicResource TextSecondaryBrush}" StrokeThickness="1.3"/>
+                                                        </Viewbox>
+                                                    </Button>
+                                                    <Button Grid.Column="3" Style="{StaticResource RowButton}" Tag="{Binding}" Click="BtnHistoryDelete_Click" ToolTip="{DynamicResource HistoryDeleteTip}">
+                                                        <Viewbox Width="11" Height="11">
+                                                            <Path Data="M 1,1 L 11,11 M 11,1 L 1,11" Stroke="{DynamicResource TextSecondaryBrush}" StrokeThickness="1.6" StrokeStartLineCap="Round" StrokeEndLineCap="Round"/>
+                                                        </Viewbox>
+                                                    </Button>
+                                                </Grid>
                                             </Border>
                                         </DataTemplate>
                                     </ListBox.ItemTemplate>
@@ -792,6 +881,7 @@
                             <StackPanel>
                                 <TextBlock x:Name="TxtBrowserTitle" Text="Browser extension integration" FontSize="15" FontWeight="SemiBold" Margin="0,0,0,6"/>
                                 <TextBlock x:Name="TxtBrowserDesc" Text="Eklenti native messaging altyapısını kurar. Firefox için resmi mağazadan yükleyebilirsiniz. Chromium tarayıcılarda 'Geliştirici Modu'nu açıp paketlenmemiş klasörü yükleyin." FontSize="13" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,16" TextWrapping="Wrap"/>
+
                                 <WrapPanel Margin="0,0,0,10">
                                     <Button x:Name="BtnInstallExtensions" Style="{StaticResource ModernButton}" Content="Install / repair" Click="BtnInstallExtensions_Click" Margin="0,0,10,10"/>
                                     <Button x:Name="BtnUninstallExtensions" Style="{StaticResource DangerButton}" Content="Uninstall extension" Click="BtnUninstallExtensions_Click" Margin="0,0,10,10"/>
@@ -1298,6 +1388,66 @@
                                 <TextBlock x:Name="TxtGuideCustomTitle" Text="🎨 Arayüz &amp; Tema Kişiselleştirme İpuçları" FontSize="16" FontWeight="SemiBold" Foreground="{DynamicResource AccentBrush}" Margin="0,0,0,8"/>
                                 <TextBlock x:Name="TxtGuideCustomSub" Text="Uygulamanın tüm görsel detaylarını 'Tema' sekmesinden dilediğiniz gibi özelleştirebilirsiniz:" FontSize="13" Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,8" TextWrapping="Wrap"/>
                                 <TextBlock x:Name="TxtGuideCustomBody" Text="• Pencere ve Kart Köşeleri: Köşe yuvarlaklıklarını 0px (keskin köşeler) ile 24px (tam yuvarlak) arasında ayarlayın.&#x0a;• Bağımsız Şeffaflık: Kartlar, sol sidebar, yazı kutuları ve butonlar için ayrı ayrı şeffaflık seviyesi belirleyin.&#x0a;• Buzlu Cam &amp; Gölge: Arka plan bulanıklığını ve pencere gölgesinin belirginliğini kaydırıcılarla anlık olarak önizleyin.&#x0a;• Varsayılana Dönüş: Yaptığınız değişiklikleri istediğiniz an sayfa altındaki kırmızı 'Varsayılana Döndür' butonuna basarak orijinal ayarlara döndürebilirsiniz." FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" LineHeight="20" TextWrapping="Wrap"/>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+
+                    <StackPanel x:Name="PanelReport" Visibility="Collapsed">
+                        <TextBlock x:Name="TxtReportTitle" Text="Report" FontSize="22" FontWeight="Bold" Margin="0,0,0,20"/>
+
+                        <Border Background="{DynamicResource CardBrush}" CornerRadius="12" BorderBrush="{DynamicResource HairlineBrush}" BorderThickness="1" Padding="20">
+                            <StackPanel>
+                                <TextBlock x:Name="TxtReportKindLabel" Text="Type" FontSize="13" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,8"/>
+                                <ListBox x:Name="LstReportKind" Height="118" Margin="0,0,0,18" Background="Transparent" BorderBrush="{DynamicResource HairlineBrush}" BorderThickness="1"/>
+
+                                <TextBlock x:Name="TxtReportMessageLabel" Text="Message" FontSize="13" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,8"/>
+                                <TextBox x:Name="TxtReportMessage" Height="130" AcceptsReturn="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" Padding="10,8" Margin="0,0,0,16" Background="{DynamicResource InputBrush}" Foreground="{DynamicResource TextPrimaryBrush}" BorderBrush="{DynamicResource HairlineBrush}" BorderThickness="1" CaretBrush="{DynamicResource TextPrimaryBrush}"/>
+
+                                <DockPanel Margin="0,0,0,12">
+                                    <Button x:Name="BtnReportAddFile" Style="{StaticResource ModernButton}" Background="{DynamicResource AccentBrush}" Foreground="White" Padding="12,7" DockPanel.Dock="Left" Click="BtnReportAddFile_Click" Cursor="Hand">
+                                        <StackPanel Orientation="Horizontal">
+                                            <Path Data="M 6,0 L 6,12 M 0,6 L 12,6" Stroke="White" StrokeThickness="1.6" VerticalAlignment="Center"/>
+                                            <TextBlock x:Name="TxtReportAddFileLabel" Text="Add file" Margin="7,0,0,0" VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                    </Button>
+                                    <TextBlock x:Name="TxtReportFilesHint" Text="Images or logs, up to 8 MB each." FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" Margin="12,0,0,0" VerticalAlignment="Center" TextWrapping="Wrap"/>
+                                </DockPanel>
+
+                                <ItemsControl x:Name="LstReportFiles" Margin="0,0,0,4">
+                                    <ItemsControl.ItemsPanel>
+                                        <ItemsPanelTemplate>
+                                            <WrapPanel/>
+                                        </ItemsPanelTemplate>
+                                    </ItemsControl.ItemsPanel>
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource HairlineBrush}" BorderThickness="1" CornerRadius="8" Padding="10,7,26,7" Margin="0,0,8,8">
+                                                <Grid>
+                                                    <StackPanel Margin="0,0,4,0">
+                                                        <TextBlock Text="{Binding Name}" FontSize="12" MaxWidth="200" TextTrimming="CharacterEllipsis" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                                        <TextBlock Text="{Binding SizeText}" FontSize="10" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                                    </StackPanel>
+                                                    <Button Tag="{Binding}" Click="BtnReportRemoveFile_Click" Width="16" Height="16" HorizontalAlignment="Right" VerticalAlignment="Top" Background="Transparent" BorderThickness="0" Padding="0" Cursor="Hand" ToolTip="{DynamicResource ReportRemoveTip}">
+                                                        <Path Data="M 0,0 L 8,8 M 8,0 L 0,8" Stroke="{DynamicResource TextSecondaryBrush}" StrokeThickness="1.4"/>
+                                                    </Button>
+                                                </Grid>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+
+                                <Button x:Name="BtnReportSend" Style="{StaticResource ModernButton}" Background="{DynamicResource AccentBrush}" Foreground="White" Padding="18,10" HorizontalAlignment="Left" Margin="0,8,0,0" Click="BtnReportSend_Click" Cursor="Hand">
+                                    <TextBlock x:Name="TxtReportSendLabel" Text="Send report"/>
+                                </Button>
+
+                                <TextBlock x:Name="TxtReportStatus" FontSize="12" Margin="0,10,0,0" TextWrapping="Wrap" Visibility="Collapsed"/>
+
+                                <Border BorderBrush="{DynamicResource HairlineBrush}" BorderThickness="0,1,0,0" Margin="0,18,0,0" Padding="0,12,0,0">
+                                    <StackPanel>
+                                        <TextBlock x:Name="TxtReportWebhookNote" Text="Reports are delivered to the developer's Discord webhook." FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap"/>
+                                        <TextBlock x:Name="TxtReportTrNote" Text="Discord is blocked in Turkey. Turn on a VPN before sending." FontSize="11" Foreground="{DynamicResource DangerBrush}" TextWrapping="Wrap" Margin="0,6,0,0" Visibility="Collapsed"/>
+                                    </StackPanel>
+                                </Border>
                             </StackPanel>
                         </Border>
                     </StackPanel>

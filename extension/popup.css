@@ -169,6 +169,65 @@ body {
   gap: 14px;
   overflow-y: auto;
   max-height: 460px;
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+}
+
+/*
+ * The scrollbar stays out of the way: nothing at rest, a thin rounded thumb
+ * while the pointer is over the list, and a slightly brighter one under the
+ * pointer itself. The launcher's own panels hide theirs the same way, so the
+ * popup does not look like a different product. Both spellings are needed:
+ * Firefox reads scrollbar-color, Chromium the ::-webkit- rules.
+ */
+.container:hover,
+.container:focus-within {
+  scrollbar-color: rgba(255, 255, 255, 0.24) transparent;
+}
+
+.container::-webkit-scrollbar {
+  width: 10px;
+}
+
+.container::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.container::-webkit-scrollbar-thumb {
+  background-color: transparent;
+  border: 3px solid transparent;
+  border-radius: 999px;
+  background-clip: content-box;
+}
+
+.container:hover::-webkit-scrollbar-thumb,
+.container:focus-within::-webkit-scrollbar-thumb {
+  background-color: rgba(255, 255, 255, 0.24);
+}
+
+.container::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(255, 255, 255, 0.38);
+}
+
+/* The window itself can overflow on a short screen; same treatment there. */
+body {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.24) transparent;
+}
+
+body::-webkit-scrollbar {
+  width: 10px;
+}
+
+body::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+body::-webkit-scrollbar-thumb {
+  background-color: rgba(255, 255, 255, 0.24);
+  border: 3px solid transparent;
+  border-radius: 999px;
+  background-clip: content-box;
 }
 
 .main-action-card {
@@ -542,3 +601,103 @@ ransform: rotate(360deg); }
 .status-success { color: var(--success); }
 .status-error { color: var(--danger); }
 .status-warning { color: var(--warning); }
+
+/* Stream metadata: the best variant's size and a dead-link tag. */
+.media-rate {
+  font-size: 11px;
+  color: #9aa3b2;
+  margin-left: 6px;
+  white-space: nowrap;
+}
+
+.media-item.is-dead {
+  opacity: 0.6;
+}
+
+.media-type-tag.tag-dead {
+  background: #7f1d1d;
+  color: #fecaca;
+}
+
+/* A row the page requested more than once. */
+.media-copies {
+  font-size: 11px;
+  font-weight: 600;
+  color: #fbbf24;
+  margin-left: 6px;
+  white-space: nowrap;
+}
+
+/* Theme picker: one swatch per palette plus a random button. The swatches are
+   painted from the palette's accent, so a new theme needs no new CSS. */
+.theme-row {
+  flex-wrap: wrap;
+  justify-content: flex-start;
+  gap: 8px;
+}
+
+.theme-row label {
+  flex: 0 0 auto;
+  margin-right: 2px;
+}
+
+.theme-swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  flex: 1 1 auto;
+}
+
+.theme-swatch {
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  cursor: pointer;
+  transition: transform 0.12s ease, border-color 0.12s ease;
+}
+
+.theme-swatch:hover {
+  transform: scale(1.12);
+}
+
+.theme-swatch.is-active {
+  border-color: var(--text-primary);
+}
+
+.theme-random {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-color);
+  background: var(--bg-card);
+  color: var(--accent-color);
+  cursor: pointer;
+  flex: 0 0 auto;
+}
+
+.theme-random:hover {
+  background: var(--bg-card-hover);
+  border-color: var(--accent-color);
+}
+
+/* Header icons follow the accent, so the popup and the toolbar icon agree
+   instead of the icons staying grey next to a coloured theme. */
+.header-right .btn-icon-only,
+.header-right .gh-link {
+  color: var(--accent-color);
+}
+
+.header-right .gh-link:hover,
+.header-right .btn-icon-only:hover {
+  color: var(--accent-hover);
+}
+
+.theme-random.is-active {
+  border-color: var(--text-primary);
+}

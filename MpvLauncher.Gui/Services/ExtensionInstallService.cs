@@ -66,12 +66,12 @@ namespace MpvLauncher.Gui.Services
     ///
     /// The two need completely different mechanisms:
     ///
-    ///   - Chromium has no sideload concept for a released extension, so the
-    ///     unpacked folder is registered by appending --load-extension to the
-    ///     browser's launch command, and a URL-protocol handler is registered so
-    ///     a normal window can be launched with it. From Chrome 137 the switch is
-    ///     ignored unless DisableLoadExtensionCommandLineSwitch is turned off,
-    ///     which is why that policy is written alongside it.
+    ///   - Chromium has no sideload concept for a released extension, and from
+    ///     Chrome 137 the --load-extension switch is refused outright. The
+    ///     unpacked folder is therefore written in place and loaded once by
+    ///     hand. Earlier builds tried to register it through the browsers' own
+    ///     launch commands; that broke normal launches and is undone by
+    ///     <see cref="RemoveLegacyLaunchOverrides"/>.
     ///
     ///   - Firefox accepts an unsigned XPI directly. The XPI is dropped into
     ///     each profile's extensions folder and user.js is given the preferences
@@ -92,21 +92,23 @@ namespace MpvLauncher.Gui.Services
         private static readonly string[] RequiredFiles =
         {
             "background.js", "content_script.js", "i18n.js", "network_probe.js",
-            "media_types.js", "network_capture.js",
+            "media_types.js", "network_capture.js", "stream_meta.js",
             "popup.js", "popup.html", "popup.css",
-            "icon16.png", "icon32.png", "icon48.png", "icon128.png"
-        };
-
-        private static readonly string[] ChromiumExes =
-        {
-            "chrome.exe", "brave.exe", "msedge.exe", "chromium.exe", "vivaldi.exe", "opera.exe"
+            "icon16.png", "icon32.png", "icon48.png", "icon128.png",
+            // The name and description are placeholders resolved from here, so
+            // an install without this folder shows __MSG_extensionName__.
+            Path.Combine("_locales", "en", "messages.json")
         };
 
         /// <summary>
-        /// Runs the full install for both browsers, in the only order that works:
-        /// the files and manifests have to exist before the launch commands can
+        /// Runs the full install for Chromium, in the only order that works:
+        /// the files and manifest have to exist before the launch commands can
         /// name the folder, and the Chromium id has to exist before the manifest
         /// can carry its key.
+        ///
+        /// Firefox is not installed from here: its add-on is signed and lives on
+        /// addons.mozilla.org, so the only thing it needs locally is the native
+        /// messaging host, which <see cref="BrowserIntegrationService"/> writes.
         ///
         /// Idempotent - running it again is what the repair button does, and it
         /// rewrites rather than duplicates.
@@ -125,56 +127,92 @@ namespace MpvLauncher.Gui.Services
 
                 var (chromiumId, publicKey) = ChromiumExtensionKey.GetOrCreate();
 
-                // 1. Copy the bundle into the per-browser folders.
+                // 1. Copy the bundle into the per-browser folder.
                 EnsureExtensionFiles(AppPaths.ChromiumExtensionDir);
-                EnsureExtensionFiles(AppPaths.FirefoxExtensionDir);
 
-                // 2. Each browser needs its own manifest: Chromium carries the
-                //    key that pins the extension id, Firefox the gecko id.
+                // 2. Chromium carries the key that pins the extension id.
                 WriteChromiumManifest(AppPaths.ChromiumExtensionDir, publicKey);
-                WriteFirefoxManifest(AppPaths.FirefoxExtensionDir);
-                PackFirefoxXpi();
 
-                // 3. Chromium: make a normally launched window load the folder.
-                //    The registry overrides come first because they are the part
-                //    that survives a restart; the shortcut patch is a bonus for
-                //    launch paths that bypass the ProgId.
-                int chromiumPatched = PatchChromiumLaunchCommands();
-                chromiumPatched += EnsureChromiumCommandOverrides();
-                PatchChromiumShortcuts();
-
-                // 4. Firefox: drop the XPI in and allow sideloading.
-                int firefoxProfiles = SideloadFirefoxXpi();
-                WriteFirefoxProfilePrefs();
-
-                // 5. Drop any policy from an older install that would now block
-                //    the unpacked extension.
-                ClearFirefoxPolicies();
-
-                var xpi = new FileInfo(AppPaths.FirefoxXpi);
+                // 3. Chromium needs no registration step: the folder written
+                //    above is the whole install, and the user loads it once from
+                //    chrome://extensions. Nothing is written into the browser's
+                //    own configuration - see the class remarks for why.
 
                 // Each entry is a key plus the values to substitute into it.
                 // The sentence itself is chosen by the locale file at display
                 // time, so word order can differ per language.
+                var details = new List<InstallDetail>
+                {
+                    new() { Key = "install_item_chromium_dir",
+                            Args = new object[] { AppPaths.ChromiumExtensionDir,
+                                                  CountFiles(AppPaths.ChromiumExtensionDir) } },
+                    new() { Key = "install_item_chromium_id",   Args = new object[] { chromiumId } },
+                };
+
+                // What the browsers themselves report, one line each. Without
+                // this the summary only ever described the files on disk, which
+                // is how "installed" and "nothing loaded" could both be true.
+                var lookupIds = new List<string> { chromiumId };
+
+                var loadedByName = new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
+                var browserOrder = new List<string>();
+                foreach (string lookupId in lookupIds)
+                {
+                    foreach (var browser in BrowserExtensionState.Scan(lookupId))
+                    {
+                        if (loadedByName.ContainsKey(browser.Name))
+                            loadedByName[browser.Name] |= browser.Loaded;
+                        else
+                        {
+                            loadedByName[browser.Name] = browser.Loaded;
+                            browserOrder.Add(browser.Name);
+                        }
+                    }
+                }
+
+                foreach (string name in browserOrder)
+                {
+                    details.Add(new InstallDetail
+                    {
+                        Key = loadedByName[name] ? "install_item_browser_loaded"
+                                                 : "install_item_browser_missing",
+                        Args = new object[] { name }
+                    });
+                }
+
+                // Browsers that still honour the load switch get it on their
+                // launch command, which is what an older release did for
+                // "Chromium" as a whole. Chrome is skipped rather than patched:
+                // it ignores the switch, and an override there only costs the
+                // user a broken Start-menu entry.
+                int flagged = 0;
+                foreach (var browser in ChromiumBrowserCatalog.Detect(chromiumId))
+                {
+                    if (!browser.RecognisesLaunchFlag) continue;
+
+                    // Three places decide what a click opens: the Start-menu
+                    // command, the protocol handlers that receive a link, and
+                    // the pinned shortcuts that carry their own command line.
+                    bool command = ChromiumLaunchFlag.ApplyCommand(browser, AppPaths.ChromiumExtensionDir);
+                    int progIds = ChromiumLaunchFlag.ApplyProgIds(browser, AppPaths.ChromiumExtensionDir);
+                    int shortcuts = ChromiumLaunchFlag.PatchShortcuts(browser, AppPaths.ChromiumExtensionDir);
+
+                    if (command || progIds > 0 || shortcuts > 0) flagged++;
+                }
+                if (flagged > 0)
+                {
+                    details.Add(new InstallDetail
+                    {
+                        Key = "install_item_launch_flag",
+                        Args = new object[] { flagged }
+                    });
+                }
+
                 return new ExtensionInstallResult
                 {
                     Success = true,
                     ChromiumId = chromiumId,
-                    Details = new List<InstallDetail>
-                    {
-                        new() { Key = "install_item_chromium_dir",
-                                Args = new object[] { AppPaths.ChromiumExtensionDir,
-                                                      CountFiles(AppPaths.ChromiumExtensionDir) } },
-                        new() { Key = "install_item_chromium_id",   Args = new object[] { chromiumId } },
-                        new() { Key = "install_item_chromium_cmd",  Args = new object[] { chromiumPatched } },
-                        new() { Key = "install_item_firefox_dir",
-                                Args = new object[] { AppPaths.FirefoxExtensionDir,
-                                                      CountFiles(AppPaths.FirefoxExtensionDir) } },
-                        new() { Key = "install_item_firefox_id",    Args = new object[] { AppPaths.FirefoxAddonId } },
-                        new() { Key = "install_item_firefox_xpi",
-                                Args = new object[] { AppPaths.FirefoxXpi, xpi.Length } },
-                        new() { Key = "install_item_firefox_profile", Args = new object[] { firefoxProfiles } },
-                    }
+                    Details = details
                 };
             }
             catch (Exception ex)
@@ -206,6 +244,24 @@ namespace MpvLauncher.Gui.Services
                 if (cmd > 0) removed.Add(new UninstallItem { Key = "uninstall_item_chromium_cmd", Count = cmd });
                 int lnk = UnpatchChromiumShortcuts();
                 if (lnk > 0) removed.Add(new UninstallItem { Key = "uninstall_item_chromium_shortcuts", Count = lnk });
+
+                // 1a. The load flag this installer writes for the browsers that
+                //     accept it. Chrome never got one, but the call is harmless
+                //     there and keeps the sweep independent of what is installed.
+                int flags = 0;
+                foreach (string key in new[] { "Google Chrome", "Microsoft Edge", "Brave", "Chromium", "Vivaldi", "OperaStable" })
+                {
+                    if (ChromiumLaunchFlag.RemoveCommand(key, AppPaths.ChromiumExtensionDir))
+                        flags++;
+                }
+                flags += ChromiumLaunchFlag.UnpatchShortcuts(AppPaths.ChromiumExtensionDir);
+                if (flags > 0) removed.Add(new UninstallItem { Key = "uninstall_item_chromium_cmd", Count = flags });
+
+                // 1c. The link-opening commands, which are where a browser's own
+                //     "%1" lives. Removing them restores the machine command.
+                int progIds = ChromiumLaunchFlag.RemoveProgIds(
+                    ChromiumBrowserCatalog.AllProgIds(), AppPaths.ChromiumExtensionDir);
+                if (progIds > 0) removed.Add(new UninstallItem { Key = "uninstall_item_chromium_cmd", Count = progIds });
 
                 // 2. Firefox profile
                 int profiles = RemoveFirefoxXpi();
@@ -299,7 +355,10 @@ namespace MpvLauncher.Gui.Services
             return count;
         }
 
-        /// <summary>Removes the flags InjectExtensionFlags added, leaving the original command intact.</summary>
+        /// <summary>
+        /// Removes the flags an older release added, leaving the original
+        /// command intact. Only the repair pass calls this.
+        /// </summary>
         private static string RemoveExtensionFlags(string command)
         {
             if (!command.Contains(AppPaths.ChromiumExtensionDir, StringComparison.OrdinalIgnoreCase))
@@ -331,64 +390,105 @@ namespace MpvLauncher.Gui.Services
         }
 
         /// <summary>
-        /// Writes per-user overrides of the browser launch commands.
+        /// Removes the browser launch flags an earlier release wrote, and
+        /// nothing else.
         ///
-        /// This is the part that makes the extension survive a restart, and it
-        /// exists because of two separate facts:
+        /// Up to 1.9.16 the unpacked folder was registered by rewriting the
+        /// browsers' URL handlers in HKCU to pass --load-extension. Chrome 137
+        /// and later refuse that switch even with its feature flag disabled, so
+        /// it loaded nothing there - while it did add a literal "%1" to
+        /// Start-menu launches and an "unsupported command-line flag" bar to
+        /// every window. Installing no longer writes those values; this undoes
+        /// them on machines that ran an older build.
         ///
-        ///   1. A machine-wide browser registers its command under HKLM, not
-        ///      HKCU. Patching only HKCU therefore finds nothing to patch, which
-        ///      is why the extension worked in Chrome - Chrome persists a
-        ///      manually loaded unpacked extension - but vanished in Brave,
-        ///      which does not persist it.
-        ///
-        ///   2. Shortcuts and registrations that a browser manages are rewritten
-        ///      by the browser itself: on update, or on first run, Brave
-        ///      recreates its own Start-menu entry and any flag written there is
-        ///      lost. A shortcut patch is therefore not durable.
-        ///
-        /// HKCU is merged over HKLM by Windows, so writing the same key under
-        /// HKCU overrides the machine value, applies the flags to every launch
-        /// path the shell resolves through that ProgId, and needs no
-        /// administrator rights. Only browsers that are actually installed are
-        /// touched, and only the command string is overridden - the rest of each
-        /// registration still comes from HKLM.
-        ///
-        /// Uninstall removes exactly these values again; see
-        /// <see cref="RemoveChromiumCommandOverrides"/>.
+        /// Runs on every start rather than only inside Uninstall, because the
+        /// breakage is in the browsers, not in this app: someone who never opens
+        /// the Dependencies page would otherwise keep it. Each pass is a handful
+        /// of registry reads that find nothing once the values are gone.
         /// </summary>
-        private static int EnsureChromiumCommandOverrides()
+        internal static int RemoveLegacyLaunchOverrides()
         {
-            int patched = 0;
+            int removed = 0;
 
-            foreach (var (progId, startMenu) in ChromiumBrowsers)
+            try
             {
-                // Prefer the real ProgId command, so the override mirrors what
-                // the browser would otherwise have been launched with.
-                string? baseCommand = ReadMachineCommand($@"Software\Classes\{progId}\shell\open\command");
-                if (baseCommand == null && startMenu != null)
-                    baseCommand = ReadMachineCommand($@"Software\Clients\StartMenuInternet\{startMenu}\shell\open\command");
-
-                if (string.IsNullOrWhiteSpace(baseCommand)) continue;
-                if (!IsChromiumCommand(baseCommand!)) continue;
-
-                var targets = new List<string> { $@"Software\Classes\{progId}\shell\open\command" };
-                if (startMenu != null)
-                    targets.Add($@"Software\Clients\StartMenuInternet\{startMenu}\shell\open\command");
-
-                foreach (string key in targets)
-                {
-                    if (WriteUserCommand(key, InjectExtensionFlags(baseCommand!))) patched++;
-                }
+                removed += RemoveChromiumCommandOverrides();
+                removed += UnpatchChromiumLaunchCommands();
+                removed += UnpatchChromiumShortcuts();
+                removed += RemoveLegacyExternalEntries();
+            }
+            catch
+            {
+                // Best effort: a value that cannot be read must never stop the
+                // launcher from opening.
             }
 
-            return patched;
+            return removed;
         }
 
         /// <summary>
-        /// Deletes the per-user overrides created above, but only while they
-        /// still carry our own extension path. A value the user has since
-        /// changed is left alone rather than overwritten.
+        /// Removes entries an older build wrote under
+        /// <c>HKCU\Software\Google\Chrome\Extensions</c>, which is Chromium's
+        /// "external extension" list: one subkey per extension id, holding the
+        /// path to install from.
+        ///
+        /// That list only accepts a CRX, so a build that pointed it at the
+        /// unpacked folder left a key Chrome complains about on every start
+        /// ("File ... can not be read") and an extension that never loads. Only
+        /// subkeys whose path is our own folder are removed, so an entry that
+        /// belongs to something else keeps working.
+        /// </summary>
+        private static int RemoveLegacyExternalEntries()
+        {
+            int removed = 0;
+            string marker = Path.GetFullPath(AppPaths.ChromiumExtensionDir)
+                .TrimEnd(Path.DirectorySeparatorChar);
+
+            foreach (string hive in new[] { @"Software\Google\Chrome\Extensions",
+                                            @"Software\Chromium\Extensions",
+                                            @"Software\Microsoft\Edge\Extensions" })
+            {
+                try
+                {
+                    using var root = Registry.CurrentUser.OpenSubKey(hive, writable: false);
+                    if (root == null) continue;
+
+                    foreach (string id in root.GetSubKeyNames())
+                    {
+                        string? path = null;
+                        using (var sub = root.OpenSubKey(id))
+                            path = sub?.GetValue("path") as string;
+
+                        if (string.IsNullOrWhiteSpace(path)) continue;
+                        if (!string.Equals(Path.GetFullPath(path).TrimEnd(Path.DirectorySeparatorChar),
+                                           marker, StringComparison.OrdinalIgnoreCase))
+                            continue;
+
+                        try
+                        {
+                            Registry.CurrentUser.DeleteSubKeyTree(hive + "\\" + id, throwOnMissingSubKey: false);
+                            removed++;
+                        }
+                        catch
+                        {
+                            // Another process holding the key open is not worth
+                            // failing startup over; the next launch retries.
+                        }
+                    }
+                }
+                catch
+                {
+                    // Best effort, same as the rest of this repair pass.
+                }
+            }
+
+            return removed;
+        }
+
+        /// <summary>
+        /// Deletes the per-user overrides an older release created, but only
+        /// while they still carry our own extension path. A value the user has
+        /// since changed is left alone rather than overwritten.
         /// </summary>
         private static int RemoveChromiumCommandOverrides()
         {
@@ -408,50 +508,6 @@ namespace MpvLauncher.Gui.Services
             }
 
             return removed;
-        }
-
-        /// <summary>Reads a command from HKLM, checking the 32-bit view as well.</summary>
-        private static string? ReadMachineCommand(string subKey)
-        {
-            foreach (var hive in new[] { RegistryHive.LocalMachine, RegistryHive.CurrentUser })
-            {
-                foreach (var view in new[]
-                         {
-                             RegistryView.Registry64, RegistryView.Registry32,
-                         })
-                {
-                    try
-                    {
-                        using var baseKey = RegistryKey.OpenBaseKey(hive, view);
-                        using var key = baseKey.OpenSubKey(subKey);
-                        if (key?.GetValue("") is string cmd && !string.IsNullOrWhiteSpace(cmd))
-                            return cmd;
-                    }
-                    catch { }
-                }
-            }
-            return null;
-        }
-
-        /// <summary>
-        /// Creates or updates an HKCU command value. Returns true only when the
-        /// stored value actually changed, so a repeat install does not inflate
-        /// the "patched" count the UI reports.
-        /// </summary>
-        private static bool WriteUserCommand(string subKey, string command)
-        {
-            try
-            {
-                using var key = Registry.CurrentUser.CreateSubKey(subKey);
-                if (key == null) return false;
-                if (key.GetValue("") as string == command) return false;
-                key.SetValue("", command);
-                return true;
-            }
-            catch
-            {
-                return false;
-            }
         }
 
         /// <summary>
@@ -750,6 +806,103 @@ namespace MpvLauncher.Gui.Services
             }
         }
 
+        /// <summary>
+        /// Brings the installed extension copies up to the version this build
+        /// ships, once per update.
+        ///
+        /// The launcher updates by replacing its own exe, and the embedded
+        /// extension rides along - but a normal start never rewrites
+        /// extensions\chromium, so a browser keeps loading the previous
+        /// release's scripts. Comparing the shipped version with the installed
+        /// one fixes that without rewriting a healthy install on every launch.
+        ///
+        /// Called from the window constructor. Returns the version written, or
+        /// null when there was nothing to do, so the caller can tell the user
+        /// that a browser restart is pending.
+        /// </summary>
+        internal static string? RefreshIfOutdated()
+        {
+            try
+            {
+                string installedManifest = Path.Combine(AppPaths.ChromiumExtensionDir, "manifest.json");
+
+                // Nothing installed: the install flow writes everything in that
+                // case. Creating a half-install from here would be worse than
+                // leaving the machine alone.
+                if (!File.Exists(installedManifest)) return null;
+
+                string? shipped = ReadEmbeddedExtensionVersion();
+                if (shipped == null) return null;
+
+                string installed = ReadManifestVersion(installedManifest);
+                if (!IsNewerVersion(shipped, installed)) return null;
+
+                // Only the extension is rewritten. Themes keep a hand-edited
+                // copy and language packs merge forward - both are the user's.
+                AppPaths.SeedTemplates(overwriteEmbedded: true);
+
+                var (_, publicKey) = ChromiumExtensionKey.GetOrCreate();
+                EnsureExtensionFiles(AppPaths.ChromiumExtensionDir);
+
+                // The Chromium manifest carries the key that pins the extension
+                // id, so it is rebuilt rather than copied from the bundle.
+                WriteChromiumManifest(AppPaths.ChromiumExtensionDir, publicKey);
+
+                return shipped;
+            }
+            catch
+            {
+                // An extension refresh must never block startup; Install on the
+                // Dependencies page does the same work on demand.
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// The extension's version, read from the manifest this build ships, so
+        /// the number lives in one place: bumping extension/manifest.json is
+        /// enough for the installer, the refresh check and the bundle.
+        /// </summary>
+        internal static string ShippedVersion() => ReadEmbeddedExtensionVersion() ?? "1.9.7";
+
+        /// <summary>The version inside the manifest embedded in this build.</summary>
+        private static string? ReadEmbeddedExtensionVersion()
+        {
+            using var stream = System.Reflection.Assembly.GetExecutingAssembly()
+                .GetManifestResourceStream("embedded.extension.manifest.json");
+            if (stream == null) return null;
+
+            using var reader = new StreamReader(stream, Encoding.UTF8);
+            using var doc = JsonDocument.Parse(reader.ReadToEnd());
+            return doc.RootElement.TryGetProperty("version", out var v) ? v.GetString() : null;
+        }
+
+        private static string ReadManifestVersion(string path)
+        {
+            try
+            {
+                using var doc = JsonDocument.Parse(File.ReadAllText(path));
+                return doc.RootElement.TryGetProperty("version", out var v) ? v.GetString() ?? "" : "";
+            }
+            catch
+            {
+                return "";
+            }
+        }
+
+        /// <summary>
+        /// Dotted-version compare. A value that does not parse counts as
+        /// different rather than newer: rewriting the files once is cheaper than
+        /// skipping an update because the number looked odd.
+        /// </summary>
+        private static bool IsNewerVersion(string candidate, string current)
+        {
+            if (Version.TryParse(candidate, out var shipped) && Version.TryParse(current, out var installed))
+                return shipped > installed;
+
+            return !string.Equals(candidate, current, StringComparison.OrdinalIgnoreCase);
+        }
+
         private static void EnsureExtensionFiles(string targetDir)
         {
             Directory.CreateDirectory(targetDir);
@@ -781,7 +934,9 @@ namespace MpvLauncher.Gui.Services
             if (sourceRoot.Equals(destRoot, StringComparison.OrdinalIgnoreCase)) return 0;
 
             int copied = 0;
-            foreach (string file in Directory.EnumerateFiles(source))
+            // Recursive: _locales/ arrives as subfolders, and a flat copy would
+            // drop them without saying anything.
+            foreach (string file in Directory.EnumerateFiles(source, "*", SearchOption.AllDirectories))
             {
                 string name = Path.GetFileName(file);
                 if (name.Equals("manifest.json", StringComparison.OrdinalIgnoreCase)) continue;
@@ -789,7 +944,9 @@ namespace MpvLauncher.Gui.Services
 
                 try
                 {
-                    File.Copy(file, Path.Combine(dest, name), overwrite: true);
+                    string target = Path.Combine(dest, Path.GetRelativePath(source, file));
+                    Directory.CreateDirectory(Path.GetDirectoryName(target)!);
+                    File.Copy(file, target, overwrite: true);
                     copied++;
                 }
                 catch { }
@@ -807,13 +964,26 @@ namespace MpvLauncher.Gui.Services
             {
                 if (!resName.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)) continue;
                 string fileName = resName[prefix.Length..];
-                if (fileName.Equals("manifest.json", StringComparison.OrdinalIgnoreCase)) continue;
+
+                // Resource names carry the source tree's separators, so a file
+                // under _locales/ arrives as "_locales\en\messages.json".
+                // Combining that with the target alone left the folder missing,
+                // File.Create threw, and the catch dropped the file silently -
+                // which is exactly how the localized name disappeared.
+                string relative = fileName
+                    .Replace('/', Path.DirectorySeparatorChar)
+                    .Replace('\\', Path.DirectorySeparatorChar);
+
+                if (relative.Equals("manifest.json", StringComparison.OrdinalIgnoreCase)) continue;
+
+                string target = Path.Combine(targetDir, relative);
 
                 try
                 {
+                    Directory.CreateDirectory(Path.GetDirectoryName(target)!);
                     using Stream? src = asm.GetManifestResourceStream(resName);
                     if (src == null) continue;
-                    using var dst = File.Create(Path.Combine(targetDir, fileName));
+                    using var dst = File.Create(target);
                     src.CopyTo(dst);
                     count++;
                 }
@@ -871,14 +1041,15 @@ namespace MpvLauncher.Gui.Services
             var manifest = new Dictionary<string, object?>
             {
                 ["manifest_version"] = 3,
-                ["name"] = "MPV Launcher",
+                ["name"] = "__MSG_extensionName__",
+                ["default_locale"] = "en",
                 // Kept in step with extension/manifest.json. The extension is
                 // distributed separately (addons.mozilla.org), so bumping this
                 // for an app-only change would make the app install a version
                 // the store does not have, and the two copies would collide.
                 // A test holds the two to the same values.
-                ["version"] = "1.9.5",
-                ["description"] = "Open page videos, iframes and streams directly in MPV.",
+                ["version"] = ShippedVersion(),
+                ["description"] = "__MSG_extensionDescription__",
                 ["key"] = publicKey,
                 ["icons"] = icons,
                 // webNavigation was here and nothing ever called it. A
@@ -923,14 +1094,15 @@ namespace MpvLauncher.Gui.Services
             var manifest = new Dictionary<string, object?>
             {
                 ["manifest_version"] = 3,
-                ["name"] = "MPV Launcher",
+                ["name"] = "__MSG_extensionName__",
+                ["default_locale"] = "en",
                 // Kept in step with extension/manifest.json. The extension is
                 // distributed separately (addons.mozilla.org), so bumping this
                 // for an app-only change would make the app install a version
                 // the store does not have, and the two copies would collide.
                 // A test holds the two to the same values.
-                ["version"] = "1.9.5",
-                ["description"] = "Open page videos, iframes and streams directly in MPV.",
+                ["version"] = ShippedVersion(),
+                ["description"] = "__MSG_extensionDescription__",
                 ["icons"] = icons,
                 ["permissions"] = new[] { "nativeMessaging", "activeTab", "scripting", "webRequest", "tabs", "storage" },
                 ["host_permissions"] = new[] { "<all_urls>" },
@@ -948,7 +1120,7 @@ namespace MpvLauncher.Gui.Services
                 {
                     ["scripts"] = new[]
                     {
-                        "media_types.js", "network_capture.js", "background.js"
+                        "media_types.js", "network_capture.js", "themes.js", "background.js"
                     }
                 },
                 ["content_scripts"] = new object[]
@@ -985,38 +1157,11 @@ namespace MpvLauncher.Gui.Services
             File.WriteAllText(path, JsonSerializer.Serialize(obj, new JsonSerializerOptions { WriteIndented = true }));
         }
 
-        private static void PackFirefoxXpi()
-        {
-            string xpi = AppPaths.FirefoxXpi;
-            try
-            {
-                if (File.Exists(xpi))
-                    File.Delete(xpi);
-            }
-            catch (Exception ex)
-            {
-                throw new IOException("Eski Firefox XPI silinemedi: " + ex.Message, ex);
-            }
-
-            Directory.CreateDirectory(Path.GetDirectoryName(xpi)!);
-            ZipFile.CreateFromDirectory(
-                AppPaths.FirefoxExtensionDir,
-                xpi,
-                CompressionLevel.Fastest,
-                includeBaseDirectory: false);
-
-            var fi = new FileInfo(xpi);
-            if (!fi.Exists || fi.Length == 0)
-                throw new IOException("Firefox XPI oluşturulamadı: " + xpi);
-
-            // Refresh the timestamp so Firefox does not keep serving a cached copy.
-            try { File.SetLastWriteTimeUtc(xpi, DateTime.UtcNow); } catch { }
-        }
-
         /// <summary>
-        /// Chromium browsers we can attach the unpacked extension to, with the
-        /// registry names their own installers use. StartMenu is null for the
-        /// ProgIds that have no separate Start-menu registration.
+        /// Chromium browsers an earlier release attached the unpacked extension
+        /// to, with the registry names their own installers use. Only the repair
+        /// pass reads this now; StartMenu is null for the ProgIds that have no
+        /// separate Start-menu registration.
         /// </summary>
         private static readonly (string ProgId, string? StartMenu)[] ChromiumBrowsers =
         {
@@ -1027,117 +1172,6 @@ namespace MpvLauncher.Gui.Services
             ("MSEdgePDF",    null),
             ("ChromiumHTM",  "Chromium"),
         };
-
-        /// <summary>
-        /// Chrome 137+ ignores --load-extension unless DisableLoadExtensionCommandLineSwitch is disabled.
-        /// Patching URL protocol / StartMenuInternet commands applies the flags to normal launches.
-        /// </summary>
-        private static int PatchChromiumLaunchCommands()
-        {
-            int patched = 0;
-            var keys = new List<string>
-            {
-                @"Software\Classes\ChromeHTML\shell\open\command",
-                @"Software\Classes\ChromeBHTML\shell\open\command",
-                @"Software\Classes\BraveHTML\shell\open\command",
-                @"Software\Classes\MSEdgeHTM\shell\open\command",
-                @"Software\Classes\MSEdgePDF\shell\open\command",
-                @"Software\Clients\StartMenuInternet\Google Chrome\shell\open\command",
-                @"Software\Clients\StartMenuInternet\Brave\shell\open\command",
-                @"Software\Clients\StartMenuInternet\Microsoft Edge\shell\open\command",
-                @"Software\Clients\StartMenuInternet\Chromium\shell\open\command"
-            };
-
-            foreach (var proto in new[] { "http", "https" })
-            {
-                try
-                {
-                    using var choice = Registry.CurrentUser.OpenSubKey(
-                        $@"Software\Microsoft\Windows\Shell\Associations\UrlAssociations\{proto}\UserChoice");
-                    string? progId = choice?.GetValue("ProgId") as string;
-                    if (!string.IsNullOrWhiteSpace(progId))
-                        keys.Add($@"Software\Classes\{progId}\shell\open\command");
-                }
-                catch { }
-            }
-
-            foreach (var key in keys.Distinct(StringComparer.OrdinalIgnoreCase))
-            {
-                if (PatchCommandKey(key))
-                    patched++;
-            }
-
-            return patched;
-        }
-
-        private static bool PatchCommandKey(string subKey)
-        {
-            try
-            {
-                using var key = Registry.CurrentUser.OpenSubKey(subKey, writable: true);
-                if (key == null) return false;
-                string? current = key.GetValue("") as string;
-                if (string.IsNullOrWhiteSpace(current)) return false;
-                if (!IsChromiumCommand(current)) return false;
-
-                string updated = InjectExtensionFlags(current);
-                if (string.Equals(current, updated, StringComparison.Ordinal))
-                    return false;
-
-                key.SetValue("", updated);
-                return true;
-            }
-            catch
-            {
-                return false;
-            }
-        }
-
-        private static bool IsChromiumCommand(string command)
-        {
-            foreach (var exe in ChromiumExes)
-            {
-                if (command.Contains(exe, StringComparison.OrdinalIgnoreCase))
-                    return true;
-            }
-            return false;
-        }
-
-        private static string InjectExtensionFlags(string command)
-        {
-            string ext = AppPaths.ChromiumExtensionDir;
-            string flags =
-                "--disable-features=DisableLoadExtensionCommandLineSwitch " +
-                "--enable-unsafe-extension-debugging " +
-                "--load-extension=\"" + ext + "\"";
-
-            if (command.Contains(ext, StringComparison.OrdinalIgnoreCase)
-                && command.Contains("DisableLoadExtensionCommandLineSwitch", StringComparison.OrdinalIgnoreCase))
-                return command;
-
-            // Strip a previous incomplete --load-extension we may have written.
-            command = StripFlag(command, "--load-extension=");
-            command = StripFlag(command, "--enable-unsafe-extension-debugging");
-            command = StripFlag(command, "--disable-features=DisableLoadExtensionCommandLineSwitch");
-
-            string trimmed = command.Trim();
-            if (trimmed.StartsWith('"'))
-            {
-                int end = trimmed.IndexOf('"', 1);
-                if (end > 1)
-                {
-                    string exePart = trimmed[..(end + 1)];
-                    string rest = trimmed[(end + 1)..].TrimStart();
-                    return (exePart + " " + flags + (string.IsNullOrEmpty(rest) ? "" : " " + rest)).Trim();
-                }
-            }
-
-            int space = trimmed.IndexOf(' ');
-            if (space > 0)
-                return trimmed[..space] + " " + flags + " " + trimmed[space..].TrimStart();
-
-            return trimmed + " " + flags;
-        }
 
         private static string StripFlag(string command, string flagPrefix)
         {
@@ -1182,246 +1216,5 @@ namespace MpvLauncher.Gui.Services
             return parts;
         }
 
-        private static void PatchChromiumShortcuts()
-        {
-            string[] searchRoots =
-            {
-                Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory),
-                Environment.GetFolderPath(Environment.SpecialFolder.CommonDesktopDirectory),
-                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-                    @"Microsoft\Windows\Start Menu\Programs"),
-                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonStartMenu), "Programs"),
-                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-                    @"Microsoft\Internet Explorer\Quick Launch\User Pinned\TaskBar")
-            };
-
-            Type? shellType = Type.GetTypeFromProgID("WScript.Shell");
-            if (shellType == null) return;
-            dynamic? wsh = Activator.CreateInstance(shellType);
-            if (wsh == null) return;
-
-            foreach (var root in searchRoots)
-            {
-                if (!Directory.Exists(root)) continue;
-                IEnumerable<string> files;
-                try { files = Directory.EnumerateFiles(root, "*.lnk", SearchOption.AllDirectories); }
-                catch { continue; }
-
-                foreach (var lnkPath in files)
-                {
-                    try
-                    {
-                        dynamic lnk = wsh.CreateShortcut(lnkPath);
-                        string target = (lnk.TargetPath as string) ?? "";
-                        if (string.IsNullOrEmpty(target)) continue;
-                        string exe = Path.GetFileName(target);
-                        if (!ChromiumExes.Contains(exe, StringComparer.OrdinalIgnoreCase)) continue;
-
-                        string args = (lnk.Arguments as string) ?? "";
-                        string updated = InjectExtensionFlags(string.IsNullOrWhiteSpace(args)
-                            ? ("\"" + target + "\"")
-                            : ("\"" + target + "\" " + args));
-
-                        // Arguments should not include the exe path.
-                        string newArgs = updated;
-                        string quoted = "\"" + target + "\"";
-                        if (newArgs.StartsWith(quoted, StringComparison.OrdinalIgnoreCase))
-                            newArgs = newArgs[quoted.Length..].Trim();
-                        else if (newArgs.StartsWith(target, StringComparison.OrdinalIgnoreCase))
-                            newArgs = newArgs[target.Length..].Trim();
-
-                        lnk.Arguments = newArgs;
-                        lnk.Save();
-                    }
-                    catch { }
-                }
-            }
-        }
-
-        private static int SideloadFirefoxXpi()
-        {
-            int count = 0;
-            string profilesRoot = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-                @"Mozilla\Firefox\Profiles");
-            if (!Directory.Exists(profilesRoot)) return 0;
-
-            string destName = AppPaths.FirefoxAddonId + ".xpi";
-            foreach (var profile in Directory.EnumerateDirectories(profilesRoot))
-            {
-                try
-                {
-                    string extDir = Path.Combine(profile, "extensions");
-                    Directory.CreateDirectory(extDir);
-
-                    string destXpi = Path.Combine(extDir, destName);
-                    File.Copy(AppPaths.FirefoxXpi, destXpi, overwrite: true);
-                    try { File.SetLastWriteTimeUtc(destXpi, DateTime.UtcNow); } catch { }
-
-                    // If a folder from an earlier install is still there, Firefox treats
-                    // it as already installed and ignores the new XPI. Remove it first.
-                    string unpacked = Path.Combine(extDir, AppPaths.FirefoxAddonId);
-                    if (Directory.Exists(unpacked))
-                    {
-                        try { Directory.Delete(unpacked, recursive: true); } catch { }
-                    }
-                    count++;
-                }
-                catch { }
-            }
-            return count;
-        }
-
-        /// <summary>
-        /// Removes the registry policy values this app wrote, and prunes our own
-        /// entry out of any policies.json that happens to mention us.
-        ///
-        /// The previous version deleted the whole file. These files are the
-        /// enterprise's - they sit under Program Files or LocalAppData and carry
-        /// proxy, certificate and add-on policy set by an administrator - and
-        /// this app never creates them. Deleting one on uninstall silently
-        /// disables an organisation's Firefox management.
-        /// </summary>
-        private static void ClearFirefoxPolicies()
-        {
-            try
-            {
-                using var key = Registry.CurrentUser.OpenSubKey(
-                    @"Software\Policies\Mozilla\Firefox\ExtensionSettings", writable: true);
-                key?.DeleteValue(AppPaths.FirefoxAddonId, throwOnMissingValue: false);
-                key?.DeleteSubKeyTree(AppPaths.FirefoxAddonId, throwOnMissingSubKey: false);
-            }
-            catch { }
-
-            try
-            {
-                using var install = Registry.CurrentUser.OpenSubKey(
-                    @"Software\Policies\Mozilla\Firefox", writable: true);
-                install?.DeleteSubKeyTree("Extensions", throwOnMissingSubKey: false);
-            }
-            catch { }
-
-            string[] searchDirs =
-            {
-                @"C:\Program Files\Mozilla Firefox\distribution\policies.json",
-                @"C:\Program Files (x86)\Mozilla Firefox\distribution\policies.json",
-                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), @"Mozilla Firefox\distribution\policies.json")
-            };
-
-            foreach (var f in searchDirs)
-            {
-                try
-                {
-                    PruneOurEntryFromPolicies(f);
-                }
-                catch { }
-            }
-        }
-
-        /// <summary>
-        /// Removes only this add-on's entry from a Firefox policies.json,
-        /// rewriting every other policy untouched. The file is left alone
-        /// entirely when it does not mention us.
-        /// </summary>
-        private static void PruneOurEntryFromPolicies(string file)
-        {
-            if (!File.Exists(file)) return;
-
-            string json = File.ReadAllText(file);
-            if (!json.Contains(AppPaths.FirefoxAddonId, StringComparison.OrdinalIgnoreCase)) return;
-
-            using var doc = JsonDocument.Parse(json);
-            var buffer = new MemoryStream();
-            using (var writer = new Utf8JsonWriter(buffer, new JsonWriterOptions { Indented = true }))
-            {
-                WriteWithoutOurAddon(doc.RootElement.Clone(), writer);
-            }
-
-            string updated = System.Text.Encoding.UTF8.GetString(buffer.ToArray());
-            File.WriteAllText(file, updated + Environment.NewLine);
-        }
-
-        /// <summary>
-        /// Copies a policies document, dropping any object member whose key is
-        /// our add-on id. Everything else is reproduced verbatim.
-        /// </summary>
-        private static void WriteWithoutOurAddon(JsonElement element, Utf8JsonWriter writer)
-        {
-            switch (element.ValueKind)
-            {
-                case JsonValueKind.Object:
-                    writer.WriteStartObject();
-                    foreach (var prop in element.EnumerateObject())
-                    {
-                        if (prop.NameEquals(AppPaths.FirefoxAddonId)) continue;
-                        prop.WriteTo(writer);
-                    }
-                    writer.WriteEndObject();
-                    break;
-
-                case JsonValueKind.Array:
-                    writer.WriteStartArray();
-                    foreach (var item in element.EnumerateArray()) item.WriteTo(writer);
-                    writer.WriteEndArray();
-                    break;
-
-                default:
-                    element.WriteTo(writer);
-                    break;
-            }
-        }
-
-        /// <summary>
-        /// Appends the preferences an unsigned XPI needs to be sideloaded.
-        ///
-        /// Every write goes inside <see cref="FirefoxPrefsMarker"/> so that
-        /// uninstall can remove exactly these lines and nothing else the user
-        /// has in user.js.
-        /// </summary>
-        private static void WriteFirefoxProfilePrefs()
-        {
-            string profilesRoot = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-                @"Mozilla\Firefox\Profiles");
-            if (!Directory.Exists(profilesRoot)) return;
-
-            const string block =
-                "\r\n" + FirefoxPrefsMarker + "\r\n" +
-                "user_pref(\"extensions.autoDisableScopes\", 0);\r\n" +
-                "user_pref(\"extensions.enabledScopes\", 15);\r\n" +
-                "user_pref(\"extensions.sideloadScopes\", 15);\r\n" +
-                "user_pref(\"xpinstall.signatures.required\", false);\r\n" +
-                FirefoxPrefsEndMarker + "\r\n";
-
-            const string sideloadOnly =
-                "\r\n" + FirefoxPrefsMarker + "\r\n" +
-                "user_pref(\"extensions.sideloadScopes\", 15);\r\n" +
-                FirefoxPrefsEndMarker + "\r\n";
-
-            foreach (var profile in Directory.EnumerateDirectories(profilesRoot))
-            {
-                try
-                {
-                    string userJs = Path.Combine(profile, "user.js");
-                    string existing = File.Exists(userJs) ? File.ReadAllText(userJs) : "";
-
-                    // Either marker counts as "already installed": the legacy one
-                    // appears when upgrading from a build that had no delimiters.
-                    bool alreadyWrote =
-                        existing.Contains(FirefoxPrefsMarker, StringComparison.Ordinal) ||
-                        existing.Contains(LegacyFirefoxPrefsMarker, StringComparison.Ordinal);
-
-                    if (alreadyWrote)
-                    {
-                        if (!existing.Contains("extensions.sideloadScopes", StringComparison.Ordinal))
-                            File.AppendAllText(userJs, sideloadOnly);
-                        continue;
-                    }
-
-                    File.AppendAllText(userJs, block);
-                }
-                catch { }
-            }
-        }
     }
 }

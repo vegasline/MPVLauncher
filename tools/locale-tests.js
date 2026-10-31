@@ -84,18 +84,12 @@ section("install-summary placeholders match the arguments the services pass");
   const expected = {
     install_item_chromium_dir: [0, 1],
     install_item_chromium_id: [0],
-    install_item_chromium_cmd: [0],
-    install_item_firefox_dir: [0, 1],
-    install_item_firefox_id: [0],
-    install_item_firefox_xpi: [0, 1],
-    install_item_firefox_profile: [0],
     install_item_host_chromium: [0],
     install_item_host_firefox: [0],
     install_success_head: [],
     install_checking: [],
     install_repair_hint: [],
     install_hint_chromium: [],
-    install_hint_firefox: [],
     install_error: [],
   };
 

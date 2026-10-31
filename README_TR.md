@@ -4,7 +4,7 @@
 
 <p align="center">
 <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="MIT Lisansı"></a>
-<a href="https://github.com/vegasline/MPVLauncher/releases/latest"><img src="https://img.shields.io/badge/app-1.9.15-blue.svg" alt="Uygulama sürümü 1.9.15"></a>
+<a href="https://github.com/vegasline/MPVLauncher/releases/latest"><img src="https://img.shields.io/badge/app-1.9.16-blue.svg" alt="Uygulama sürümü 1.9.15"></a>
 <a href="https://addons.mozilla.org/firefox/addon/mpv-launcher/"><img src="https://img.shields.io/badge/Firefox_Eklentisi-FF7139FF?logo=firefox-browser&logoColor=white" alt="Firefox eklentisi"></a>
 </p>
 
@@ -18,7 +18,7 @@
 
 ## 📸 Nasıl görünüyor
 
-| 🖥️ Masaüstü uygulaması | 🧩 Tarayıcı eklentisi |
+| 🖥️ Masaüstü uygulaması — Cadılar Bayramı teması | 🧩 Tarayıcı eklentisi — Cadılar Bayramı teması |
 | :---: | :---: |
 | ![MPVLauncher ana pencere](MPVLauncher.png) | ![MPVLauncher eklenti açılır menüsü](Extension.png) |
 
@@ -38,16 +38,19 @@ bir yöntem gerekir. Bu proje bunu tek tıkla hâle getirir.
   sürüm sayfalarıyla karşılaştırır ve yalnızca eski olanı günceller.
 - 🔌 **Eklentiyi kurar** — Chrome, Edge, Brave, Opera, Vivaldi, Yandex ve Firefox
   için; uygulama klasörü taşınırsa onarır.
+- 🎬 **Gerçek akışı açar** — bir site videoyu bir oynatıcı sayfasının ya da
+  iframe'in arkasına sakladığında launcher kendisi `.m3u8`'e kadar gider; mpv
+  penceresinin başlığı da CDN adresi değil, tıkladığınız sayfanın başlığı olur.
 - 🎨 **Temalar ve görünüm düzenleyici** — Cadılar Bayramı ve Yılbaşı dahil 7
   tema; özel renkler, bulanıklık, köşe yuvarlaklığı ve arka plan görseli.
 - 💾 **Tema olarak kaydet** — düzenleyicide oluşturduğunuz görünüm
   `%APPDATA%\MPVLauncher\themes` altına tema dosyası olarak yazılır ve listede
   görünür.
-- 🏷️ **Kendi simgeniz** — herhangi bir `.ico` dosyasını
-  `%APPDATA%\MPVLauncher\icons` içine atın ve Temalar sekmesinden seçin; pencere
-  ve masaüstü kısayolu bu simgeyi kullanır.
 - ✨ **Anime4K ve ModernZ** — anime yükseltme ve daha güzel ekran üstü kontrol.
-- 🗂️ **Oynatma geçmişi** — son 50 kayıt, eklentiyle paylaşılır.
+- 🗂️ **Oynatma geçmişi** — sayfa başlıklarıyla son 50 kayıt; arama, sabitleme
+  ve tek tek silme, eklentiyle paylaşılır.
+- 📮 **Bildir** — önerinizi, özellik isteğinizi veya hatayı uygulamadan
+  gönderin; ekran görüntüsü ekleyebilirsiniz.
 - 🌍 **12 dil** uygulamada, **13 dil** eklentide.
 
 ### 🔍 Eklenti neleri bulur
@@ -62,6 +65,11 @@ bir yöntem gerekir. Bu proje bunu tek tıkla hâle getirir.
   sayfadaki YouTube gömmesi de çalışır.
 - **Filtreler** — akışları, dosyaları ve iframe'leri ayrı açıp kapatma, en küçük
   boyut belirleme, ilgilenmediğiniz sunucuları gizleme.
+- **Tekrarlar birleşir** — farklı token'larla gelen aynı parça tek satırda görünür;
+  `×3` rozeti kaç kopya görüldüğünü söyler.
+- **Bitrate ve ölü bağlantılar** — bir HLS/DASH playlist'i en iyi varyantını
+  (`1080p · 5.2 Mbps`) gösterir, 404/410 dönen adres `dead` olarak işaretlenir ve
+  istenirse gizlenir.
 - **Daha anlaşılır hatalar** — bir captcha veya Cloudflare doğrulaması "boş sayfa"
   yerine olduğu gibi bildirilir.
 
@@ -117,10 +125,17 @@ geçmişte kalır ve iki yol arasında ortaktır.
 
 İmzalı eklentiyi
 [addons.mozilla.org](https://addons.mozilla.org/firefox/addon/mpv-launcher/)
-adresinden kurun — en kolay yol bu ve doğrudan çalışır. Manifest V3 desteği için
-Firefox 128+ gerekir.
+adresinden kurun — en kolay yol bu ve doğrudan çalışır. Firefox 140+ gerekir:
+Manifest V3 ve AMO veri toplama bildirimi bu sürümden itibaren destekleniyor.
 
 ### 🌐 Chrome, Edge, Brave, Opera, Vivaldi, Yandex
+
+> ✅ **Chromium tarafında elle yüklemek önerilen yoldur.** Tarayıcı profilinde
+> bir kez yapılan paketlenmemiş yükleme yeterlidir ve tarayıcı güncellemelerinden
+> sonra da çalışmaya devam eder — mağaza kaydı yok, arkanızda kendiliğinden
+> güncellenen bir şey de yok. Launcher kendi tarafını hazır tutar: native
+> messaging host her açılışta kaydedilir, yani elle yüklenen kopya başka bir
+> düğmeye basmadan uygulamayla konuşur.
 
 Kurulumu yaptıktan sonra `chrome://extensions` adresini açın,
 **Geliştirici modu**'nu etkinleştirin, **Paketlenmemiş öğe yükle**'yi seçin ve şu
@@ -130,14 +145,7 @@ klasörü gösterin:
 %APPDATA%\MPVLauncher\extensions\chromium
 ```
 
-Uygulamadaki **Eklenti Klasörünü Aç** düğmesi bu klasörü sizin için açar.
-
-> 💡 Chromium paketlenmemiş eklenti istediği için eklentinin her açılışta
-> yüklenmesi gerekir. Kurulum, bunu tarayıcının başlatma komutuna kullanıcı
-> düzeyinde geçersiz kılmalar yazarak halleder — yönetici hakkı gerekmez ve
-> tarayıcının güncelleme sırasında yaptığı hiçbir şey bunu geri almaz. Kaldırma
-> yalnızca bu değerleri siler.
-
+Uygulamadaki **Eklenti Klasörünü Aç** düğmesi bu \r
 ---
 
 ## 🔒 Gizlilik
@@ -159,6 +167,10 @@ belirtmek gerekir:
   dosya hazırlanır, yalnızca siz tıkladığınızda kurulur; ayarlarınıza, geçmişinize
   ve kurulu araçlarınıza dokunulmaz. Denetlemeyi **Ayarlar → Güncellemeler**
   altından kapatabilirsiniz.
+- 📮 **Bildirim yalnızca siz Gönder'e bastığınızda gider.** Bildir sekmesi
+  mesajınızı ve eklediğiniz dosyaları bir Discord webhook'una gönderir; yanında
+  yalnızca launcher sürümü, arayüz dili ve işletim sistemi adı yer alır. Başka
+  hiçbir bilgi okunmaz, arka planda hiçbir şey gönderilmez.
 
 Ayrıntılar:
 [`MpvLauncher.Gui/Services/NativeHostService.cs`](MpvLauncher.Gui/Services/NativeHostService.cs)
