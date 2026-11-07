@@ -14,3 +14,5 @@ publish/
 # Tooling
 node_modules/
 *.log
+
+graphify-out/

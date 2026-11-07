@@ -177,4 +177,76 @@ public class ToolUpdateTests
             installedAt: Now.AddDays(-45),
             now: Now));
     }
+
+    /* ------------------------------------------------------- build hashes */
+
+    [Fact]
+    public void The_hash_is_read_from_an_asset_name_and_from_a_banner()
+    {
+        Assert.True(ToolUpdateService.TryGetBuildHash(
+            "mpv-x86_64-v3-20261021-git-e471496c56.7z", out var asset));
+        Assert.Equal("e471496c56", asset);
+
+        Assert.True(ToolUpdateService.TryGetBuildHash(
+            "mpv v0.41.0-1227-ge471496c5, built on Oct 21 2026", out var banner));
+        Assert.Equal("e471496c5", banner);
+
+        Assert.True(ToolUpdateService.TryGetBuildHash(
+            "ffmpeg version N-128545-ge196e57ca Copyright (c) 2000-2026", out var ffmpeg));
+        Assert.Equal("e196e57ca", ffmpeg);
+
+        Assert.True(ToolUpdateService.TryGetBuildHash(
+            "ffmpeg-x86_64-v3-git-e196e57ca.7z", out var ffmpegAsset));
+        Assert.Equal("e196e57ca", ffmpegAsset);
+    }
+
+    [Fact]
+    public void A_bare_date_tag_and_a_versioned_banner_have_no_hash()
+    {
+        Assert.False(ToolUpdateService.TryGetBuildHash("20261107", out _));
+        Assert.False(ToolUpdateService.TryGetBuildHash(
+            "ffmpeg version 9.0.2-essentials_build-www.gyan.dev", out _));
+        Assert.False(ToolUpdateService.TryGetBuildHash("", out _));
+    }
+
+    [Fact]
+    public void The_same_build_is_current_even_when_the_hashes_are_abbreviated_differently()
+    {
+        // The installed mpv is from the 20261021 release: shorter hash, same
+        // commit. The file is 17 days old, which used to hide the answer.
+        Assert.Equal(ToolUpdateState.UpToDate, ToolUpdateService.CompareInstalled(
+            installedVersion: "mpv v0.41.0-1227-ge471496c5",
+            releaseTag: "20261021",
+            releasedAt: Now.AddDays(-17),
+            installedAt: Now.AddDays(-17),
+            now: Now,
+            releaseBuildHash: "e471496c56"));
+    }
+
+    [Fact]
+    public void A_newer_daily_build_is_reported_within_the_former_window()
+    {
+        // The real 2026-11-07 mpv release against that install: different
+        // commit, so an update is available straight away.
+        Assert.Equal(ToolUpdateState.Available, ToolUpdateService.CompareInstalled(
+            installedVersion: "mpv v0.41.0-1227-ge471496c5",
+            releaseTag: "20261107",
+            releasedAt: Now.AddDays(-17),
+            installedAt: Now.AddDays(-17),
+            now: Now,
+            releaseBuildHash: "9028187538"));
+    }
+
+    [Fact]
+    public void A_hash_absence_falls_back_to_the_date_rule()
+    {
+        // No hash on either side: the old window still decides, so an install
+        // that recorded nothing is not judged on a string it cannot parse.
+        Assert.Equal(ToolUpdateState.UpToDate, ToolUpdateService.CompareInstalled(
+            installedVersion: "mpv v0.41.0-1227-ge471496c5",
+            releaseTag: "20261107",
+            releasedAt: Now.AddDays(-17),
+            installedAt: Now.AddDays(-17),
+            now: Now));
+    }
 }

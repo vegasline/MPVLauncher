@@ -4,7 +4,7 @@
 
 <p align="center">
 <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="MIT License"></a>
-<a href="https://github.com/vegasline/MPVLauncher/releases/latest"><img src="https://img.shields.io/badge/app-1.9.16-blue.svg" alt="App version 1.9.16"></a>
+<a href="https://github.com/vegasline/MPVLauncher/releases/latest"><img src="https://img.shields.io/badge/app-1.9.16--fix-blue.svg" alt="App version 1.9.16-fix"></a>
 <a href="https://addons.mozilla.org/firefox/addon/mpv-launcher/"><img src="https://img.shields.io/badge/Firefox_Add--on-FF7139FF?logo=firefox-browser&logoColor=white" alt="Firefox add-on"></a>
 </p>
 
@@ -32,10 +32,15 @@ extension that sends web video straight to your player.
 Normally playing a video from a browser means a download tool, a script, or a
 site-specific workaround. This makes it one click.
 
-- 📥 **Installs what mpv needs** — mpv, yt-dlp and FFmpeg, from their upstream
-  releases. No Python, no separate runtime, no system-wide install.
+- 📥 **Installs what mpv needs** — mpv and FFmpeg from the same
+  [shinchiro](https://github.com/shinchiro/mpv-winbuild-cmake/releases) daily
+  build: mpv plus the matching `ffmpeg-x86_64-v3` archive, ffprobe included.
+  yt-dlp comes from its own release page. No Python, no separate runtime, no
+  system-wide install.
 - 🔄 **Checks those three for updates** — one button compares what you have with
-  the official release pages and updates only what is out of date.
+  the official release pages and updates only what is out of date. mpv and
+  FFmpeg are matched by their build's git hash, so a newer daily build is
+  reported as soon as it is published.
 - 🔌 **Installs the extension** for Chrome, Edge, Brave, Opera, Vivaldi, Yandex
   and Firefox, and repairs it if the app folder moves.
 - 🎬 **Opens the real stream** — when a site hides its video behind a player
@@ -81,9 +86,10 @@ site-specific workaround. This makes it one click.
    and open it.
 2. Go to the **Dependencies** tab and press **Download & Install** for **mpv**,
    **yt-dlp** and **FFmpeg** — three separate buttons, install all three. mpv is
-   the player; the other two are what let it open a stream URL. On the same tab,
-   **Install Theme+Anime4K** adds the ModernZ interface and the Anime4K shader
-   set into `%APPDATA%\mpv`.
+   the player, FFmpeg is the matching decoder build from the same shinchiro
+   release, and yt-dlp turns a page URL into a stream mpv can open. On the same
+   tab, **Install Theme+Anime4K** adds the ModernZ interface and the Anime4K
+   shader set into `%APPDATA%\mpv`.
 3. Still on **Dependencies**, press **Install / repair extensions** to set up the
    browser extension. The same tab has a **🦊 Firefox Add-on** button that opens
    the add-on page, and an **Extension Folder** button that opens the folder
@@ -265,7 +271,9 @@ node tools\locale-tests.js      #  40 checks - locale files stay consistent
 
 - [mpv](https://mpv.io/) — the player this project exists to serve
 - [yt-dlp](https://github.com/yt-dlp/yt-dlp) — stream extraction
-- [FFmpeg](https://ffmpeg.org/) — demuxing and conversion
+- [FFmpeg](https://ffmpeg.org/) — demuxing and conversion; the installed
+  builds come from
+  [shinchiro](https://github.com/shinchiro/mpv-winbuild-cmake/releases)
 - [Anime4K](https://github.com/bloc97/Anime4K) — real-time anime upscaling
 - [ModernZ](https://github.com/Samillion/ModernZ) — modern OSC for mpv
 - [SharpCompress](https://github.com/adamhathcock/sharpcompress) — archive

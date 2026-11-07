@@ -4,7 +4,7 @@
 
 <p align="center">
 <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="MIT Lisansı"></a>
-<a href="https://github.com/vegasline/MPVLauncher/releases/latest"><img src="https://img.shields.io/badge/app-1.9.16-blue.svg" alt="Uygulama sürümü 1.9.15"></a>
+<a href="https://github.com/vegasline/MPVLauncher/releases/latest"><img src="https://img.shields.io/badge/app-1.9.16--fix-blue.svg" alt="Uygulama sürümü 1.9.16-fix"></a>
 <a href="https://addons.mozilla.org/firefox/addon/mpv-launcher/"><img src="https://img.shields.io/badge/Firefox_Eklentisi-FF7139FF?logo=firefox-browser&logoColor=white" alt="Firefox eklentisi"></a>
 </p>
 
@@ -32,10 +32,15 @@ videoyu doğrudan oynatıcınıza gönderen bir tarayıcı eklentisi bulunur.
 Normalde tarayıcıdan bir video açmak için indirme aracı, betik ya da sayfaya özel
 bir yöntem gerekir. Bu proje bunu tek tıkla hâle getirir.
 
-- 📥 **mpv'nin ihtiyacı olanları kurar** — mpv, yt-dlp ve FFmpeg'i kendi resmî
-  yayınlarından. Python yok, harici çalışma zamanı yok, sisteme kurulum yok.
+- 📥 **mpv'nin ihtiyacı olanları kurar** — mpv ile FFmpeg'i aynı
+  [shinchiro](https://github.com/shinchiro/mpv-winbuild-cmake/releases) günlük
+  derlemesinden: mpv ve eşleşen `ffmpeg-x86_64-v3` arşivi, ffprobe dahil.
+  yt-dlp kendi yayın sayfasından gelir. Python yok, harici çalışma zamanı yok,
+  sisteme kurulum yok.
 - 🔄 **Bu üçünü güncelleme için denetler** — tek düğme, kurulu sürümleri resmî
-  sürüm sayfalarıyla karşılaştırır ve yalnızca eski olanı günceller.
+  sürüm sayfalarıyla karşılaştırır ve yalnızca eski olanı günceller. mpv ile
+  FFmpeg, derlemenin git hash'iyle karşılaştırılır; yeni günlük derleme
+  yayınlanır yayınlanmaz görünür.
 - 🔌 **Eklentiyi kurar** — Chrome, Edge, Brave, Opera, Vivaldi, Yandex ve Firefox
   için; uygulama klasörü taşınırsa onarır.
 - 🎬 **Gerçek akışı açar** — bir site videoyu bir oynatıcı sayfasının ya da
@@ -81,7 +86,8 @@ bir yöntem gerekir. Bu proje bunu tek tıkla hâle getirir.
    **MPVLauncher.exe** dosyasını indirin ve açın.
 2. **Bağımlılıklar** sekmesine geçin ve **mpv**, **yt-dlp** ile **FFmpeg** için
    **İndir & Kur**'a tıklayın — üç ayrı düğme, üçünü de kurun. mpv oynatıcının
-   kendisidir; diğer ikisi bir akış adresini açabilmesi için gereklidir. Aynı
+   kendisidir, FFmpeg aynı shinchiro derlemesinden gelen eşleşen çözücüdür,
+   yt-dlp ise bir sayfa adresini mpv'nin açabileceği akışa çevirir. Aynı
    sekmede **Tema+anime4k Kur** düğmesi ModernZ arayüzünü ve Anime4K shader
    setini `%APPDATA%\mpv` içine kurar.
 3. Yine **Bağımlılıklar** sekmesinde **Eklentileri hazırla / onar**'a tıklayarak
@@ -269,7 +275,10 @@ node tools\locale-tests.js      #  40 kontrol - dil dosyaları tutarlı kalır
 
 - [mpv](https://mpv.io/) — bu projenin var olma sebebi olan oynatıcı
 - [yt-dlp](https://github.com/yt-dlp/yt-dlp) — akış çıkarımı
-- [FFmpeg](https://ffmpeg.org/) — ayrıştırma ve dönüştürme
+- [FFmpeg](https://ffmpeg.org/) — ayrıştırma ve dönüştürme; kurulan
+  derlemeler
+  [shinchiro](https://github.com/shinchiro/mpv-winbuild-cmake/releases)
+  tarafından üretilir
 - [Anime4K](https://github.com/bloc97/Anime4K) — gerçek zamanlı anime yükseltme
 - [ModernZ](https://github.com/Samillion/ModernZ) — mpv için modern OSC
 - [SharpCompress](https://github.com/adamhathcock/sharpcompress) — arşiv çıkarma

@@ -61,7 +61,11 @@ namespace MpvLauncher.Gui.Services
         private const string MpvAssetPrefix = "mpv-x86_64-v3";
         internal const string YtDlpRepo = "yt-dlp/yt-dlp";
         private const string YtDlpAssetName = "yt-dlp.exe";
-        internal const string FfmpegRepo = "GyanD/codexffmpeg";
+        // FFmpeg now comes from the same project as mpv. One release carries
+        // both archives, so the Dependencies tab watches a single upstream and
+        // compares a single date; two sources meant two different ideas of what
+        // "latest" was.
+        internal const string FfmpegRepo = MpvRepo;
 
         internal static bool IsMpvAsset(string name) =>
             name.StartsWith(MpvAssetPrefix, StringComparison.OrdinalIgnoreCase);
@@ -70,13 +74,14 @@ namespace MpvLauncher.Gui.Services
             name.Equals(YtDlpAssetName, StringComparison.OrdinalIgnoreCase);
 
         /// <summary>
-        /// The FFmpeg release ships several builds; "essentials" is the one this
-        /// app installs, and the .zip variant is preferred over .7z only because
-        /// it was the first match historically. Both extract the same files.
+        /// shinchiro publishes FFmpeg beside mpv for every architecture, in 7z
+        /// archives. The v3 build is the one that pairs with the mpv asset above;
+        /// the plain x86_64, i686 and aarch64 archives are for other machines and
+        /// would install a binary this launcher never runs.
         /// </summary>
         internal static bool IsFfmpegAsset(string name) =>
-            name.Contains("essentials_build", StringComparison.OrdinalIgnoreCase)
-            && name.EndsWith(".zip", StringComparison.OrdinalIgnoreCase);
+            name.StartsWith("ffmpeg-x86_64-v3", StringComparison.OrdinalIgnoreCase)
+            && name.EndsWith(".7z", StringComparison.OrdinalIgnoreCase);
 
         /// <summary>
         /// One release as far as the update check needs it: the tag for display,
@@ -204,18 +209,8 @@ namespace MpvLauncher.Gui.Services
                 }
                 case ToolKind.Ffmpeg:
                 {
-                    try
-                    {
-                        var zip = await FindGitHubAssetAsync(FfmpegRepo, IsFfmpegAsset, ct);
-                        return (zip.Url, zip.Name);
-                    }
-                    catch
-                    {
-                        var seven = await FindGitHubAssetAsync(FfmpegRepo, name =>
-                            name.Contains("essentials_build", StringComparison.OrdinalIgnoreCase)
-                            && name.EndsWith(".7z", StringComparison.OrdinalIgnoreCase), ct);
-                        return (seven.Url, seven.Name);
-                    }
+                    var archive = await FindGitHubAssetAsync(FfmpegRepo, IsFfmpegAsset, ct);
+                    return (archive.Url, archive.Name);
                 }
                 default:
                     throw new ArgumentOutOfRangeException(nameof(kind));
@@ -535,16 +530,15 @@ namespace MpvLauncher.Gui.Services
         }
 
         /// <summary>
-        /// FFmpeg's archive is a single flat bin\ folder, so two executables are
-        /// copied rather than the whole tree.
+        /// Copies FFmpeg out of the shinchiro archive, which holds a single
+        /// ffmpeg.exe at its root - no bin\ folder and no ffprobe.
         ///
-        /// ffprobe is kept because yt-dlp shells out to it for several
-        /// operations. ffplay is not copied: it is a video player, mpv is the
-        /// player here, and the copy is 102 MB that nothing ever opens. That
-        /// matters beyond disk space - the Show folder button opens the tools
-        /// directory, and Explorer reads the version resource of every binary
-        /// there, so a folder holding half a gigabyte of executables takes tens
-        /// of seconds to appear.
+        /// ffprobe is still copied when a build ships one, because yt-dlp shells
+        /// out to it, and an install made from the old gyan.dev archive already
+        /// has it on disk. Its absence is not an error: nothing in this launcher
+        /// calls it. ffplay is never copied - mpv is the player here, and a
+        /// second 102 MB executable in the tools folder only makes Explorer slow
+        /// to draw that folder.
         /// </summary>
         private static string PlaceFfmpeg(string extractDir)
         {

@@ -39,13 +39,16 @@ namespace MpvLauncher.Gui.Services
     /// <summary>
     /// Compares the three external tools against their upstream releases.
     ///
-    /// Two kinds of comparison are needed because the tools version themselves
+    /// Three kinds of comparison are needed because the tools version themselves
     /// differently. yt-dlp publishes dated versions on every release, so the tag
     /// and the installed version are directly comparable. mpv and FFmpeg publish
-    /// continuous daily builds whose binaries carry no date in their version
-    /// string, so the only honest comparison is the build's file timestamp
-    /// against the release date - and even then a build from last week is not
-    /// worth replacing, hence the staleness window.
+    /// continuous daily builds whose version strings carry no date, but both the
+    /// release asset name and the installed binary's banner carry the short git
+    /// hash of the commit they were built from - the one field that says whether
+    /// an installed build is the latest one. When neither side has a hash (an
+    /// older install that recorded none) the build's file timestamp against the
+    /// release date is the last resort, still with a staleness window so that a
+    /// build from last week is not replaced on principle.
     ///
     /// Nothing here installs or downloads beyond reading the release metadata;
     /// the installer is the same one the per-tool buttons use.
@@ -211,7 +214,12 @@ namespace MpvLauncher.Gui.Services
                 Installed = $"{CompactVersion(installedVersion)} ({installedAt.ToLocalTime():yyyy-MM-dd})",
                 Latest = DescribeBuild(release),
                 State = CompareInstalled(
-                    installedVersion, release.Tag, release.PublishedAt, installedAt, DateTimeOffset.UtcNow)
+                    installedVersion,
+                    release.Tag,
+                    release.PublishedAt,
+                    installedAt,
+                    DateTimeOffset.UtcNow,
+                    releaseBuildHash: TryGetBuildHash(release.AssetName, out var hash) ? hash : null)
             };
         }
 
@@ -219,13 +227,19 @@ namespace MpvLauncher.Gui.Services
         /// Decides the state for a tool that may or may not carry a comparable
         /// version number.
         ///
-        /// FFmpeg is both cases depending on where the build came from: gyan.dev
-        /// publishes versioned releases ("9.0.2") whose version string matches
-        /// the tag, and continuous git builds ("N-121xxx") that do not. When both
-        /// sides parse, the versions decide - a month-old install of the current
-        /// release is still current. Only the unparseable case falls back to the
-        /// build date, which is what MPV always uses because its shinchiro tags
-        /// are dates.
+        /// The git hash comes first because it is the only exact answer for a
+        /// daily build. shinchiro's releases are tagged with a bare date
+        /// ("20261107"), which is not a version, while the same build reports
+        /// "mpv v0.41.0-1227-ge471496c5" - two strings with nothing in common
+        /// except the commit. Comparing hashes says "same build" or "newer
+        /// build" without waiting for an arbitrary window to pass, which is
+        /// what made a 17-day-old mpv look current.
+        ///
+        /// Background (artist): the window below exists for installs that
+        /// recorded no hash - an older launcher, or a probe that failed. There,
+        /// the build's file date is the only hint, and thirty days keeps such
+        /// an install from being replaced on principle. A versioned string
+        /// ("9.0.2") still wins over both when nothing else is known.
         /// </summary>
         public static ToolUpdateState CompareInstalled(
             string? installedVersion,
@@ -233,8 +247,17 @@ namespace MpvLauncher.Gui.Services
             DateTimeOffset? releasedAt,
             DateTimeOffset installedAt,
             DateTimeOffset now,
-            int staleDays = StaleBuildDays)
+            int staleDays = StaleBuildDays,
+            string? releaseBuildHash = null)
         {
+            if (!string.IsNullOrEmpty(releaseBuildHash)
+                && TryGetBuildHash(installedVersion, out var haveHash))
+            {
+                return SameBuild(haveHash, releaseBuildHash)
+                    ? ToolUpdateState.UpToDate
+                    : ToolUpdateState.Available;
+            }
+
             if (TryParseVersion(installedVersion, out var have)
                 && TryParseVersion(releaseTag, out var want))
             {
@@ -245,6 +268,53 @@ namespace MpvLauncher.Gui.Services
                 ? ToolUpdateState.Available
                 : ToolUpdateState.UpToDate;
         }
+
+        /// <summary>
+        /// Reads the short git hash out of either an asset name
+        /// ("mpv-x86_64-v3-20261021-git-e471496c56.7z") or an installed
+        /// binary's banner ("mpv v0.41.0-1227-ge471496c5").
+        ///
+        /// The two are not spelled the same length: git abbreviates to
+        /// whatever is unambiguous, so the asset carries ten characters and the
+        /// binary nine. Only the leading run of hex is kept; matching handles
+        /// the length (see <see cref="SameBuild"/>).
+        /// </summary>
+        public static bool TryGetBuildHash(string? text, out string hash)
+        {
+            hash = "";
+            if (string.IsNullOrWhiteSpace(text)) return false;
+
+            int start;
+            int marker = text.LastIndexOf("-git-", StringComparison.OrdinalIgnoreCase);
+            if (marker >= 0)
+            {
+                start = marker + "-git-".Length;
+            }
+            else
+            {
+                marker = text.LastIndexOf("-g", StringComparison.OrdinalIgnoreCase);
+                if (marker < 0) return false;
+                start = marker + 2;
+            }
+
+            int end = start;
+            while (end < text.Length && char.IsAsciiHexDigit(text[end])) end++;
+
+            int length = end - start;
+            if (length < 7) return false;
+
+            hash = text[start..end].ToLowerInvariant();
+            return true;
+        }
+
+        /// <summary>
+        /// True when two short hashes name the same commit. A banner and an
+        /// asset name routinely abbreviate the same hash to different lengths,
+        /// so one being a prefix of the other is a match; anything else is a
+        /// different build.
+        /// </summary>
+        private static bool SameBuild(string a, string b) =>
+            a.StartsWith(b, StringComparison.Ordinal) || b.StartsWith(a, StringComparison.Ordinal);
 
         private static ToolUpdateInfo Failed(ToolKind kind, string name, Exception ex) => new()
         {

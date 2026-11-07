@@ -849,8 +849,8 @@
                                             <ColumnDefinition Width="Auto"/>
                                         </Grid.ColumnDefinitions>
                                         <StackPanel Grid.Column="0" Margin="0,0,12,0">
-                                            <TextBlock Text="FFmpeg (essentials)" FontSize="13" FontWeight="SemiBold"/>
-                                            <TextBlock Text="gyan.dev → ffmpeg-git-essentials.7z" FontSize="11" Foreground="{DynamicResource TextMutedBrush}" Margin="0,2,0,0"/>
+                                            <TextBlock Text="FFmpeg" FontSize="13" FontWeight="SemiBold"/>
+                                            <TextBlock Text="shinchiro/mpv-winbuild-cmake → ffmpeg-x86_64-v3.7z" FontSize="11" Foreground="{DynamicResource TextMutedBrush}" Margin="0,2,0,0"/>
                                         </StackPanel>
                                         <Button x:Name="BtnInstallFfmpeg" Grid.Column="1" Style="{StaticResource ModernButton}" Content="Download &amp; Install" Click="BtnInstallFfmpeg_Click" VerticalAlignment="Center" Padding="14,8"/>
                                     </Grid>
