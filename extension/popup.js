@@ -464,7 +464,9 @@ document.addEventListener("DOMContentLoaded", async () => {
    * filled in by the background script from the captured request; if nothing
    * was captured, no Referer is sent at all.
    */
-  async function sendToMpv(url, referrer = null, title = "") {
+  // Only the page-level button may use the relay; a list row is a plain media
+  // item and mpv opens it directly.
+  async function sendToMpv(url, referrer = null, title = "", pageUrl = "", pageLevel = false) {
     setStatus(t("starting_mpv"), "warning");
     try {
       const response = await browserApi.runtime.sendMessage({
@@ -474,12 +476,26 @@ document.addEventListener("DOMContentLoaded", async () => {
         // The site's title, not the link's: the history row should read like the
         // tab it came from ("Paws & Palaces 4. Bölüm İzle"), even when the URL
         // handed to mpv is a bare .m3u8 on a CDN.
-        title: title || ""
+        title: title || "",
+        // Only used when the URL is a spent, extension-less stream token: the
+        // relay then renders this page instead of replaying the URL.
+        pageUrl: pageUrl || "",
+        // The relay fetches through the tab the viewer already has open, so the
+        // popup has to name it: its message carries no sender tab.
+        tabId: activeTab ? activeTab.id : null,
+        // Relay is for the page itself, never for a row in the found-media list.
+        pageLevel: pageLevel === true
       });
       if (response && response.success) {
         setStatus(t("mpv_started"), "success");
       } else {
-        const errMsg = response && response.error ? response.error : "Could not start.";
+        let errMsg = response && response.error ? response.error : "Could not start.";
+        // Relay failures arrive as codes (relay_token_expired and friends);
+        // showing the identifier to the user explains nothing.
+        if (typeof errMsg === "string" && errMsg.startsWith("relay_")) {
+          const translated = t(errMsg);
+          if (translated && translated !== errMsg) errMsg = translated;
+        }
         setStatus(t("error_prefix") + errMsg, "error");
       }
     } catch (err) {
@@ -684,7 +700,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       const btnPlay = document.createElement("button");
       btnPlay.className = "btn btn-primary btn-small";
       btnPlay.textContent = t("btn_open_mpv");
-      btnPlay.onclick = () => sendToMpv(item.url, null, activeTab ? activeTab.title : "");
+      btnPlay.onclick = () => sendToMpv(item.url, null, activeTab ? activeTab.title : "", activeTab ? activeTab.url : "");
 
       actions.appendChild(btnCopy);
       actions.appendChild(btnPlay);
@@ -863,7 +879,8 @@ document.addEventListener("DOMContentLoaded", async () => {
   activeTab = await getActiveTab();
   if (activeTab) {
     pageTitleEl.textContent = activeTab.title || activeTab.url;
-    btnPlayPage.onclick = () => sendToMpv(activeTab.url, null, activeTab.title);
+    // Only this button may use the relay: it opens the page the user is on.
+    btnPlayPage.onclick = () => sendToMpv(activeTab.url, null, activeTab.title, activeTab.url, true);
     btnRescan.onclick = () => scanCurrentTab({ fresh: true });
     await scanCurrentTab();
   } else {

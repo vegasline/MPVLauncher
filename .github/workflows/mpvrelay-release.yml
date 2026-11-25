@@ -1,0 +1,70 @@
+name: Build and Release mpvrelay
+
+on:
+  push:
+    tags:
+      - 'mpvrelay-v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to publish (mpvrelay-vX.Y.Z)'
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: tools/mpvrelay
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: 'npm'
+          cache-dependency-path: tools/mpvrelay/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests
+        run: npm test
+
+      - name: Build helper
+        run: npm run build
+
+      - name: Write checksum
+        shell: pwsh
+        run: |
+          $exe = 'build/mpvrelay.exe'
+          if (-not (Test-Path $exe)) {
+            throw "Helper was not built at $exe"
+          }
+          $hash = (Get-FileHash -Algorithm SHA256 $exe).Hash.ToLowerInvariant()
+          "$hash  mpvrelay.exe" | Out-File -Encoding ascii -NoNewline 'build/mpvrelay.exe.sha256'
+          Get-Content 'build/mpvrelay.exe.sha256'
+
+      - name: Create release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+          name: mpvrelay ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+          body: |
+            Local relay helper for MPV Launcher's browser relay.
+
+            `mpvrelay.exe` is downloaded and updated by MPV Launcher itself; there
+            is nothing to install by hand. The launcher verifies the file against
+            the published SHA-256 before it runs.
+
+            See [docs/browser-relay.md](https://github.com/vegasline/MPVLauncher/blob/main/docs/browser-relay.md).
+          files: |
+            tools/mpvrelay/build/mpvrelay.exe
+            tools/mpvrelay/build/mpvrelay.exe.sha256
+          fail_on_unmatched_files: true

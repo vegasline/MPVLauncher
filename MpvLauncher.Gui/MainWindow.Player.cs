@@ -8,6 +8,7 @@ using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
@@ -132,6 +133,17 @@ namespace MpvLauncher.Gui
                 return;
             }
 
+            var cfg = _configService.Config;
+
+            // A site the relay has already solved is asked again before mpv is
+            // started: the direct attempt is the one that failed last time, and
+            // repeating it only costs the user a second wait.
+            if (RelayRouting.ForManual(target, cfg.RelayEnabled, IsRelayHostLearned(target), cfg.RelayBlacklist) == MediaRoute.Relay)
+            {
+                _ = PlayWithRelayAsync(target);
+                return;
+            }
+
             TxtStatus.Text = _locService.Get("status_playing", "Launching MPV...");
             var res = _procService.PlayMedia(target);
 
@@ -160,6 +172,112 @@ namespace MpvLauncher.Gui
             // its <title> in the background. A stream or a local file simply
             // keeps showing its link.
             _ = FillHistoryTitleAsync(target);
+
+            // Only a launch that never got mpv running falls back: a player that
+            // opened and then showed 403 has already told the user what it saw,
+            // and starting a second playback behind their back would be worse
+            // than the error.
+            if (!res.Success && RelayRouting.CanFallBackToRelay(target, cfg.RelayEnabled, cfg.RelayBlacklist))
+                _ = PlayWithRelayAsync(target);
+        }
+
+        /// <summary>True when the relay has already solved this host once.</summary>
+        private bool IsRelayHostLearned(string target)
+        {
+            string host = RelayRouting.HostKey(target);
+            if (host.Length == 0) return false;
+
+            foreach (string learned in _configService.Config.RelayLearnedHosts)
+            {
+                if (string.Equals(learned, host, StringComparison.OrdinalIgnoreCase)) return true;
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Renders the page in the relay helper and plays what it serves.
+        ///
+        /// The page URL is what gets remembered, not the loopback URL: history
+        /// rows and the title backfill must keep pointing at the site the user
+        /// came from, and the local address dies with the session.
+        /// </summary>
+        private async Task PlayWithRelayAsync(string pageUrl)
+        {
+            var cfg = _configService.Config;
+
+            if (!cfg.RelayEnabled)
+            {
+                TxtStatus.Text = _locService.Get("relay_disabled",
+                    "Browser relay is off. Enable it in Settings to play this stream.");
+                return;
+            }
+
+            if (!RelaySessionService.IsAvailable())
+            {
+                TxtStatus.Text = _locService.Get("relay_helper_missing",
+                    "Browser relay helper is not installed. Install it on the Dependencies tab.");
+                return;
+            }
+
+            TxtStatus.Text = _locService.Get("relay_starting",
+                "Waiting for the page to hand over its stream...");
+
+            RelaySession? session = null;
+            try
+            {
+                session = await RelaySessionService.StartAsync(
+                    pageUrl, title: "", progress: null, headless: true, CancellationToken.None);
+
+                var res = _procService.PlayMedia(session.LocalUrl, addHistory: false);
+                if (!res.Success || res.Process == null)
+                {
+                    TxtStatus.Text = res.Args.Length > 0
+                        ? _locService.Format(res.MessageKey, "", res.Args)
+                        : _locService.Get(res.MessageKey);
+                    return;
+                }
+
+                session.AttachMpv(res.Process.Id);
+                LearnRelayHost(pageUrl);
+
+                // Handed over: the helper watches mpv now, so this session must
+                // not be disposed on the way out.
+                session = null;
+
+                _configService.AddHistory(pageUrl);
+                TxtStatus.Text = _locService.Get("relay_playing",
+                    "Playing through the browser relay.");
+                LoadHistory();
+                _ = FillHistoryTitleAsync(pageUrl);
+            }
+            catch (RelayException ex)
+            {
+                TxtStatus.Text = _locService.Get(ex.Code,
+                    "The browser relay could not find a playable stream on this page.");
+            }
+            catch (Exception ex)
+            {
+                TxtStatus.Text = _locService.Format("relay_failed",
+                    "Browser relay failed: {0}", ex.Message);
+            }
+            finally
+            {
+                session?.Dispose();
+            }
+        }
+
+        private void LearnRelayHost(string pageUrl)
+        {
+            string host = RelayRouting.HostKey(pageUrl);
+            if (host.Length == 0 || IsRelayHostLearned(pageUrl)) return;
+
+            var hosts = _configService.Config.RelayLearnedHosts;
+            hosts.Add(host);
+
+            // A host that keeps failing should not grow the file forever, and
+            // the order is the only thing that says which one is newest.
+            while (hosts.Count > 50) hosts.RemoveAt(0);
+            _configService.Save();
         }
 
         /// <summary>

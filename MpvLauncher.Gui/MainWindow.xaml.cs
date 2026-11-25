@@ -280,6 +280,7 @@ namespace MpvLauncher.Gui
             }
 
             PopulateTorrentSettings();
+            PopulateRelaySettings();
 
             _ = RefreshDependenciesAsync();
             _ = InitializeBrowserIntegrationAsync();

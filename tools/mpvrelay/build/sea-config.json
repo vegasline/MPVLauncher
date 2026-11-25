@@ -1,0 +1,7 @@
+{
+  "main": "C:\\Users\\Administrator\\source\\repos\\mpv-opn\\tools\\mpvrelay\\build\\relay.cjs",
+  "output": "C:\\Users\\Administrator\\source\\repos\\mpv-opn\\tools\\mpvrelay\\build\\sea-prep.blob",
+  "disableExperimentalSEAWarning": true,
+  "useCodeCache": false,
+  "useSnapshot": false
+}

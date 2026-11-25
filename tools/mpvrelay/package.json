@@ -1,0 +1,22 @@
+{
+  "name": "mpvrelay",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Browser relay helper for MPVLauncher: plays streams that only a real browser can fetch.",
+  "license": "MIT",
+  "type": "module",
+  "main": "src/index.js",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "start": "node src/index.js",
+    "test": "node --test test/*.test.js",
+    "bundle": "node scripts/build-sea.mjs --bundle-only",
+    "build": "node scripts/build-sea.mjs"
+  },
+  "devDependencies": {
+    "esbuild": "0.28.2",
+    "postject": "1.0.0-alpha.6"
+  }
+}

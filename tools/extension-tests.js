@@ -55,7 +55,7 @@ function typesCtx() {
  */
 function boot(sessionStore, shape = "firefox", honourExtraHeaders = false, permOptions = {}) {
   const { granted = true, canRequest = true, hasApi = true } = permOptions;
-  const listeners = { beforeSend: [], headersReceived: [] };
+  const listeners = { beforeSend: [], headersReceived: [], tabUpdated: [] };
   const messageHandlers = [];
   const calls = [];
   const asked = [];
@@ -94,6 +94,9 @@ function boot(sessionStore, shape = "firefox", honourExtraHeaders = false, permO
     webRequest: {
       onBeforeSendHeaders: evt("onBeforeSendHeaders", listeners.beforeSend),
       onHeadersReceived: evt("onHeadersReceived", listeners.headersReceived)
+    },
+    tabs: {
+      onUpdated: evt("tabs.onUpdated", listeners.tabUpdated)
     },
     runtime: {
       onMessage: { addListener: (fn) => messageHandlers.push(fn) },
@@ -1582,6 +1585,208 @@ function runContentScript({ url, videos = [], widgets = [], innerText = "", hasM
       (sources.match(/function\s+mpvSortForDisplay\s*\([^)]*\)\s*\{/g) || []).length === 1);
     check("the popup draws the sorted copy, not the merged array",
       /mpvSortForDisplay\(mediaItems\)\.forEach/.test(read("popup.js")));
+
+    // The capture lives in a top-level var declared by network_capture.js, not
+    // on the `api` object (chrome/browser). Reading it there always answered
+    // "no capture" and quietly disabled the picker on every site that only the
+    // tab itself can fetch.
+    check("the capture is read from the shared scope, not from `api`",
+      !/api\.MPV_Network/.test(read("background.js")),
+      "api.MPV_Network is never defined; use typeof MPV_Network");
+
+    // A capture webRequest already saw must reach the picker. The broken lookup
+    // did not throw - it reported "cap=absent" and the relay fell back to the
+    // page URL, so only an end-to-end pick proves the wiring.
+    const cap = await bootReady();
+    fire(cap, "https://cdn.example.com/master.m3u8", "application/vnd.apple.mpegurl", { length: 900 });
+    const picked = await vm.runInContext(
+      'pickCapturedStream(1, "https://site.com/watch/1")', cap.ctx);
+    check("a captured manifest is picked",
+      !!picked && /master\.m3u8/.test(picked.url || ""), JSON.stringify(picked));
+    check("the pick reports the capture, not cap=absent",
+      !!picked && !/cap=absent/.test(picked.note || ""), picked && picked.note);
+
+    // majorplay serves its own config JSON with a playlist content-type. mpv
+    // cannot play it, and picking it hid the real manifest that followed.
+    const cfg = await bootReady();
+    fire(cfg, "https://cdn.example.com/v/config-1.json", "application/vnd.apple.mpegurl", { length: 900 });
+    fire(cfg, "https://cdn.example.com/v/index.m3u8", "application/vnd.apple.mpegurl", { length: 900 });
+    const noJson = await vm.runInContext(
+      'pickCapturedStream(1, "https://site.com/watch/1")', cfg.ctx);
+    check("a json config is never picked over the manifest",
+      !!noJson && /index\.m3u8/.test(noJson.url || ""), JSON.stringify(noJson));
+
+    // Switching episodes inside one tab must not replay the previous capture.
+    // The tab's URL is the only signal the extension gets, so the second URL
+    // change has to drop whatever the first page captured.
+    const nav = await bootReady();
+    const tabs = nav.listeners.tabUpdated;
+    for (const fn of tabs) fn(1, { url: "https://site.com/watch/1" }, {});
+    fire(nav, "https://cdn.example.com/one.m3u8", "application/vnd.apple.mpegurl", { length: 100 });
+    const kept = await vm.runInContext("MPV_Network.getItems(1)", nav.ctx);
+    for (const fn of tabs) fn(1, { url: "https://site.com/watch/2" }, {});
+    const dropped = await vm.runInContext("MPV_Network.getItems(1)", nav.ctx);
+    check("a tab keeps its captures while the URL is unchanged",
+      kept.length === 1, `kept ${kept.length}`);
+    check("a new page in the same tab drops the old captures",
+      dropped.length === 0, `dropped ${dropped.length}`);
+
+    // The relay belongs to the page the user is on. A row in the popup's list
+    // can point at another host (a YouTube Shorts row pointed at
+    // accounts.google.com), and relaying that through the tab only ended in
+    // relay_no_stream. List rows must go straight to the native host.
+    const gate = await bootReady();
+    const native = [];
+    gate.webext.runtime.sendNativeMessage = (host, payload, cb) => {
+      native.push(payload);
+      const reply = { status: "accepted" };
+      if (typeof cb === "function") { cb(reply); return undefined; }
+      return Promise.resolve(reply);
+    };
+    const askMpv = (b, message) => new Promise((resolve) => {
+      for (const fn of b.messageHandlers) {
+        if (fn(message, { tab: { id: 1 } }, resolve) === true) return;
+      }
+      resolve(undefined);
+    });
+
+    fire(gate, "https://cdn.example.com/one.m3u8", "application/vnd.apple.mpegurl", { length: 100 });
+
+    await askMpv(gate, {
+      action: "open_in_mpv",
+      url: "https://accounts.google.com/signin",
+      title: "Sign in",
+      pageUrl: "https://site.com/watch",
+      tabId: 1
+    });
+    check("a popup list row is never relayed",
+      native.length === 1 && native[0].url === "https://accounts.google.com/signin",
+      JSON.stringify(native.map((p) => p.url)));
+
+    await askMpv(gate, {
+      action: "open_in_mpv",
+      url: "https://site.com/watch",
+      title: "Watch",
+      pageUrl: "https://site.com/watch",
+      pageLevel: true,
+      tabId: 1
+    });
+    check("the page-level button picks the capture",
+      native.length === 2 && native[1].url === "https://cdn.example.com/one.m3u8",
+      JSON.stringify(native.map((p) => p.url)));
+
+    // A tab emptied on navigation must not get its saved copy back: the restore
+    // from storage.session is async, so a clear that happens first has to win.
+    const oldCapture = {
+      url: "https://cdn.example.com/old.m3u8",
+      contentType: "application/vnd.apple.mpegurl",
+      seenAt: Date.now(),
+      headers: []
+    };
+    const raced = boot({ mpvNetworkCaptures: { 1: [JSON.parse(JSON.stringify(oldCapture))] } });
+    vm.runInContext("MPV_Network.clearTab(1)", raced.ctx);
+    await raced.ready;
+    const afterClear = await vm.runInContext("MPV_Network.getItems(1)", raced.ctx);
+    check("a cleared tab does not get its saved captures back",
+      afterClear.length === 0, `restored ${afterClear.length}`);
+
+    const restored = await bootReady({
+      mpvNetworkCaptures: { 1: [JSON.parse(JSON.stringify(oldCapture))] }
+    });
+    const afterRestore = await vm.runInContext("MPV_Network.getItems(1)", restored.ctx);
+    check("a saved capture is still restored when the tab was not cleared",
+      afterRestore.length === 1, `restored ${afterRestore.length}`);
+
+    // A page that swaps episodes without reloading keeps the old requests in
+    // its resource timeline, and each frame answers in its own order. The sweep
+    // must hand back the newest request first, or the relay replays episode one.
+    const sweep = await bootReady();
+    sweep.webext.scripting = {
+      executeScript: () => Promise.resolve([
+        { result: { scanned: 3, items: [{ url: "https://site.com/w/OLD", at: 10 }] } },
+        { result: { scanned: 5, items: [{ url: "https://site.com/w/NEW", at: 90 }] } }
+      ])
+    };
+    const swept = await vm.runInContext("sweepPageForStream(1)", sweep.ctx);
+    check("the sweep lists the newest request first",
+      swept.urls[0] === "https://site.com/w/NEW", JSON.stringify(swept.urls));
+    check("the sweep counts every inspected frame",
+      swept.scanned === 8, `scanned ${swept.scanned}`);
+
+    // The page stamps the moment it was navigated. Requests older than that
+    // belong to the episode the viewer left, and replaying one of them is the
+    // bug this filter exists to stop.
+    const marked = await bootReady();
+    marked.webext.scripting = {
+      executeScript: () => Promise.resolve([
+        { result: { scanned: 3, navAt: 5000, items: [
+          { url: "https://site.com/w/OLD", at: 1000 },
+          { url: "https://site.com/w/MID", at: 4500 },
+          { url: "https://site.com/w/NEW", at: 6000 }
+        ] } }
+      ])
+    };
+    const narrowed = await vm.runInContext("sweepPageForStream(1, true)", marked.ctx);
+    check("the sweep drops requests made before the page was navigated",
+      narrowed.urls.length === 2 && narrowed.urls[0] === "https://site.com/w/NEW",
+      JSON.stringify(narrowed.urls));
+    check("the sweep reports how many requests it dropped",
+      narrowed.dropped === 1, `dropped ${narrowed.dropped}`);
+    check("a request made just before the navigation stamp survives the filter",
+      narrowed.urls.includes("https://site.com/w/MID"), JSON.stringify(narrowed.urls));
+    check("the sweep reports the navigation stamp age",
+      typeof narrowed.navAt === "number" && narrowed.navAt === 5000, `navAt ${narrowed.navAt}`);
+
+    const unfiltered = await vm.runInContext("sweepPageForStream(1, false)", marked.ctx);
+    check("an unfiltered sweep keeps the whole timeline",
+      unfiltered.urls.length === 3, JSON.stringify(unfiltered.urls));
+
+    // Opening another site in the same tab leaves the previous page's requests
+    // in the timeline. They must never be played again: the picker waits for
+    // the new player instead, and only then hands a stream over.
+    const patient = await bootReady();
+    patient.webext.scripting = {
+      executeScript: () => Promise.resolve([
+        { result: { scanned: 2, navAt: 5000, items: [
+          { url: "https://site.com/w/OLD", at: 1000 }
+        ] } }
+      ])
+    };
+    vm.runInContext("setTimeout = (fn) => { fn(); return 0; }", patient.ctx);
+    const waitedOut = await vm.runInContext("pickCapturedStream(1, 'https://site.com/other')", patient.ctx);
+    check("a fresh navigation never falls back to the previous episode",
+      waitedOut.url === "", waitedOut.url);
+    check("the picker reports that it waited for the player",
+      /wait=20/.test(waitedOut.note || ""), waitedOut.note);
+
+    const patientLater = await bootReady();
+    let sweepCalls = 0;
+    patientLater.webext.scripting = {
+      executeScript: () => {
+        sweepCalls += 1;
+        return Promise.resolve([
+          { result: { scanned: 2, navAt: 5000, items: sweepCalls > 1
+            ? [{ url: "https://site.com/w/NEW", at: 6000 }]
+            : [{ url: "https://site.com/w/OLD", at: 1000 }] } }
+        ]);
+      }
+    };
+    vm.runInContext("setTimeout = (fn) => { fn(); return 0; }", patientLater.ctx);
+    const laterPick = await vm.runInContext("pickCapturedStream(1, 'https://site.com/other')", patientLater.ctx);
+    check("the picker takes the request the new page makes while it waits",
+      laterPick.url === "https://site.com/w/NEW", laterPick.url);
+    // The player already knows its stream while it sits idle, so the picker
+    // must ask it instead of waiting for a request the page may never make.
+    const probed = await bootReady();
+    probed.webext.scripting = {
+      executeScript: (opts) => Promise.resolve(
+        opts && opts.world === "MAIN"
+          ? [{ result: { urls: ["https://site.com/w/FROM-PLAYER"] } }]
+          : [{ result: { scanned: 4, navAt: 5000, items: [{ url: "https://site.com/w/OLD", at: 1000 }] } }])
+    };
+    const probePick = await vm.runInContext("pickCapturedStream(1, \"https://site.com/watch\")", probed.ctx);
+    check("the picker takes the stream the player already holds",
+      probePick.url === "https://site.com/w/FROM-PLAYER", JSON.stringify(probePick));
   }
 
   console.log(`\nRESULT: ${pass} passed, ${fail} failed`);

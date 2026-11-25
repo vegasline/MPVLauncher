@@ -108,6 +108,71 @@ function mpvPathHasExt(pathname, exts) {
   return false;
 }
 
+/**
+ * Extensions that make a URL a media file on its own.
+ *
+ * Kept identical to RelayRouting.MediaExtensions in the launcher: both ends
+ * must agree about which URLs skip the relay entirely, or the extension asks
+ * for a relay on a URL mpv would have opened directly.
+ */
+var MPV_MEDIA_FILE_EXTENSIONS = [
+  "m3u8", "m3u", "mpd", "mp4", "m4v", "mkv", "webm", "mov", "avi",
+  "ts", "m2ts", "mp3", "aac", "flac", "ogg", "opus", "wav"
+];
+
+/** True when the URL's own path ends in one of the media file extensions. */
+function mpvPathEndsWithMediaExtension(rawUrl) {
+  var path = "";
+  try {
+    path = new URL(String(rawUrl || "")).pathname || "";
+  } catch (e) {
+    path = String(rawUrl || "").split(/[?#]/)[0];
+  }
+
+  var slash = path.lastIndexOf("/");
+  var dot = path.lastIndexOf(".");
+  if (dot === -1 || dot < slash) return false;
+
+  var ext = path.slice(dot + 1).toLowerCase();
+  for (var i = 0; i < MPV_MEDIA_FILE_EXTENSIONS.length; i++) {
+    if (MPV_MEDIA_FILE_EXTENSIONS[i] === ext) return true;
+  }
+  return false;
+}
+
+/**
+ * How the launcher should treat a URL the extension is about to send.
+ *
+ * Returns "resolve" for a stream the page's own player already fetched: an
+ * extension-less URL on the tab's own origin. Those tokens are usually single
+ * use, so replaying the captured URL in mpv earns a 403 - the relay has to
+ * render the page itself, which is why the page URL travels with the message.
+ *
+ * Everything else returns "", meaning "no opinion": a media file goes to mpv
+ * directly and a plain page URL keeps its normal yt-dlp attempt.
+ */
+function mpvRelayKind(targetUrl, pageUrl) {
+  if (!targetUrl || !pageUrl) return "";
+  if (mpvPathEndsWithMediaExtension(targetUrl)) return "";
+
+  var target, page;
+  try {
+    target = new URL(String(targetUrl));
+    page = new URL(String(pageUrl));
+  } catch (e) {
+    return "";
+  }
+
+  if (target.protocol !== "http:" && target.protocol !== "https:") return "";
+  // A CDN stream is not behind the page's bot wall and mpv can open it
+  // directly, so it never needs the relay - and relaying it would turn every
+  // one of its segments into one brokered fetch, which stalls.
+  if (target.origin !== page.origin) return "";
+  if (target.pathname === page.pathname) return "";
+
+  return "resolve";
+}
+
 /** Content-Type header value with any ";charset=..." suffix removed. */
 function mpvNormalizeContentType(value) {
   if (!value) return "";

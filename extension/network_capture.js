@@ -36,6 +36,10 @@ var MPV_Network = (function () {
 
   // tabId -> array of captured items
   var byTab = new Map();
+  // Tabs whose list was dropped on purpose (a new episode loaded). The saved
+  // copy is still on disk at that moment, so the lazy restore below would put
+  // the previous episode's links straight back. Those tabs must be skipped.
+  var clearedTabs = new Set();
   // requestId -> request headers seen before the response arrived
   var pendingRequestHeaders = new Map();
 
@@ -252,6 +256,10 @@ var MPV_Network = (function () {
   function merge(saved) {
     if (!saved || typeof saved !== "object") return;
     Object.keys(saved).forEach(function (tabId) {
+      var numeric = parseInt(tabId, 10);
+      // The user already moved this tab to another episode; restoring the old
+      // list here is exactly what made the popup keep replaying episode one.
+      if (clearedTabs.has(numeric)) return;
       var list = saved[tabId];
       if (!Array.isArray(list) || !list.length) return;
       var target = itemsFor(parseInt(tabId, 10));
@@ -324,6 +332,27 @@ var MPV_Network = (function () {
     pendingRequestHeaders.set(details.requestId, safeRequestHeaders(details.requestHeaders));
   }
 
+  // A page that swaps episodes keeps the same tab and only changes its URL.
+  // The previous episode's captures then still look like the newest stream, so
+  // the relay replays the first video. A navigation drops what the tab held.
+  var tabUrls = new Map();
+
+  function onTabUpdated(tabId, changeInfo) {
+    if (!changeInfo || typeof changeInfo.url !== "string" || !changeInfo.url) return;
+    var previous = tabUrls.get(tabId);
+    tabUrls.set(tabId, changeInfo.url);
+    if (previous && previous !== changeInfo.url) clearTab(tabId);
+  }
+
+  function watchTabUrls() {
+    if (!webext || !webext.tabs || !webext.tabs.onUpdated) return;
+    try {
+      webext.tabs.onUpdated.addListener(onTabUpdated);
+    } catch (e) {
+      // A missing "tabs" permission only loses the automatic clear.
+    }
+  }
+
   function register() {
     if (!hasWebRequest()) return false;
 
@@ -339,6 +368,7 @@ var MPV_Network = (function () {
         webext.webRequest.onBeforeSendHeaders.addListener(
           onBeforeSendHeaders, { urls: ["<all_urls>"] }, requestHeaderExtras);
       }
+      watchTabUrls();
       listenersInstalled = true;
       return true;
     } catch (e) {
@@ -351,6 +381,7 @@ var MPV_Network = (function () {
           webext.webRequest.onBeforeSendHeaders.addListener(
             onBeforeSendHeaders, { urls: ["<all_urls>"] }, ["requestHeaders"]);
         }
+        watchTabUrls();
         listenersInstalled = true;
         return true;
       } catch (e2) {
@@ -380,6 +411,9 @@ var MPV_Network = (function () {
 
   function clearTab(tabId) {
     byTab.delete(tabId);
+    // A restore may still be pending; without this the saved copy returns and
+    // the popup shows the previous episode again.
+    clearedTabs.add(tabId);
     schedulePersist();
   }
 
@@ -415,6 +449,10 @@ var MPV_Network = (function () {
       return out;
     },
     clearTab: clearTab,
-    clearAll: function () { byTab.clear(); schedulePersist(); }
+    clearAll: function () {
+      byTab.forEach(function (items, tabId) { clearedTabs.add(tabId); });
+      byTab.clear();
+      schedulePersist();
+    }
   };
 })();

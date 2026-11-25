@@ -856,7 +856,13 @@ namespace MpvLauncher.Gui.Services
                 if (shipped == null) return null;
 
                 string installed = ReadManifestVersion(installedManifest);
-                if (!IsNewerVersion(shipped, installed)) return null;
+                // The app ships the extension it was built with, so the bundled
+                // version wins either way: a copy at any other version is stale,
+                // including an older one left over from a previous build. That is
+                // why this compares equality instead of "newer than" - otherwise a
+                // rebuild with a lower version number would never reach the disk.
+                if (string.IsNullOrWhiteSpace(shipped)) return null;
+                if (string.Equals(shipped, installed, StringComparison.Ordinal)) return null;
 
                 // Only the extension is rewritten. Themes keep a hand-edited
                 // copy and language packs merge forward - both are the user's.

@@ -4,7 +4,7 @@
 
 <p align="center">
 <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="MIT Lisansı"></a>
-<a href="https://github.com/vegasline/MPVLauncher/releases/latest"><img src="https://img.shields.io/badge/app-1.9.16--fix-blue.svg" alt="Uygulama sürümü 1.9.16-fix"></a>
+<a href="https://github.com/vegasline/MPVLauncher/releases/latest"><img src="https://img.shields.io/badge/app-1.9.17-blue.svg" alt="Uygulama sürümü 1.9.16-fix"></a>
 <a href="https://addons.mozilla.org/firefox/addon/mpv-launcher/"><img src="https://img.shields.io/badge/Firefox_Eklentisi-FF7139FF?logo=firefox-browser&logoColor=white" alt="Firefox eklentisi"></a>
 </p>
 
@@ -226,6 +226,40 @@ Ayarlar **Ayarlar → Torrent akışı** altındadır: geçici klasör, hatırla
 yardımcı kurulumu ve **Gelişmiş** grubu (ileri pencere, mpv tamponu, yükleme
 sınırı, bağlantı sınırları, dosya sonu beklemesi). Gelişmiş değerler her
 başlatmada güvenli varsayılanlarına döner.
+
+---
+
+## 🌐 Tarayıcı aktarımı (isteğe bağlı)
+
+Bazı siteler videoyu sayfanın kendi oynatıcısına, yalnızca o oynatıcının
+kullanabildiği kısa ömürlü ve tek kullanımlık bir adresle verir; adresi mpv'ye
+kopyaladığınızda sunucu `403` döner. İsteğe bağlı tarayıcı aktarımı tam bu
+durum için var: sayfayı yalıtılmış bir tarayıcı penceresinde açar, sitenin
+oynatıcısının yayını istemesine izin verir, aynı tarayıcı oturumundan yayını
+yeniden çeker ve `127.0.0.1` üzerinden mpv'ye sunar.
+
+- 🧩 **Varsayılan olarak kapalı, isteğe bağlı kurulur.** **Ayarlar → Tarayıcı
+  aktarımı** anahtarını açın, ardından yardımcıyı **Bağımlılıklar → Browser
+  relay (mpvrelay)** altından kurun. Dosya bu deponun `mpvrelay-v*` sürümünden
+  gelir ve yayımlanan SHA-256 ile doğrulanır.
+- 🔍 **Yalnızca gerektiğinde.** Normal bir video bağlantısı, `.m3u8`/`.mp4`
+  dosyası veya torrent aktarıma hiç uğramaz. Aktarım; uzantısı olmayan ve
+  sayfanın kendisine ait eklenti yayınlarında, ayrıca doğrudan denemesi mpv'yi
+  başlatamayan yapıştırılmış sayfa adreslerinde kullanılır. Aktarımın bir kez
+  çözdüğü siteler hatırlanır; **Öğrenilen siteleri unut** bu listeyi temizler.
+- 🪟 **Gözünüze sokulan pencere yok.** Tarayıcı, kendi geçici profiliyle gizli
+  çalışır - uzantı yok, kayıtlı oturum yok, normal oturumunuza sekme eklenmez.
+  Bir site gizli oynamayı reddederse pencere gösterilir; hiçbir durumda sessizce
+  görünmez kalmaya devam etmez.
+- 🍪 **Çerez asla.** Uygulama ve aktarım çerezleri veya `Authorization`
+  başlıklarını okumaz, saklamaz, günlüğe yazmaz; mpv yalnızca `127.0.0.1` ile
+  konuşur. Sınırı da budur: oturum açmayı gerektiren bir video aktarım
+  üzerinden **oynamaz**.
+- 🧹 **Arkada hiçbir şey kalmaz.** mpv kapandığında veya uygulama kapandığında
+  yardımcı ve tarayıcısı çıkar; oturum klasörleri çıkışta, daha önce çökmeden
+  kalanlar ise bir sonraki açılışta silinir.
+- 🚫 **Kapsam dışı.** DRM, CAPTCHA ve Cloudflare engelleri aşılmaz; ne uygulama
+  ne de eklenti sayfa betiği çalıştırır.
 
 ---
 

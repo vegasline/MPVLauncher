@@ -4,7 +4,7 @@
 
 <p align="center">
 <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="MIT License"></a>
-<a href="https://github.com/vegasline/MPVLauncher/releases/latest"><img src="https://img.shields.io/badge/app-1.9.16--fix-blue.svg" alt="App version 1.9.16-fix"></a>
+<a href="https://github.com/vegasline/MPVLauncher/releases/latest"><img src="https://img.shields.io/badge/app-1.9.17-blue.svg" alt="App version 1.9.16-fix"></a>
 <a href="https://addons.mozilla.org/firefox/addon/mpv-launcher/"><img src="https://img.shields.io/badge/Firefox_Add--on-FF7139FF?logo=firefox-browser&logoColor=white" alt="Firefox add-on"></a>
 </p>
 
@@ -222,6 +222,48 @@ Settings live under **Settings → Torrent streaming**: temporary folder,
 remembered file, helper install, and an **Advanced** group (forward window, mpv
 buffer, upload limit, connection limits, end-of-file wait). Advanced values return to their safe
 defaults on every start.
+
+---
+
+## 🌐 Browser relay (optional)
+
+Some sites hand their video to the page's own player as a short-lived, one-time
+URL that only that player may fetch - copy it into mpv and the server answers
+`403`. The optional browser relay exists for exactly that case.
+
+The relay is a small local helper called `mpvrelay`. It asks the tab you already
+have open for the stream address, re-uses that tab's own request headers, and
+serves the stream to mpv from `127.0.0.1`. Nothing is fetched behind your back
+and no second browser is started: the helper borrows the session your tab
+already has.
+
+- 🧩 **Off by default, nothing to install by hand.** Turn on **Settings →
+  Browser relay**. The launcher then downloads the helper from this repository's
+  `mpvrelay-v*` release, verifies its published SHA-256, and keeps it on the
+  newest release automatically, the same way it updates yt-dlp and mpv. There is
+  no separate install button and no update button to press.
+- 🔍 **Only when it is needed.** A normal video link, a `.m3u8`/`.mp4` file or a
+  torrent never touches the relay. It is used for extension streams that carry
+  no file extension and belong to the page itself, and for a pasted page URL
+  whose direct attempt did not start mpv. Sites the relay has already solved are
+  remembered; **Forget learned sites** clears that list.
+- ⛔ **Never relay these sites.** Settings keeps a blacklist, pre-filled with
+  `youtube.com`, `twitch.tv` and `kick.com`. Add or remove any host you like; an
+  entry also covers its subdomains (`youtube.com` covers `www.youtube.com`). A
+  listed site always opens directly, even while the relay is on. Those players
+  only work inside the page's own scripts and need the site's full player
+  stack, which the relay does not attempt.
+- 🍪 **No credentials, ever.** The launcher and the relay never read, store or
+  log cookies or `Authorization` headers, and mpv only ever talks to
+  `127.0.0.1`. That is also the limit: a video behind a login will **not** play
+  through the relay.
+- 🧹 **Nothing left running.** The helper exits when mpv exits or the launcher
+  closes, and it refuses anything that is not the stream it was started for.
+- 🚫 **Out of scope.** DRM, CAPTCHA and Cloudflare challenges are not bypassed.
+
+For the full picture - what the helper does, how it is installed and updated,
+which sites are never relayed and what it never touches - see
+[docs/browser-relay.md](docs/browser-relay.md).
 
 ---
 

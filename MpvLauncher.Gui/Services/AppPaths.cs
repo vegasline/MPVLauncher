@@ -67,6 +67,9 @@ namespace MpvLauncher.Gui.Services
         /// <summary>The optional torrent helper. Downloaded, never shipped.</summary>
         public static string TorrentHelperExe => Path.Combine(Default.BinDir, "mpvtorrent.exe");
 
+        /// <summary>The optional browser relay helper. Downloaded, never shipped.</summary>
+        public static string RelayHelperExe => Path.Combine(Default.BinDir, "mpvrelay.exe");
+
         /// <summary>Persistent DHT and metadata cache for the torrent helper.</summary>
         public static string TorrentCacheDir => Path.Combine(Default.CacheDir, "torrent");
 

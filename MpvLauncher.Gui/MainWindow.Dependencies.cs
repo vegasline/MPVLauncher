@@ -790,6 +790,13 @@ namespace MpvLauncher.Gui
         /// </summary>
         private async Task CheckForUpdatesInBackgroundAsync()
         {
+            // The relay helper follows the same rule as the app and the other
+            // tools: while auto-update is on and the relay is enabled, every
+            // launch keeps it on the newest published release without asking.
+            // When it is already current this costs one GitHub query.
+            if (_configService.Config.AutoUpdate && _configService.Config.RelayEnabled)
+                _ = EnsureRelayHelperAsync();
+
             if (_updateService == null || !_configService.Config.AutoUpdate) return;
 
             try

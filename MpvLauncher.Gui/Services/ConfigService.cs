@@ -1,4 +1,4 @@
-ï»¿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -155,6 +155,30 @@ namespace MpvLauncher.Gui.Services
         /// defaults in <see cref="TorrentSettings.DefaultTrackerList"/>.
         /// </summary>
         public string TorrentTrackerList { get; set; } = "";
+
+        /// <summary>
+        /// Master switch for the browser relay. Off by default: the helper is an
+        /// optional download and nothing about a normal link changes while this
+        /// is false.
+        /// </summary>
+        public bool RelayEnabled { get; set; } = false;
+
+        /// <summary>
+        /// Hosts that answered 403 to a direct attempt and then played through
+        /// the relay, so later links from them go to the relay first. Stored
+        /// host-only, never with a path or query, and clearable in Settings.
+        /// </summary>
+        public List<string> RelayLearnedHosts { get; set; } = new();
+        /// <summary>
+        /// Sites that must never go through the relay even when it is on. Their
+        /// players only work with the viewer's own scripts and session, so a
+        /// relayed fetch returns an error page. Editable in Settings.
+        /// </summary>
+        public List<string> RelayBlacklist { get; set; } = new(RelayRouting.DefaultBlacklist);
+
+        /// <summary>Version and hash of the installed mpvrelay.exe, if any.</summary>
+        public string RelayHelperVersion { get; set; } = "";
+        public string RelayHelperSha256 { get; set; } = "";
 
         /// <summary>Version tag of the installed helper, for update checks.</summary>
         public string TorrentHelperVersion { get; set; } = "";
@@ -561,7 +585,7 @@ namespace MpvLauncher.Gui.Services
 
             // A known title outranks a bare link: playing the same thing again
             // - from the launcher, where no page title was fetched yet - must not
-            // demote a row that already reads "Paws & Palaces - 4. BÃ¶lÃ¼m".
+            // demote a row that already reads "Paws & Palaces - 4. Bölüm".
             string effectiveTitle = string.IsNullOrEmpty(title) || title == url
                 ? (string.IsNullOrEmpty(previousTitle) ? url : previousTitle)
                 : title;

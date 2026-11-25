@@ -9,6 +9,49 @@
  */
 
 (function () {
+  // ---------------------------------------------------------------- nav clock
+
+  // The background sweep asks which requests this page made *after* the viewer
+  // picked the episode. Only the page can answer that: an SPA route change
+  // fires no tab event, and reading one in the background would need the
+  // "tabs" permission. A timestamp costs nothing and needs no permission.
+  const navMark = () => {
+    try {
+      window.__mpvNavAt = Date.now();
+    } catch (e) {
+      // A page that froze its own global object still gets scanned.
+    }
+  };
+
+  try {
+    if (!window.__mpvNavAt) {
+      window.__mpvNavAt = performance.timeOrigin || Date.now();
+    }
+  } catch (e) {
+    // Same as above: the sweep falls back to the unfiltered timeline.
+  }
+
+  try {
+    // The Navigation API fires on every SPA route change; popstate and
+    // hashchange cover the history-based players that never use it.
+    if (window.navigation && window.navigation.addEventListener) {
+      window.navigation.addEventListener("navigate", navMark);
+    }
+    window.addEventListener("popstate", navMark);
+    window.addEventListener("hashchange", navMark);
+    if (window.top === window) {
+      let lastHref = location.href;
+      setInterval(() => {
+        if (location.href !== lastHref) {
+          lastHref = location.href;
+          navMark();
+        }
+      }, 1000);
+    }
+  } catch (e) {
+    // Listeners are an optimisation; a missed mark only widens the sweep.
+  }
+
   // ---------------------------------------------------------------- constants
 
   // Extensions that are unambiguously a media file.

@@ -6,6 +6,8 @@ using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.Json;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace MpvLauncher.Gui.Services
 {
@@ -129,6 +131,11 @@ namespace MpvLauncher.Gui.Services
 
             var stdin = Console.OpenStandardInput();
             var stdout = Console.OpenStandardOutput();
+            // Plan A: the relay fetches through the viewer's own tab instead of
+            // opening a browser of its own, so the host has to answer requests
+            // while mpv is running. The streams are kept here for that bridge.
+            BrokerStdin = stdin;
+            BrokerStdout = stdout;
 
             try
             {
@@ -169,13 +176,61 @@ namespace MpvLauncher.Gui.Services
                     if (msg.TryGetValue("title", out var titleVal))
                         pageTitle = (titleVal?.ToString() ?? "").Trim();
 
+                    // "resolve" marks a stream the page's own player already
+                    // fetched. Those tokens are usually single use, so the relay
+                    // is given the page that produced it and renders that page
+                    // itself instead of replaying a spent URL.
+                    string kind = "";
+                    if (msg.TryGetValue("kind", out var kindVal))
+                        kind = (kindVal?.ToString() ?? "").Trim();
+
+                    string pageUrl = "";
+                    if (msg.TryGetValue("pageUrl", out var pageVal))
+                        pageUrl = (pageVal?.ToString() ?? "").Trim();
+
+                    // Counts only, never URLs: tells the log whether the tab had
+                    // any candidate when the pick came back empty.
+                    string pick = "";
+                    if (msg.TryGetValue("pick", out var pickVal))
+                        pick = (pickVal?.ToString() ?? "").Trim();
+
                     if (!string.IsNullOrWhiteSpace(url))
                     {
-                        Log($"Message received, URL: {RedactUrl(url)} | Audio: {RedactUrl(audioUrl)} | Sub: {RedactUrl(subUrl)} | Referrer: {referrer} | UA: {userAgent} | Title: {pageTitle}");
-                        SendMessage(stdout, new { status = "ok", url });
-                        ConfigService.AddHistoryStatic(url, pageTitle);
-                        LaunchMpv(url, referrer, audioUrl, subUrl, userAgent, pageTitle);
-                        System.Threading.Thread.Sleep(50);
+                        Log($"Message received, URL: {RedactUrl(url)} | Audio: {RedactUrl(audioUrl)} | Sub: {RedactUrl(subUrl)} | Referrer: {referrer} | UA: {userAgent} | Title: {pageTitle} | Kind: {kind} | Pick: {pick}");
+
+                        bool handled = false;
+                        if (RelayRouting.ForExtension(url, kind, ReadRelayEnabled(), ReadRelayBlacklist()) == MediaRoute.Relay)
+                        {
+                            string target = !string.IsNullOrWhiteSpace(pageUrl) ? pageUrl : url;
+                            // `url` is the stream the page asked for; `target` is
+                            // the page itself. Plan A needs both.
+                            string streamCandidate = string.IsNullOrWhiteSpace(kind) ? "" : url;
+                            if (TryPlayWithRelay(target, referrer, pageTitle, streamCandidate, audioUrl, subUrl, out string? relayError))
+                            {
+                                SendMessage(stdout, new { status = "ok", url });
+                                ConfigService.AddHistoryStatic(target, pageTitle);
+                                System.Threading.Thread.Sleep(50);
+                                handled = true;
+                            }
+                            else
+                            {
+                                // The route only sends non-media URLs here, so a
+                                // direct launch could do nothing but open an empty
+                                // window. Report the reason instead of pretending
+                                // the link was playable.
+                                Log($"Relay failed ({relayError}); not launching mpv.");
+                                SendMessage(stdout, new { status = "error", message = relayError ?? "relay_failed" });
+                                handled = true;
+                            }
+                        }
+
+                        if (!handled)
+                        {
+                            SendMessage(stdout, new { status = "ok", url });
+                            ConfigService.AddHistoryStatic(url, pageTitle);
+                            LaunchMpv(url, referrer, audioUrl, subUrl, userAgent, pageTitle);
+                            System.Threading.Thread.Sleep(50);
+                        }
                     }
                     else
                     {
@@ -194,6 +249,345 @@ namespace MpvLauncher.Gui.Services
             }
 
             Log("Native host exited.");
+        }
+
+        /// <summary>
+        /// Sites the viewer excluded from the relay. Read from the config file for
+        /// the same reason as the switch above, and falling back to the built-in
+        /// defaults when the key is absent so an older config never relays them.
+        /// </summary>
+        private static IReadOnlyList<string> ReadRelayBlacklist()
+        {
+            try
+            {
+                if (!File.Exists(AppPaths.ConfigFile)) return RelayRouting.DefaultBlacklist;
+                using var doc = JsonDocument.Parse(File.ReadAllText(AppPaths.ConfigFile));
+                if (!doc.RootElement.TryGetProperty("RelayBlacklist", out var value)
+                    || value.ValueKind != JsonValueKind.Array)
+                {
+                    return RelayRouting.DefaultBlacklist;
+                }
+                var hosts = new List<string>();
+                foreach (var item in value.EnumerateArray())
+                {
+                    string entry = (item.GetString() ?? "").Trim();
+                    if (entry.Length > 0) hosts.Add(entry);
+                }
+                return hosts;
+            }
+            catch
+            {
+                return RelayRouting.DefaultBlacklist;
+            }
+        }
+        /// <summary>
+        /// Whether the optional browser relay is switched on. Read straight from
+        /// the config file because the native host is a short-lived process that
+        /// has no ConfigService instance.
+        /// </summary>
+        private static bool ReadRelayEnabled()
+        {
+            try
+            {
+                if (!File.Exists(AppPaths.ConfigFile)) return false;
+                using var doc = JsonDocument.Parse(File.ReadAllText(AppPaths.ConfigFile));
+                return doc.RootElement.TryGetProperty("RelayEnabled", out var value)
+                       && value.ValueKind == JsonValueKind.True;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Renders the page in the relay helper and starts mpv on the local
+        /// playlist it serves. Returns false with a machine readable code so the
+        /// caller can fall back to a direct launch instead of failing outright.
+        /// </summary>
+        private static bool TryPlayWithRelay(string pageUrl, string referrer, string pageTitle,
+                                             string streamUrl, string audioUrl, string subUrl,
+                                             out string? errorCode)
+        {
+            errorCode = null;
+
+            if (!TryValidateMediaUrl(pageUrl, out string safePage))
+            {
+                errorCode = "relay_invalid_url";
+                return false;
+            }
+
+            // Plan A: when the extension hands over the captured stream URL, the
+            // helper never opens a browser. It asks this process for every byte
+            // and this process asks the tab the viewer already has open, so the
+            // site sees the same client it always saw.
+            string safeStream = "";
+            bool brokered = BrokerStdout != null
+                && !string.IsNullOrWhiteSpace(streamUrl)
+                && TryValidateMediaUrl(streamUrl, out safeStream);
+
+            // Without a captured stream there is nothing the viewer's tab could
+            // fetch, and the helper must not open a browser of its own: that is
+            // exactly what the site's bot wall blocked. Refuse and let the page
+            // ask the extension for a stream first.
+            if (BrokerStdout != null && !brokered)
+            {
+                errorCode = "relay_no_stream";
+                return false;
+            }
+
+            RelaySession session;
+            try
+            {
+                if (brokered)
+                {
+                    Log("Relay broker mode: fetching through the viewer's own tab.");
+                    var fetcher = new BridgeFetcher();
+                    _brokerFetcher = fetcher;
+                    EnsureReplyPump();
+                    session = RelaySessionService.StartAsync(
+                            safePage,
+                            pageTitle,
+                            progress: null,
+                            headless: true,
+                            CancellationToken.None,
+                            detach: true,
+                            streamUrl: safeStream,
+                            fetcher: fetcher)
+                        .GetAwaiter()
+                        .GetResult();
+                }
+                else
+                {
+                    // Detached: this process exits as soon as mpv is running, and
+                    // the helper then watches mpv instead of its parent.
+                    session = RelaySessionService.StartAsync(
+                            safePage,
+                            pageTitle,
+                            progress: null,
+                            headless: true,
+                            CancellationToken.None,
+                            detach: true)
+                        .GetAwaiter()
+                        .GetResult();
+                }
+            }
+            catch (RelayException ex)
+            {
+                _brokerFetcher = null;
+                errorCode = ex.Code;
+                return false;
+            }
+            catch (Exception ex)
+            {
+                _brokerFetcher = null;
+                Log($"relay start failed: {ex.GetType().Name}");
+                errorCode = "relay_helper_failed";
+                return false;
+            }
+
+            if (brokered)
+            {
+                _brokerSession = session;
+                if (_brokerFetcher != null)
+                {
+                    _ = session.PumpAsync(_brokerFetcher, CancellationToken.None);
+                }
+
+                // The helper exits when mpv does. Keep this host alive only that
+                // long, so the browser port is closed with the player.
+                _ = Task.Run(async () =>
+                {
+                    try
+                    {
+                        await session.WaitForExitAsync().ConfigureAwait(false);
+                    }
+                    catch
+                    {
+                        // A dead process is exactly what is being waited for.
+                    }
+                    Environment.Exit(0);
+                });
+            }
+
+            Log($"Relay ready for {RedactUrl(safePage)}");
+
+            // The page is the referrer now: the helper's own fetches carry it,
+            // and mpv only ever sees the loopback URL.
+            Process? mpv = LaunchMpv(session.LocalUrl, session.PageUrl, audioUrl, subUrl, pageTitle: pageTitle);
+            if (mpv == null)
+            {
+                session.Dispose();
+                errorCode = "relay_mpv_failed";
+                return false;
+            }
+
+            session.AttachMpv(mpv.Id);
+            return true;
+        }
+
+        /// <summary>The native-messaging streams, kept for the brokered relay.</summary>
+        private static Stream? BrokerStdin;
+        private static Stream? BrokerStdout;
+
+        /// <summary>The live brokered session and its fetcher, when one is running.</summary>
+        private static RelaySession? _brokerSession;
+        private static BridgeFetcher? _brokerFetcher;
+        private static int _replyPumpStarted;
+
+        /// <summary>
+        /// Carries the helper's fetch requests to the extension and its answers
+        /// back. The helper asks for a URL, this writes one native message to the
+        /// open port, and the extension fetches it inside the page it is already
+        /// on - the only context the site accepts.
+        /// </summary>
+        private sealed class BridgeFetcher : IRelayFetcher
+        {
+            private readonly object _gate = new object();
+            private readonly Dictionary<int, TaskCompletionSource<RelayFetch>> _pending = new Dictionary<int, TaskCompletionSource<RelayFetch>>();
+
+            public bool HasPending
+            {
+                get { lock (_gate) return _pending.Count > 0; }
+            }
+
+            public Task<RelayFetch> FetchAsync(int id, string url,
+                                               IReadOnlyDictionary<string, string> headers,
+                                               CancellationToken cancellationToken)
+            {
+                var waiter = new TaskCompletionSource<RelayFetch>(TaskCreationOptions.RunContinuationsAsynchronously);
+                lock (_gate) _pending[id] = waiter;
+
+                Stream? output = BrokerStdout;
+                if (output == null)
+                {
+                    return Task.FromResult(new RelayFetch(0, "", "", "port_closed"));
+                }
+
+                try
+                {
+                    SendMessage(output, new { type = "fetch", id, url });
+                }
+                catch (Exception error)
+                {
+                    lock (_gate) _pending.Remove(id);
+                    return Task.FromResult(new RelayFetch(0, "", "", error.Message));
+                }
+
+                if (cancellationToken.CanBeCanceled)
+                {
+                    cancellationToken.Register(() =>
+                    {
+                        lock (_gate)
+                        {
+                            if (_pending.Remove(id))
+                                waiter.TrySetResult(new RelayFetch(0, "", "", "cancelled"));
+                        }
+                    });
+                }
+
+                return waiter.Task;
+            }
+
+            public void Complete(Dictionary<string, object?> message)
+            {
+                int id = ReadInt(message, "id");
+                if (id <= 0) return;
+
+                TaskCompletionSource<RelayFetch>? waiter;
+                lock (_gate)
+                {
+                    if (!_pending.TryGetValue(id, out waiter)) return;
+                    _pending.Remove(id);
+                }
+
+                var reply = new RelayFetch(
+                    ReadInt(message, "status"),
+                    ReadString(message, "contentType"),
+                    ReadString(message, "body"),
+                    ReadString(message, "error"));
+                waiter.TrySetResult(reply);
+            }
+
+            public void FailAll(string error)
+            {
+                List<TaskCompletionSource<RelayFetch>> waiters;
+                lock (_gate)
+                {
+                    waiters = new List<TaskCompletionSource<RelayFetch>>(_pending.Values);
+                    _pending.Clear();
+                }
+                foreach (var waiter in waiters)
+                    waiter.TrySetResult(new RelayFetch(0, "", "", error));
+            }
+
+            private static int ReadInt(Dictionary<string, object?> message, string name)
+            {
+                if (!message.TryGetValue(name, out var value) || value == null) return 0;
+                if (value is int number) return number;
+                return int.TryParse(value.ToString(), out int parsed) ? parsed : 0;
+            }
+
+            private static string ReadString(Dictionary<string, object?> message, string name)
+            {
+                if (!message.TryGetValue(name, out var value) || value == null) return "";
+                return value.ToString() ?? "";
+            }
+        }
+
+        /// <summary>
+        /// Reads the extension's replies for the whole life of the relay. Started
+        /// before the helper starts, because the helper's very first fetch is the
+        /// master playlist and it blocks until this loop answers it.
+        /// </summary>
+        private static void PumpBrokerReplies()
+        {
+            Stream? input = BrokerStdin;
+            if (input == null) return;
+
+            try
+            {
+                while (true)
+                {
+                    var message = ReadMessage(input);
+                    if (message == null) break;
+
+                    if (message.TryGetValue("cmd", out var cmd)
+                        && string.Equals(cmd?.ToString(), "fetch", StringComparison.Ordinal))
+                    {
+                        _brokerFetcher?.Complete(message);
+                    }
+                    else if (message.TryGetValue("type", out var kind)
+                             && string.Equals(kind?.ToString(), "diag", StringComparison.Ordinal))
+                    {
+                        // The extension narrates each brokered fetch here, so a
+                        // fetch that never comes back leaves a trail in host.log
+                        // instead of one silent 60 s timeout.
+                        Log("relay diag: " + (message.TryGetValue("text", out var text) ? text?.ToString() : ""));
+                    }
+                }
+            }
+            catch (Exception error)
+            {
+                Log($"broker reply loop ended: {error.GetType().Name}");
+            }
+
+            // The page went away: every waiting fetch has to fail now or the
+            // helper would sit on a request that can never be answered.
+            _brokerFetcher?.FailAll("page_closed");
+        }
+
+        private static void EnsureReplyPump()
+        {
+            if (Interlocked.Exchange(ref _replyPumpStarted, 1) != 0) return;
+            // Foreground on purpose: this thread is what keeps the host process
+            // alive while mpv plays, so the port stays open for fetches.
+            var thread = new Thread(PumpBrokerReplies)
+            {
+                IsBackground = false,
+                Name = "mpv-relay-broker",
+            };
+            thread.Start();
         }
 
         private static void Log(string msg)
@@ -241,13 +635,21 @@ namespace MpvLauncher.Gui.Services
                 Encoding.UTF8.GetString(body, 0, read));
         }
 
+        private static readonly object SendGate = new object();
+
         private static void SendMessage(Stream s, object response)
         {
             byte[] json = JsonSerializer.SerializeToUtf8Bytes(response);
             byte[] len = BitConverter.GetBytes(json.Length);
-            s.Write(len, 0, 4);
-            s.Write(json, 0, json.Length);
-            s.Flush();
+            // Two threads write here: the request handler sends the status, and
+            // the relay's fetcher answers the helper mid-playback. Chrome reads
+            // one length-prefixed frame at a time, so the framing needs a lock.
+            lock (SendGate)
+            {
+                s.Write(len, 0, 4);
+                s.Write(json, 0, json.Length);
+                s.Flush();
+            }
         }
 
         /// <summary>
@@ -333,9 +735,9 @@ namespace MpvLauncher.Gui.Services
             return outArgs;
         }
 
-        private static void LaunchMpv(string url, string? referrer = null, string? audioUrl = null,
-                                      string? subUrl = null, string? userAgent = null,
-                                      string? pageTitle = null)
+        private static Process? LaunchMpv(string url, string? referrer = null, string? audioUrl = null,
+                                          string? subUrl = null, string? userAgent = null,
+                                          string? pageTitle = null)
         {
             string? mpv = FindMpvPath();
             Log($"launch_mpv url: {RedactUrl(url)} | Referrer: {referrer} | MPV: {mpv}");
@@ -343,7 +745,7 @@ namespace MpvLauncher.Gui.Services
             if (string.IsNullOrEmpty(mpv) || !File.Exists(mpv))
             {
                 Log($"ERROR: MPV not found: {mpv}");
-                return;
+                return null;
             }
 
             string geometry = "960x540";
@@ -390,7 +792,7 @@ namespace MpvLauncher.Gui.Services
             if (!TryValidateMediaUrl(url, out string safeUrl))
             {
                 Log($"ERROR: refusing non-http(s) media URL: {RedactUrl(url)}");
-                return;
+                return null;
             }
 
             // The browser's own User-Agent when the extension captured one: some
@@ -433,6 +835,15 @@ namespace MpvLauncher.Gui.Services
             // made-up origin makes yt-dlp reject the URL outright.
             args.AddRange(BuildReferrerArgs(referrer ?? ""));
 
+            // The relay serves playlists and segments from extensionless loopback
+            // paths. mpv's HLS demuxer trusts the extension by default and then
+            // refuses a segment it cannot name, so both checks are relaxed - but
+            // only for the relay's own URL, never for a link from the web.
+            if (Uri.TryCreate(safeUrl, UriKind.Absolute, out Uri? relayUrl) && relayUrl.IsLoopback)
+            {
+                args.Add("--demuxer-lavf-o=allowed_segment_extensions=ALL,extension_picky=0");
+            }
+
             // The tab title, if the extension sent one. mpv otherwise shows the
             // last segment of the media URL, which on a signed CDN link is a
             // token, not a name. Both options are set so the window title and
@@ -453,6 +864,9 @@ namespace MpvLauncher.Gui.Services
 
             // 1. WMI Win32_Process.Create - starts the process fully detached
             //    inside the interactive session, so the mpv window appears.
+            //    The relay path needs the pid (the helper watches the process),
+            //    and this is the only strategy that can hand it back, so return
+            //    it as early as possible.
             try
             {
                 Type? locatorType = Type.GetTypeFromProgID("WbemScripting.SWbemLocator");
@@ -463,12 +877,23 @@ namespace MpvLauncher.Gui.Services
                     {
                         dynamic service = locator.ConnectServer(".", @"root\cimv2");
                         dynamic processClass = service.Get("Win32_Process");
-                        int returnVal = (int)processClass.Create(cmdLine);
+                        object?[] inParams = { cmdLine, null, null };
+                        int returnVal = (int)processClass.Create(
+                            cmdLine, null, null, out object? processIdObj);
                         Log($"WMI Win32_Process.Create result: {returnVal}");
                         if (returnVal == 0)
                         {
                             Log("Started via WMI.");
-                            return;
+                            try
+                            {
+                                uint pid = Convert.ToUInt32(processIdObj);
+                                if (pid > 0) return Process.GetProcessById((int)pid);
+                            }
+                            catch (Exception exPid)
+                            {
+                                Log($"WMI pid lookup failed: {exPid.Message}");
+                            }
+                            return null;
                         }
                     }
                 }
@@ -488,9 +913,9 @@ namespace MpvLauncher.Gui.Services
                     WorkingDirectory = Path.GetDirectoryName(safeExe) ?? ""
                 };
                 foreach (string a in args) psi.ArgumentList.Add(a);
-                Process.Start(psi);
+                var started = Process.Start(psi);
                 Log("Started MPV via Process.Start (UseShellExecute).");
-                return;
+                return started;
             }
             catch (Exception exDirect)
             {
@@ -510,13 +935,16 @@ namespace MpvLauncher.Gui.Services
                     WorkingDirectory = Path.GetDirectoryName(safeExe) ?? ""
                 };
                 foreach (string a in args) psi.ArgumentList.Add(a);
-                Process.Start(psi);
+                var started = Process.Start(psi);
                 Log("Started via Process.Start (detached).");
+                return started;
             }
             catch (Exception exProc)
             {
                 Log($"Launch error: {exProc.Message}");
             }
+
+            return null;
         }
 
         /// <summary>
